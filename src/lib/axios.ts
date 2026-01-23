@@ -30,8 +30,9 @@ const refreshAccessToken = async (): Promise<string> => {
     console.log(`[Token Refresh] 토큰 갱신 시도 (${refreshRetryCount + 1}/${MAX_REFRESH_RETRIES})`)
     
     // 토큰 갱신 API 호출 (인터셉터를 우회하여 호출)
+    const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
     const response = await axios.post(
-      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/adminMember/tokenrefresh`,
+      `${baseURL}/adminMember/tokenrefresh`,
       {},
       {
         headers: {
