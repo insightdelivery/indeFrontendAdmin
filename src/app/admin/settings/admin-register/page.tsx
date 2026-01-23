@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { getAdminList, registerAdmin, updateAdmin, deleteAdmin, AdminMember } from '@/services/admin'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -31,11 +31,7 @@ export default function AdminRegisterPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deletingAdmin, setDeletingAdmin] = useState<AdminMember | null>(null)
 
-  useEffect(() => {
-    loadAdminList()
-  }, [])
-
-  const loadAdminList = async () => {
+  const loadAdminList = useCallback(async () => {
     try {
       setLoading(true)
       const data = await getAdminList()
@@ -50,7 +46,11 @@ export default function AdminRegisterPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
+
+  useEffect(() => {
+    loadAdminList()
+  }, [loadAdminList])
 
   // 검색 및 활성화 상태 필터링
   const filteredAdmins = admins.filter((admin) => {

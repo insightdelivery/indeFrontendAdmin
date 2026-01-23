@@ -81,3 +81,40 @@
 
 ---
 **AI에게**: 위 규칙을 엄격히 준수하세요. 특히 **토큰은 무조건 쿠키(Cookie)로 관리**하고, **Next.js 미들웨어**를 통해 페이지 보안을 처리해야 합니다.
+
+
+너는 Next.js 배포 전문가야.
+
+내 프로젝트는 Next.js를 정적(export) 방식으로 배포해야 하고,
+빌드 결과로 반드시 out/ 폴더가 생성되어야 해.
+
+현재 상태:
+- 프로젝트 경로: /Users/hyoungjinnam/macSyncData/DEV/INDE/frontend_admin
+- npm run build를 해도 out/ 폴더가 생성되지 않음
+- Ubuntu 서버에서는 정적 파일만 nginx로 서빙할 예정
+- 서버에서는 Node 실행, next start, SSR 사용 안 함
+
+목표:
+- Next.js 정적 export(out) 방식으로 동작하도록 프로젝트를 수정해줘
+- npm run build 실행 후 out/ 폴더가 생성되게 만들어줘
+
+구체적인 요구사항:
+1. next.config.js (또는 next.config.mjs)를 확인하고
+   - output: 'export' 설정이 없으면 추가
+   - next/image를 쓰고 있다면 images.unoptimized = true 설정
+2. package.json의 scripts를 확인해서
+   - Next.js 버전에 맞게 build/export 방식이 올바른지 수정
+3. 정적 export가 불가능한 코드(getServerSideProps, server actions 등)가 있다면
+   - 어떤 파일이 문제인지 알려주고
+   - 가능한 경우 정적 방식으로 변경 제안
+4. 수정이 필요한 파일은 직접 고쳐줘
+5. 변경 후 내가 실행해야 할 정확한 빌드 명령을 알려줘
+
+중요 제약:
+- SSR, API routes, Route Handlers 사용 금지
+- 서버에서 환경변수 주입하지 않음 (빌드 시점 고정)
+- 결과는 nginx에서 index.html + _next 정적 파일로 서빙됨
+
+최종 결과:
+- npm run build 이후 out/ 디렉터리가 생성됨
+- out/ 안에 index.html, _next/, static assets가 존재함

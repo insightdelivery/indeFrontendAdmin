@@ -1,3 +1,7 @@
+// 주의: 정적 export(output: 'export') 모드에서는 middleware가 작동하지 않습니다.
+// 인증 체크는 클라이언트 사이드에서 처리됩니다 (app/admin/layout.tsx 참조).
+// 이 파일은 정적 export 빌드 시 무시되지만, 개발 모드나 향후 SSR 전환 시를 위해 유지합니다.
+
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
