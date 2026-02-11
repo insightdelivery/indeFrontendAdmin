@@ -265,10 +265,14 @@ export default function ArticleCreatePage() {
 
       const requestData: ArticleCreateRequest = {
         ...data,
-        thumbnail: thumbnailData || undefined,
         questions: questions.filter((q) => q.trim() !== ''),
         tags: data.tags?.filter((tag) => tag.trim() !== ''),
         scheduledAt: scheduledAtISO,
+      }
+
+      // 썸네일이 있는 경우에만 requestData에 추가
+      if (thumbnailData !== undefined) {
+        requestData.thumbnail = thumbnailData
       }
 
       await createArticle(requestData)

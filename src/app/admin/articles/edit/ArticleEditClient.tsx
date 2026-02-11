@@ -248,30 +248,9 @@ function ArticleEditForm() {
 
       // 썸네일 업로드 처리
       // 썸네일이 변경된 경우에만 전송
-      let thumbnailData: string | undefined = undefined
-      
       // 썸네일이 변경되었는지 확인
       const thumbnailChanged = thumbnail !== initialThumbnail
       
-      if (thumbnailChanged && thumbnail) {
-        if (thumbnail.startsWith('data:image')) {
-          // base64 데이터인 경우 백엔드로 전송 (백엔드에서 S3에 업로드)
-          thumbnailData = thumbnail
-        } else {
-          // 이미 URL인 경우 (500자 제한)
-          if (thumbnail.length <= 500) {
-            thumbnailData = thumbnail
-          } else {
-            toast({
-              title: '경고',
-              description: '썸네일 URL이 너무 깁니다. (최대 500자)',
-              variant: 'destructive',
-              duration: 3000,
-            })
-          }
-        }
-      }
-
       // scheduledAt을 ISO 8601 형식으로 변환
       let scheduledAtISO = undefined
       if (data.scheduledAt) {
@@ -282,14 +261,43 @@ function ArticleEditForm() {
         }
       }
 
+      // 썸네일 처리
+      let thumbnailToSend: string | undefined = undefined
+      if (thumbnailChanged) {
+        if (!thumbnail || thumbnail === '') {
+          // 썸네일이 삭제된 경우 빈 문자열로 전송
+          thumbnailToSend = ''
+        } else if (thumbnail.startsWith('data:image')) {
+          // base64 데이터인 경우 백엔드로 전송 (백엔드에서 S3에 업로드)
+          thumbnailToSend = thumbnail
+        } else {
+          // 이미 URL인 경우 (500자 제한)
+          if (thumbnail.length <= 500) {
+            thumbnailToSend = thumbnail
+          } else {
+            toast({
+              title: '경고',
+              description: '썸네일 URL이 너무 깁니다. (최대 500자)',
+              variant: 'destructive',
+              duration: 3000,
+            })
+            setSaving(false)
+            return
+          }
+        }
+      }
+
       const requestData: ArticleUpdateRequest = {
         id: articleId,
         ...data,
-        // 썸네일이 변경된 경우에만 포함
-        ...(thumbnailChanged && thumbnailData ? { thumbnail: thumbnailData } : {}),
         questions: questions.filter((q) => q.trim() !== ''),
         tags: data.tags?.filter((tag) => tag.trim() !== ''),
         scheduledAt: scheduledAtISO,
+      }
+
+      // 썸네일이 변경된 경우에만 requestData에 추가
+      if (thumbnailChanged && thumbnailToSend !== undefined) {
+        requestData.thumbnail = thumbnailToSend
       }
 
       await updateArticle(requestData)
