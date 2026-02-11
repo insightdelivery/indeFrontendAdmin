@@ -97,3 +97,7 @@ const response = await apiClient.get('/endpoint')
 - shadcn/ui 컴포넌트 우선 사용
 - Tailwind CSS로 스타일링
 
+
+
+
+

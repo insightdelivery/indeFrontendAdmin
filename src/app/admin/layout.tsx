@@ -18,7 +18,8 @@ import {
   Shield,
   UserPlus,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  FileText
 } from 'lucide-react'
 
 export default function AdminLayout({
@@ -82,6 +83,7 @@ export default function AdminLayout({
   // 메뉴 항목 정의
   const menuItems = [
     { href: '/admin', label: '대시보드', icon: LayoutDashboard },
+    { href: '/admin/articles', label: '아티클 관리', icon: FileText },
     { href: '/admin/users', label: '사용자 관리', icon: Users },
     { href: '/admin/orders', label: '주문 관리', icon: ShoppingCart },
   ]
@@ -138,7 +140,7 @@ export default function AdminLayout({
             <ul className="space-y-2">
               {menuItems.map((item) => {
                 const Icon = item.icon
-                const isActive = pathname === item.href
+                const isActive = pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(item.href))
                 return (
                   <li key={item.href}>
                     <Link

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { login, saveTokens } from '@/services/auth'
 import { useToast } from '@/hooks/use-toast'
+import { loadSysCodeOnLogin } from '@/lib/syscode'
 
 const loginSchema = z.object({
   memberShipId: z.string().min(1, '회원 ID를 입력해주세요'),
@@ -42,6 +43,19 @@ function LoginForm() {
       
       // 토큰 및 사용자 정보 저장
       saveTokens(response.access_token, response.refresh_token, response.user)
+      
+      // 로그인 성공 시 시스템 코드 하위 레벨을 localStorage에 저장
+      try {
+        await loadSysCodeOnLogin('SYS26209B002')  // 아티클 카태고리
+        await loadSysCodeOnLogin('SYS26127B017')  //회원가입 지역
+        await loadSysCodeOnLogin('SYS26127B018')  // 회원 가입 지역 국내 
+        await loadSysCodeOnLogin('SYS26127B006')  // 직분 코드
+        await loadSysCodeOnLogin('SYS26209B020')  // 아티클 발행정보
+        await loadSysCodeOnLogin('SYS26209B015')  // 아티클 공개범위설정
+      } catch (error) {
+        console.error('시스템 코드 로드 실패 (로그인 후):', error)
+        // 시스템 코드 로드 실패해도 로그인은 계속 진행
+      }
       
       toast({
         title: '로그인 성공',

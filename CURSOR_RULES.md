@@ -118,3 +118,63 @@
 최종 결과:
 - npm run build 이후 out/ 디렉터리가 생성됨
 - out/ 안에 index.html, _next/, static assets가 존재함
+
+
+
+// 파일 생성 룰 
+You are building a Next.js App Router (TypeScript) project.
+Rule: Do NOT put business logic in app/**/page.tsx.
+page.tsx must only compose already-made components and call a single container component if needed.
+
+Architecture:
+- app/(route)/<resource>/page.tsx: List page (composition only)
+- app/(route)/<resource>/[id]/page.tsx: Detail page (composition only)
+- app/(route)/<resource>/new/page.tsx: Create page (composition only)
+- app/(route)/<resource>/[id]/edit/page.tsx: Edit page (composition only)
+
+Create a feature folder:
+- features/<resource>/
+  - components/   (pure UI components)
+  - containers/   (page-level orchestrators; fetch/submit wires)
+  - hooks/        (client hooks: useList, useDetail, useMutations, useForm)
+  - services/     (API client functions; no UI)
+  - types/        (DTO, domain types)
+  - validators/   (zod schemas)
+  - constants/    (route names, query keys)
+  - index.ts      (barrel exports)
+
+Data rules:
+- All API calls go through features/<resource>/services/*.ts using axios/fetch wrapper.
+- Use React Query (TanStack Query) for list/detail caching and mutations.
+- Forms use react-hook-form + zodResolver, schema in validators/.
+- Never call axios/fetch directly inside page.tsx or presentational components.
+
+UI rules:
+- components/ are presentational: props in, events out. No API call.
+- containers/ connect hooks/services to components.
+
+CRUD pages output:
+- List: table + pagination + search filter
+- Detail: view fields + Delete button
+- Create/Edit: reusable <ResourceForm /> shared by both
+- Delete: mutation + confirm modal
+
+When asked to build a new resource, always generate:
+1) route pages (4)
+2) feature folder structure
+3) types + zod schema
+4) services for CRUD
+5) hooks for queries/mutations
+6) components (ListView, DetailView, ResourceForm)
+7) containers (ListContainer, DetailContainer, FormContainer)
+
+If existing code violates rules, refactor into this structure before adding new features.
+
+
+Resource name: "albums"
+Base route: /albums
+API base: /api/albums
+Fields: albumSid, title, artist, releaseDate, status
+List supports: search(title/artist), pagination(page,size), sort(releaseDate desc)
+
+
