@@ -284,6 +284,7 @@ export const uploadVideoFile = async (
     formData.append('file', file)
 
     // apiClient를 사용하여 업로드 (토큰 자동 갱신 지원)
+    // 큰 파일 업로드를 위해 타임아웃을 명시적으로 설정 (30분)
     const response = await apiClient.post<{
       IndeAPIResponse: {
         ErrorCode: string
@@ -301,6 +302,9 @@ export const uploadVideoFile = async (
       headers: {
         'Content-Type': 'multipart/form-data', // FormData 업로드를 위해 명시
       },
+      timeout: 30 * 60 * 1000, // 30분 (2GB 파일 업로드 고려)
+      maxContentLength: 2 * 1024 * 1024 * 1024, // 2GB
+      maxBodyLength: 2 * 1024 * 1024 * 1024, // 2GB
       onUploadProgress: (progressEvent) => {
         if (progressEvent.total && onProgress) {
           // 클라이언트 -> 서버 업로드 진행률 (약 90%까지)

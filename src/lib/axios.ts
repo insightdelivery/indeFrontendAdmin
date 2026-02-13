@@ -8,6 +8,9 @@ const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
   withCredentials: false, // 필요시 true로 변경
+  timeout: 30 * 60 * 1000, // 30분 (2GB 파일 업로드 고려)
+  maxContentLength: 2 * 1024 * 1024 * 1024, // 2GB (응답 최대 크기)
+  maxBodyLength: 2 * 1024 * 1024 * 1024, // 2GB (요청 본문 최대 크기)
 })
 
 // 토큰 갱신 중 플래그 (무한 루프 방지)
