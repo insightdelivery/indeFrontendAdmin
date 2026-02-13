@@ -19,7 +19,8 @@ import {
   UserPlus,
   ChevronDown,
   ChevronRight,
-  FileText
+  FileText,
+  Video
 } from 'lucide-react'
 
 export default function AdminLayout({
@@ -84,6 +85,7 @@ export default function AdminLayout({
   const menuItems = [
     { href: '/admin', label: '대시보드', icon: LayoutDashboard },
     { href: '/admin/articles', label: '아티클 관리', icon: FileText },
+    { href: '/admin/video', label: '비디오/세미나 관리', icon: Video },
     { href: '/admin/users', label: '사용자 관리', icon: Users },
     { href: '/admin/orders', label: '주문 관리', icon: ShoppingCart },
   ]
