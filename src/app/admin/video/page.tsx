@@ -97,7 +97,7 @@ export default function VideoListPage() {
         ...filters,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
-        contentType: contentType || undefined,
+        contentType: (contentType === 'video' || contentType === 'seminar') ? contentType as 'video' | 'seminar' : undefined,
         category: category === '전체' ? undefined : category,
         visibility: visibility || undefined,
         status: status || undefined,
@@ -551,7 +551,10 @@ export default function VideoListPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        {getSysCodeName(getSysCodeFromCache('SYS26209B002'), video.category) || video.category}
+                        {(() => {
+                          const codes = getSysCodeFromCache('SYS26209B002')
+                          return codes ? getSysCodeName(codes, video.category) : null
+                        })() || video.category}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -718,7 +721,10 @@ export default function VideoListPage() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div><span className="text-gray-500">상태</span><div>{getStatusBadge(selectedVideo.status)}</div></div>
                 <div><span className="text-gray-500">분류</span><div>{selectedVideo.contentType}</div></div>
-                <div><span className="text-gray-500">카테고리</span><div>{getSysCodeName(getSysCodeFromCache('SYS26209B002'), selectedVideo.category) || selectedVideo.category}</div></div>
+                <div><span className="text-gray-500">카테고리</span><div>{(() => {
+                  const codes = getSysCodeFromCache('SYS26209B002')
+                  return codes ? getSysCodeName(codes, selectedVideo.category) : null
+                })() || selectedVideo.category}</div></div>
                 <div><span className="text-gray-500">출연자</span><div>{selectedVideo.speaker || '-'}</div></div>
                 <div><span className="text-gray-500">작성자</span><div>{selectedVideo.editor || selectedVideo.director || '-'}</div></div>
               </div>

@@ -99,7 +99,10 @@ export default function VideoDetailClient() {
 
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div><span className="text-gray-500">분류</span><div>{video.contentType}</div></div>
-          <div><span className="text-gray-500">카테고리</span><div>{getSysCodeName(getSysCodeFromCache('SYS26209B002'), video.category) || video.category}</div></div>
+          <div><span className="text-gray-500">카테고리</span><div>{(() => {
+            const codes = getSysCodeFromCache('SYS26209B002')
+            return codes ? getSysCodeName(codes, video.category) : null
+          })() || video.category}</div></div>
           <div><span className="text-gray-500">상태</span><div>{video.status}</div></div>
           <div><span className="text-gray-500">출연자</span><div>{video.speaker || '-'}</div></div>
           <div><span className="text-gray-500">작성자</span><div>{video.editor || video.director || '-'}</div></div>
