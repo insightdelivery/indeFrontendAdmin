@@ -23,11 +23,36 @@ let refreshRetryCount = 0
 const MAX_REFRESH_RETRIES = 3
 
 /**
+ * 로그인 페이지로 리다이렉트하는 헬퍼 함수
+ */
+const redirectToLogin = () => {
+  if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+    // 쿠키 삭제
+    Cookies.remove('accessToken')
+    Cookies.remove('refreshToken')
+    Cookies.remove('userInfo')
+    
+    // 로그인 페이지로 리다이렉트
+    window.location.href = '/login'
+  }
+}
+
+/**
  * 토큰 갱신 함수
+ * 리프레시 토큰을 사용하여 새로운 액세스 토큰을 발급받습니다.
+ * 최대 3번까지 재시도하며, 실패 시 로그인 페이지로 이동합니다.
  */
 const refreshAccessToken = async (): Promise<string> => {
+  const currentRetry = refreshRetryCount + 1
+  
   try {
-    console.log(`[Token Refresh] 토큰 갱신 시도 (${refreshRetryCount + 1}/${MAX_REFRESH_RETRIES})`)
+    console.log(`[Token Refresh] 토큰 갱신 시도 (${currentRetry}/${MAX_REFRESH_RETRIES})`)
+    
+    // 현재 액세스 토큰 가져오기 (만료된 토큰도 허용)
+    const currentAccessToken = Cookies.get('accessToken')
+    if (!currentAccessToken) {
+      throw new Error('액세스 토큰이 없습니다.')
+    }
     
     // 토큰 갱신 API 호출 (인터셉터를 우회하여 호출)
     const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -37,25 +62,36 @@ const refreshAccessToken = async (): Promise<string> => {
       {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${Cookies.get('accessToken')}`,
+          Authorization: `Bearer ${currentAccessToken}`,
         },
       }
     )
 
-    // IndeAPIResponse 구조 파싱
-    const apiResponse = response.data.IndeAPIResponse
+    // 응답 데이터 파싱 (IndeAPIResponse 형식 또는 직접 응답 형식 모두 지원)
+    let responseData = response.data
     
-    if (!apiResponse || apiResponse.ErrorCode !== '00') {
-      throw new Error(apiResponse?.Message || '토큰 갱신에 실패했습니다.')
-    }
+    // IndeAPIResponse 형식인지 확인
+    if (responseData.IndeAPIResponse) {
+      const apiResponse = responseData.IndeAPIResponse
+      
+      if (!apiResponse || apiResponse.ErrorCode !== '00') {
+        throw new Error(apiResponse?.Message || '토큰 갱신에 실패했습니다.')
+      }
 
-    if (!apiResponse.Result) {
-      throw new Error('토큰 갱신 응답 데이터가 없습니다.')
+      if (!apiResponse.Result) {
+        throw new Error('토큰 갱신 응답 데이터가 없습니다.')
+      }
+
+      responseData = apiResponse.Result
     }
 
     // 새 토큰 저장
-    const newAccessToken = apiResponse.Result.access_token
-    const newRefreshToken = apiResponse.Result.refresh_token
+    const newAccessToken = responseData.access_token
+    const newRefreshToken = responseData.refresh_token
+    
+    if (!newAccessToken || !newRefreshToken) {
+      throw new Error('토큰 갱신 응답에 토큰이 없습니다.')
+    }
     
     Cookies.set('accessToken', newAccessToken, {
       expires: 1,
@@ -72,8 +108,8 @@ const refreshAccessToken = async (): Promise<string> => {
     })
 
     // 사용자 정보 업데이트
-    if (apiResponse.Result.user) {
-      Cookies.set('userInfo', JSON.stringify(apiResponse.Result.user), {
+    if (responseData.user) {
+      Cookies.set('userInfo', JSON.stringify(responseData.user), {
         expires: 1,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
@@ -90,25 +126,25 @@ const refreshAccessToken = async (): Promise<string> => {
     refreshRetryCount++
     console.error(`[Token Refresh] 토큰 갱신 실패 (${refreshRetryCount}/${MAX_REFRESH_RETRIES}):`, error)
     
+    // 에러 응답에서 메시지 추출
+    const errorMessage = error.response?.data?.error || 
+                        error.response?.data?.IndeAPIResponse?.Message || 
+                        error.message || 
+                        '토큰 갱신에 실패했습니다.'
+    
     if (refreshRetryCount >= MAX_REFRESH_RETRIES) {
       // 최대 재시도 횟수 초과
-      console.error('[Token Refresh] 최대 재시도 횟수 초과. 로그인 페이지로 이동합니다.')
+      console.error(`[Token Refresh] 최대 재시도 횟수 초과 (${MAX_REFRESH_RETRIES}회). 로그인 페이지로 이동합니다.`)
       refreshRetryCount = 0
       
-      // 쿠키 삭제
-      Cookies.remove('accessToken')
-      Cookies.remove('refreshToken')
-      Cookies.remove('userInfo')
-      
       // 로그인 페이지로 리다이렉트
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-        window.location.href = '/login'
-      }
+      redirectToLogin()
       
       throw new Error('토큰 갱신에 실패했습니다. 다시 로그인해주세요.')
     }
     
-    throw error
+    // 재시도 가능한 경우 에러를 다시 throw
+    throw new Error(errorMessage)
   }
 }
 
@@ -136,44 +172,25 @@ apiClient.interceptors.response.use(
     return response
   },
   async (error: AxiosError) => {
-    console.log('[Token Refresh Interceptor] Response Interceptor 호출됨')
-    console.log('[Token Refresh Interceptor] 에러 상태:', error.response?.status)
-    console.log('[Token Refresh Interceptor] 에러 URL:', error.config?.url)
-    console.log('[Token Refresh Interceptor] 에러 전체:', error)
-    
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
-    console.log('[Token Refresh Interceptor] originalRequest 존재:', !!originalRequest)
-    console.log('[Token Refresh Interceptor] originalRequest._retry:', originalRequest?._retry)
+    const errorStatus = error.response?.status
+    const requestUrl = originalRequest?.url
+
+    // 로그인 API는 토큰 갱신 시도하지 않음
+    if (requestUrl?.includes('/adminMember/login')) {
+      return Promise.reject(error)
+    }
 
     // 401 Unauthorized 또는 403 Forbidden 발생 시 토큰 갱신 시도
     // 403도 토큰 만료로 인한 권한 오류일 수 있으므로 처리
-    if ((error.response?.status === 401 || error.response?.status === 403) && originalRequest && !originalRequest._retry) {
-      console.log(`[Token Refresh Interceptor] ✅ ${error.response?.status} 에러 감지 - URL: ${originalRequest.url}`)
-      
-      // 로그인 API는 토큰 갱신 시도하지 않음
-      if (originalRequest.url?.includes('/adminMember/login')) {
-        console.log('[Token Refresh Interceptor] 로그인 API는 토큰 갱신 시도하지 않음')
-        return Promise.reject(error)
-      }
-      
-      // 토큰 갱신 API 호출 자체가 401/403이면 재시도 카운터 증가
-      if (originalRequest.url?.includes('/adminMember/tokenrefresh')) {
-        refreshRetryCount++
-        console.log(`[Token Refresh Interceptor] 토큰 갱신 API 실패 (${refreshRetryCount}/${MAX_REFRESH_RETRIES})`)
-        
+    if ((errorStatus === 401 || errorStatus === 403) && originalRequest && !originalRequest._retry) {
+      // 토큰 갱신 API 호출 자체가 401/403이면 재시도 처리
+      if (requestUrl?.includes('/adminMember/tokenrefresh')) {
+        // refreshAccessToken 함수 내부에서 이미 재시도 카운터를 증가시키므로
+        // 여기서는 최대 횟수 초과 여부만 확인
         if (refreshRetryCount >= MAX_REFRESH_RETRIES) {
           console.error('[Token Refresh Interceptor] 최대 재시도 횟수 초과. 로그인 페이지로 이동합니다.')
-          refreshRetryCount = 0
-          
-          // 쿠키 삭제
-          Cookies.remove('accessToken')
-          Cookies.remove('refreshToken')
-          Cookies.remove('userInfo')
-          
-          // 로그인 페이지로 리다이렉트
-          if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-            window.location.href = '/login'
-          }
+          redirectToLogin()
         }
         return Promise.reject(error)
       }
@@ -195,10 +212,11 @@ apiClient.interceptors.response.use(
           })
       }
 
+      // 토큰 갱신 시작
       originalRequest._retry = true
       isRefreshing = true
       
-      console.log(`[Token Refresh Interceptor] 토큰 갱신 시작 - 원래 요청 URL: ${originalRequest.url}`)
+      console.log(`[Token Refresh Interceptor] ${errorStatus} 에러 감지 - 토큰 갱신 시작: ${requestUrl}`)
 
       try {
         const newAccessToken = await refreshAccessToken()
@@ -217,28 +235,23 @@ apiClient.interceptors.response.use(
         
         isRefreshing = false
         return apiClient(originalRequest)
-      } catch (refreshError) {
+      } catch (refreshError: any) {
         // 토큰 갱신 실패
         console.error('[Token Refresh Interceptor] 토큰 갱신 실패:', refreshError)
+        
+        // 대기 중인 요청들 모두 실패 처리
         failedQueue.forEach(({ reject }) => {
           reject(refreshError)
         })
         failedQueue = []
         isRefreshing = false
 
-        // refreshAccessToken에서 이미 카운터를 증가시키고, 최대 횟수 초과 시 로그인 페이지로 이동 처리됨
+        // refreshAccessToken 함수 내부에서 이미 재시도 카운터를 증가시키고
+        // 최대 횟수 초과 시 로그인 페이지로 이동 처리됨
         // 여기서는 추가로 확인하여 확실히 처리
         if (refreshRetryCount >= MAX_REFRESH_RETRIES) {
           console.error('[Token Refresh Interceptor] 최대 재시도 횟수 초과 확인. 로그인 페이지로 이동합니다.')
-          refreshRetryCount = 0
-          
-          Cookies.remove('accessToken')
-          Cookies.remove('refreshToken')
-          Cookies.remove('userInfo')
-          
-          if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-            window.location.href = '/login'
-          }
+          redirectToLogin()
         }
         
         return Promise.reject(refreshError)
@@ -246,12 +259,6 @@ apiClient.interceptors.response.use(
     }
 
     // 401/403이 아니거나 이미 재시도한 요청인 경우
-    console.log(`[Token Refresh Interceptor] ${error.response?.status}이 아니거나 조건 불일치 - 에러 그대로 반환`)
-    console.log('[Token Refresh Interceptor] 조건 체크:', {
-      'status === 401 또는 403': error.response?.status === 401 || error.response?.status === 403,
-      'originalRequest 존재': !!originalRequest,
-      '_retry 플래그': originalRequest?._retry,
-    })
     return Promise.reject(error)
   }
 )
