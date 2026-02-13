@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDateTime } from '@/lib/utils'
+import Cookies from 'js-cookie'
 import {
   Plus,
   Search,
@@ -108,6 +109,21 @@ export default function VideoListPage() {
       const result = await getVideoList(params)
       setVideos(result.videos)
     } catch (error: any) {
+      // 401/403 에러인 경우 토큰 무효화로 간주하고 로그인 페이지로 리다이렉트
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        // axios 인터셉터가 이미 처리했지만, 추가로 확인
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+          // 쿠키 삭제
+          Cookies.remove('accessToken')
+          Cookies.remove('refreshToken')
+          Cookies.remove('userInfo')
+          
+          // 로그인 페이지로 리다이렉트
+          window.location.href = '/login'
+          return
+        }
+      }
+      
       toast({
         title: '오류',
         description: error.message || '비디오/세미나 목록을 불러오는데 실패했습니다.',
@@ -624,7 +640,7 @@ export default function VideoListPage() {
                         <Button variant="ghost" size="sm" title="상세" onClick={() => handleOpenDetail(video.id)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Link href={`/admin/video/${video.id}/edit`}>
+                        <Link href={`/admin/video/edit?id=${video.id}`}>
                           <Button variant="ghost" size="sm" title="수정">
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -740,7 +756,7 @@ export default function VideoListPage() {
 
           <DialogFooter>
             {selectedVideo && (
-              <Link href={`/admin/video/${selectedVideo.id}/edit`}>
+              <Link href={`/admin/video/edit?id=${selectedVideo.id}`}>
                 <Button>
                   <Edit className="h-4 w-4 mr-2" />
                   수정

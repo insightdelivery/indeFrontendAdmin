@@ -44,8 +44,10 @@ export const SORT_OPTIONS = {
 export const VIDEO_ROUTES = {
   LIST: '/admin/video',
   NEW: '/admin/video/new',
-  EDIT: (id: number) => `/admin/video/${id}/edit`,
-  DETAIL: (id: number) => `/admin/video/${id}`,
+  // output: 'export' 환경에서 동적 라우트([id])는 모든 id를 사전에 생성할 수 없어 런타임 에러가 발생함
+  // 따라서 쿼리스트링 기반 정적 라우트로 처리
+  EDIT: (id: number) => `/admin/video/edit?id=${id}`,
+  DETAIL: (id: number) => `/admin/video/detail?id=${id}`,
 } as const
 
 // React Query 키

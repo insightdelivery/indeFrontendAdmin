@@ -255,8 +255,8 @@ export const restoreVideo = async (id: number): Promise<void> => {
 }
 
 /**
- * 비디오 파일 업로드 (TUS 프로토콜 사용)
- * Resumable upload를 지원하여 대용량 파일 업로드 안정성 향상
+ * 비디오 파일 업로드 (Cloudflare Stream TUS Direct Upload)
+ * 브라우저가 Cloudflare로 직접 TUS 업로드하여 413 에러를 방지합니다.
  */
 export const uploadVideoFile = async (
   file: File,
@@ -269,7 +269,7 @@ export const uploadVideoFile = async (
   dashUrl: string
   videoInfo: any
 }> => {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     try {
       // 파일 크기 검증 (2GB 제한)
       const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024 // 2GB
@@ -280,305 +280,149 @@ export const uploadVideoFile = async (
         return
       }
 
-      // tus-js-client 동적 import
-      import('tus-js-client').then(({ Upload }) => {
-        // API base URL
-        const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-        
-        // 인증 토큰 가져오기
-        const token = Cookies.get('accessToken')
-        if (!token) {
-          reject(new Error('인증 토큰이 없습니다. 다시 로그인해주세요.'))
-          return
-        }
-
-        // 파일명 base64 인코딩 (TUS 메타데이터 형식)
-        const filenameBase64 = btoa(encodeURIComponent(file.name))
-
-        // TUS 업로드 생성
-        console.log('[TUS Upload] 업로드 시작:', {
-          endpoint: `${baseURL}/video/upload/tus/`,
-          filename: file.name,
-          size: file.size,
-          token: token ? `${token.substring(0, 20)}...` : '없음',
-        })
-        
-        // 토큰이 있는지 다시 확인
-        const currentToken = Cookies.get('accessToken')
-        if (!currentToken) {
-          reject(new Error('인증 토큰이 없습니다. 다시 로그인해주세요.'))
-          return
-        }
-
-        // 업로드 인스턴스를 외부에서 접근 가능하도록 변수 선언
-        let uploadInstance: any = null
-        let isRetrying = false // 재시도 중 플래그 (무한 루프 방지)
-
-        const upload = new Upload(file, {
-          endpoint: `${baseURL}/video/upload/tus/`,
-          retryDelays: [0, 3000, 5000, 10000, 20000], // 재시도 지연 시간 (ms)
-          metadata: {
-            filename: filenameBase64,
-            filetype: 'video/mp4',
-          },
-          headers: {
-            'Authorization': `Bearer ${currentToken}`,
-          },
-          chunkSize: 5 * 1024 * 1024, // 5MB 청크 크기
-          removeFingerprintOnSuccess: false,
-          onError: async (error: Error) => {
-            console.error('[TUS Upload] 업로드 오류:', error)
-            
-            // 401 또는 403 에러인 경우 토큰 갱신 시도
-            const errorMessage = error.message || ''
-            const isAuthError = errorMessage.includes('401') || 
-                              errorMessage.includes('Unauthorized') || 
-                              errorMessage.includes('403') || 
-                              errorMessage.includes('Forbidden')
-            
-            if (isAuthError && !isRetrying) {
-              try {
-                isRetrying = true
-                console.log('[TUS Upload] 인증 오류 감지, 토큰 갱신 시도...')
-                
-                // axios를 통해 토큰 갱신 (인터셉터가 자동으로 처리)
-                await apiClient.post('/adminMember/tokenrefresh', {})
-                
-                // 새 토큰 가져오기
-                const newToken = Cookies.get('accessToken')
-                if (newToken) {
-                  console.log('[TUS Upload] 토큰 갱신 성공, 업로드 재시도...')
-                  
-                  // 업로드 헤더 업데이트 (새 토큰으로)
-                  // tus-js-client는 headers를 동적으로 업데이트할 수 없으므로
-                  // 업로드를 중단하고 새로 시작해야 함
-                  if (uploadInstance) {
-                    uploadInstance.abort()
-                  }
-                  
-                  // 잠시 대기 후 새 토큰으로 업로드 재시작
-                  setTimeout(() => {
-                    isRetrying = false
-                    // 새 업로드 인스턴스 생성
-                    const retryUpload = new Upload(file, {
-                      endpoint: `${baseURL}/video/upload/tus/`,
-                      retryDelays: [0, 3000, 5000, 10000, 20000],
-                      metadata: {
-                        filename: filenameBase64,
-                        filetype: 'video/mp4',
-                      },
-                      headers: {
-                        'Authorization': `Bearer ${newToken}`,
-                      },
-                      chunkSize: 5 * 1024 * 1024,
-                      removeFingerprintOnSuccess: false,
-                      onError: (retryError: Error) => {
-                        console.error('[TUS Upload] 재시도 후 오류:', retryError)
-                        reject(new Error(`비디오 업로드 실패: ${retryError.message}`))
-                      },
-                      onProgress: (bytesUploaded: number, bytesTotal: number) => {
-                        if (onProgress) {
-                          const progress = (bytesUploaded / bytesTotal) * 100
-                          onProgress(progress)
-                        }
-                      },
-                      onSuccess: async () => {
-                        try {
-                          console.log('[TUS Upload] 업로드 완료, Cloudflare Stream으로 전송 중...')
-                          
-                          const uploadUrl = retryUpload.url
-                          if (!uploadUrl) {
-                            reject(new Error('업로드 URL을 찾을 수 없습니다.'))
-                            return
-                          }
-
-                          const uploadIdMatch = uploadUrl.match(/\/upload\/tus\/([^\/]+)/)
-                          if (!uploadIdMatch) {
-                            reject(new Error('업로드 ID를 찾을 수 없습니다.'))
-                            return
-                          }
-                          const uploadId = uploadIdMatch[1]
-
-                          const completeResponse = await apiClient.post<{
-                            IndeAPIResponse: {
-                              ErrorCode: string
-                              Message: string
-                              Result: {
-                                videoStreamId: string
-                                embedUrl: string
-                                thumbnailUrl: string
-                                hlsUrl: string
-                                dashUrl: string
-                                videoInfo?: any
-                              }
-                            }
-                          }>(`/video/upload/tus/${uploadId}/complete`)
-
-                          const apiResponse = completeResponse.data.IndeAPIResponse
-
-                          if (!apiResponse || apiResponse.ErrorCode !== '00') {
-                            reject(new Error(apiResponse?.Message || 'Cloudflare Stream 업로드에 실패했습니다.'))
-                            return
-                          }
-
-                          if (!apiResponse.Result) {
-                            reject(new Error('응답 데이터가 없습니다.'))
-                            return
-                          }
-
-                          const result = apiResponse.Result
-
-                          if (onProgress) {
-                            onProgress(100)
-                          }
-
-                          console.log('[TUS Upload] Cloudflare Stream 업로드 완료:', result.videoStreamId)
-
-                          resolve({
-                            videoStreamId: result.videoStreamId,
-                            embedUrl: result.embedUrl,
-                            thumbnailUrl: result.thumbnailUrl,
-                            hlsUrl: result.hlsUrl,
-                            dashUrl: result.dashUrl,
-                            videoInfo: result.videoInfo || {},
-                          })
-                        } catch (error: any) {
-                          console.error('[TUS Upload] 완료 처리 오류:', error)
-                          let errorMessage = '비디오 업로드 완료 처리에 실패했습니다.'
-
-                          if (error.response?.data?.IndeAPIResponse?.Message) {
-                            errorMessage = error.response.data.IndeAPIResponse.Message
-                          } else if (error.response?.data?.error) {
-                            errorMessage = error.response.data.error
-                          } else if (error.message) {
-                            errorMessage = error.message
-                          }
-
-                          reject(new Error(errorMessage))
-                        }
-                      },
-                    })
-                    
-                    uploadInstance = retryUpload
-                    retryUpload.start()
-                  }, 500)
-                  
-                  return // 에러를 reject하지 않고 재시도
-                } else {
-                  isRetrying = false
-                  reject(new Error('토큰 갱신 후에도 토큰을 찾을 수 없습니다. 다시 로그인해주세요.'))
-                }
-              } catch (refreshError: any) {
-                isRetrying = false
-                console.error('[TUS Upload] 토큰 갱신 실패:', refreshError)
-                reject(new Error(`인증 오류: 토큰 갱신에 실패했습니다. ${refreshError.message}`))
-              }
-            } else {
-              reject(new Error(`비디오 업로드 실패: ${error.message}`))
-            }
-          },
-          onProgress: (bytesUploaded: number, bytesTotal: number) => {
-            if (onProgress) {
-              const progress = (bytesUploaded / bytesTotal) * 100
-              console.log(`[TUS Upload] 진행률: ${progress.toFixed(2)}% (${bytesUploaded}/${bytesTotal} bytes)`)
-              onProgress(progress)
-            }
-          },
-          onSuccess: async () => {
-            try {
-              console.log('[TUS Upload] 업로드 완료, Cloudflare Stream으로 전송 중...')
-              
-              // 업로드 ID 추출 (Location 헤더에서)
-              // uploadInstance가 설정되어 있으면 사용, 없으면 upload 사용
-              const currentUpload = uploadInstance || upload
-              const uploadUrl = currentUpload.url
-              if (!uploadUrl) {
-                reject(new Error('업로드 URL을 찾을 수 없습니다.'))
-                return
-              }
-
-              // 업로드 ID 추출
-              const uploadIdMatch = uploadUrl.match(/\/upload\/tus\/([^\/]+)/)
-              if (!uploadIdMatch) {
-                reject(new Error('업로드 ID를 찾을 수 없습니다.'))
-                return
-              }
-              const uploadId = uploadIdMatch[1]
-
-              // 업로드 완료 및 Cloudflare Stream 전송
-              const completeResponse = await apiClient.post<{
-                IndeAPIResponse: {
-                  ErrorCode: string
-                  Message: string
-                  Result: {
-                    videoStreamId: string
-                    embedUrl: string
-                    thumbnailUrl: string
-                    hlsUrl: string
-                    dashUrl: string
-                    videoInfo?: any
-                  }
-                }
-              }>(`/video/upload/tus/${uploadId}/complete`)
-
-              const apiResponse = completeResponse.data.IndeAPIResponse
-
-              if (!apiResponse || apiResponse.ErrorCode !== '00') {
-                reject(new Error(apiResponse?.Message || 'Cloudflare Stream 업로드에 실패했습니다.'))
-                return
-              }
-
-              if (!apiResponse.Result) {
-                reject(new Error('응답 데이터가 없습니다.'))
-                return
-              }
-
-              const result = apiResponse.Result
-
-              // 진행률 100%로 설정
-              if (onProgress) {
-                onProgress(100)
-              }
-
-              console.log('[TUS Upload] Cloudflare Stream 업로드 완료:', result.videoStreamId)
-
-              resolve({
-                videoStreamId: result.videoStreamId,
-                embedUrl: result.embedUrl,
-                thumbnailUrl: result.thumbnailUrl,
-                hlsUrl: result.hlsUrl,
-                dashUrl: result.dashUrl,
-                videoInfo: result.videoInfo || {},
-              })
-            } catch (error: any) {
-              console.error('[TUS Upload] 완료 처리 오류:', error)
-              let errorMessage = '비디오 업로드 완료 처리에 실패했습니다.'
-
-              if (error.response?.data?.IndeAPIResponse?.Message) {
-                errorMessage = error.response.data.IndeAPIResponse.Message
-              } else if (error.response?.data?.error) {
-                errorMessage = error.response.data.error
-              } else if (error.message) {
-                errorMessage = error.message
-              }
-
-              reject(new Error(errorMessage))
-            }
-          },
-          onChunkComplete: (chunkSize: number, bytesAccepted: number, bytesTotal: number) => {
-            console.log(`[TUS Upload] 청크 완료: ${chunkSize} bytes, 총 ${bytesAccepted}/${bytesTotal} bytes`)
-          },
-        })
-
-        // 업로드 인스턴스 저장
-        uploadInstance = upload
-
-        // 업로드 시작
-        upload.start()
-      }).catch((error) => {
-        console.error('[TUS Upload] tus-js-client 로드 실패:', error)
-        reject(new Error('TUS 업로드 클라이언트를 로드할 수 없습니다.'))
+      console.log('[Cloudflare TUS] 업로드 시작:', {
+        filename: file.name,
+        size: file.size,
       })
+
+      // 1. Django에서 TUS 업로드 세션 생성
+      const sessionResponse = await apiClient.post<{
+        IndeAPIResponse: {
+          ErrorCode: string
+          Message: string
+          Result: {
+            uid: string
+            uploadUrl: string
+          }
+        }
+      }>('/video/cloudflare/tus/create', {
+        filename: file.name,
+        filesize: file.size,
+        contentType: 'video/mp4',
+      })
+
+      const sessionApiResponse = sessionResponse.data.IndeAPIResponse
+
+      if (!sessionApiResponse || sessionApiResponse.ErrorCode !== '00') {
+        reject(new Error(sessionApiResponse?.Message || 'TUS 업로드 세션 생성에 실패했습니다.'))
+        return
+      }
+
+      if (!sessionApiResponse.Result) {
+        reject(new Error('세션 생성 응답 데이터가 없습니다.'))
+        return
+      }
+
+      const { uid, uploadUrl } = sessionApiResponse.Result
+
+      console.log('[Cloudflare TUS] 세션 생성 성공:', {
+        uid,
+        uploadUrl: uploadUrl.substring(0, 50) + '...',
+      })
+
+      // 2. tus-js-client로 Cloudflare에 직접 업로드
+      const { Upload } = await import('tus-js-client')
+
+      // 업로드 인스턴스를 외부에서 접근 가능하도록 변수 선언
+      let uploadInstance: any = null
+      let isRetrying = false // 재시도 중 플래그 (무한 루프 방지)
+
+      const upload = new Upload(file, {
+        endpoint: uploadUrl, // Cloudflare TUS 업로드 URL (직접 연결)
+        retryDelays: [0, 1000, 3000, 5000, 10000], // 재시도 지연 시간 (ms)
+        chunkSize: 8 * 1024 * 1024, // 8MB 청크 크기 (256KiB 배수)
+        removeFingerprintOnSuccess: false,
+        // Cloudflare TUS는 인증이 필요 없음 (세션 생성 시 이미 인증됨)
+        // headers는 필요 없음
+        onError: (error: Error) => {
+          console.error('[Cloudflare TUS] 업로드 오류:', error)
+          reject(new Error(`비디오 업로드 실패: ${error.message}`))
+        },
+        onProgress: (bytesUploaded: number, bytesTotal: number) => {
+          if (onProgress) {
+            const progress = (bytesUploaded / bytesTotal) * 100
+            console.log(`[Cloudflare TUS] 진행률: ${progress.toFixed(2)}% (${bytesUploaded}/${bytesTotal} bytes)`)
+            onProgress(progress)
+          }
+        },
+        onSuccess: async () => {
+          try {
+            console.log('[Cloudflare TUS] 업로드 완료, Django에 완료 알림 전송 중...')
+            
+            // 3. Django에 업로드 완료 알림 (서버는 파일을 업로드하지 않고 DB 저장만)
+            const completeResponse = await apiClient.post<{
+              IndeAPIResponse: {
+                ErrorCode: string
+                Message: string
+                Result: {
+                  videoStreamId: string
+                  embedUrl: string
+                  thumbnailUrl: string
+                  hlsUrl: string
+                  dashUrl: string
+                  videoInfo?: any
+                }
+              }
+            }>('/video/cloudflare/tus/complete', {
+              uid: uid,
+              filename: file.name,
+              filesize: file.size,
+            })
+
+            const apiResponse = completeResponse.data.IndeAPIResponse
+
+            if (!apiResponse || apiResponse.ErrorCode !== '00') {
+              reject(new Error(apiResponse?.Message || '비디오 업로드 완료 처리에 실패했습니다.'))
+              return
+            }
+
+            if (!apiResponse.Result) {
+              reject(new Error('응답 데이터가 없습니다.'))
+              return
+            }
+
+            const result = apiResponse.Result
+
+            // 진행률 100%로 설정
+            if (onProgress) {
+              onProgress(100)
+            }
+
+            console.log('[Cloudflare TUS] 업로드 완료 처리 성공:', result.videoStreamId)
+
+            resolve({
+              videoStreamId: result.videoStreamId,
+              embedUrl: result.embedUrl,
+              thumbnailUrl: result.thumbnailUrl,
+              hlsUrl: result.hlsUrl,
+              dashUrl: result.dashUrl,
+              videoInfo: result.videoInfo || {},
+            })
+          } catch (error: any) {
+            console.error('[Cloudflare TUS] 완료 처리 오류:', error)
+            let errorMessage = '비디오 업로드 완료 처리에 실패했습니다.'
+
+            if (error.response?.data?.IndeAPIResponse?.Message) {
+              errorMessage = error.response.data.IndeAPIResponse.Message
+            } else if (error.response?.data?.error) {
+              errorMessage = error.response.data.error
+            } else if (error.message) {
+              errorMessage = error.message
+            }
+
+            reject(new Error(errorMessage))
+          }
+        },
+        onChunkComplete: (chunkSize: number, bytesAccepted: number, bytesTotal: number) => {
+          console.log(`[Cloudflare TUS] 청크 완료: ${chunkSize} bytes, 총 ${bytesAccepted}/${bytesTotal} bytes`)
+        },
+      })
+
+      // 업로드 인스턴스 저장
+      uploadInstance = upload
+
+      // 업로드 시작
+      upload.start()
     } catch (error: any) {
       console.error('[TUS Upload] 초기화 오류:', error)
       reject(new Error(`비디오 업로드 초기화 실패: ${error.message}`))

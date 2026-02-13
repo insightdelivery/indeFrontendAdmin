@@ -467,13 +467,106 @@ export default function VideoCreatePage() {
                 <p className="text-sm text-red-600">{errors.visibility.message}</p>
               )}
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="title">메인 제목 *</Label>
+              <Input
+                id="title"
+                {...register('title')}
+                placeholder="비디오/세미나 제목을 입력하세요"
+              />
+              {errors.title && (
+                <p className="text-sm text-red-600">{errors.title.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="subtitle">서브 타이틀</Label>
+              <Input
+                id="subtitle"
+                {...register('subtitle')}
+                placeholder="부제목을 입력하세요"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="body">본문 상세 설명</Label>
+              <RichTextEditor
+                value={watch('body') || ''}
+                onChange={(value) => setValue('body', value)}
+                placeholder="영상 상세 설명을 입력하세요"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>키워드/태그</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleAddTag()
+                    }
+                  }}
+                  placeholder="태그 입력 후 Enter"
+                />
+                <Button type="button" onClick={handleAddTag}>
+                  추가
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {(watch('tags') || []).map((tag, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded-full text-sm"
+                  >
+                    #{tag}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTag(index)}
+                      className="text-gray-500 hover:text-red-600"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
         </Card>
 
         {/* 핵심 데이터 */}
         <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">핵심 데이터</h2>
+          <h2 className="text-xl font-semibold mb-4">비디오 / 세미나 데이터</h2>
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>대표 썸네일 이미지</Label>
+              <div className="flex items-center gap-4">
+                {thumbnail && (
+                  <div className="relative w-48 h-32 rounded overflow-hidden border">
+                    <img
+                      src={thumbnail}
+                      alt="썸네일 미리보기"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+                <div>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleThumbnailChange}
+                    className="cursor-pointer"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    권장 사이즈: 1200x630px (16:9 비율)
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="video-upload">영상 파일 업로드 *</Label>
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
@@ -627,105 +720,6 @@ export default function VideoCreatePage() {
                   ))}
                 </div>
               )}
-            </div>
-          </div>
-        </Card>
-
-        {/* 콘텐츠 정보 */}
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">콘텐츠 정보</h2>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">메인 제목 *</Label>
-              <Input
-                id="title"
-                {...register('title')}
-                placeholder="비디오/세미나 제목을 입력하세요"
-              />
-              {errors.title && (
-                <p className="text-sm text-red-600">{errors.title.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="subtitle">서브 타이틀</Label>
-              <Input
-                id="subtitle"
-                {...register('subtitle')}
-                placeholder="부제목을 입력하세요"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>대표 썸네일</Label>
-              <div className="flex items-center gap-4">
-                {thumbnail && (
-                  <div className="relative w-48 h-32 rounded overflow-hidden border">
-                    <img
-                      src={thumbnail}
-                      alt="썸네일 미리보기"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-                <div>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleThumbnailChange}
-                    className="cursor-pointer"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    권장 사이즈: 1200x630px (16:9 비율)
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="body">본문 상세 설명</Label>
-              <RichTextEditor
-                value={watch('body') || ''}
-                onChange={(value) => setValue('body', value)}
-                placeholder="영상 상세 설명을 입력하세요"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>키워드/태그</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      handleAddTag()
-                    }
-                  }}
-                  placeholder="태그 입력 후 Enter"
-                />
-                <Button type="button" onClick={handleAddTag}>
-                  추가
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {(watch('tags') || []).map((tag, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded-full text-sm"
-                  >
-                    #{tag}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTag(index)}
-                      className="text-gray-500 hover:text-red-600"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
             </div>
           </div>
         </Card>
