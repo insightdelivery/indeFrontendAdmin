@@ -502,15 +502,24 @@ export default function VideoCreatePage() {
               {uploadingVideo && (
                 <div className="mt-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600">업로드 중...</span>
-                    <span className="text-sm text-gray-600">{uploadProgress}%</span>
+                    <span className="text-sm text-gray-600">
+                      업로드 중... {uploadProgress > 0 ? `(${uploadProgress.toFixed(2)}%)` : '(서버로 전송 중...)'}
+                    </span>
+                    <span className="text-sm text-gray-600">
+                      {videoFile && `${((videoFile.size * uploadProgress) / 100 / (1024 * 1024)).toFixed(2)}MB / ${(videoFile.size / (1024 * 1024)).toFixed(2)}MB`}
+                    </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
                       className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
+                      style={{ width: `${Math.max(uploadProgress, 1)}%` }}
                     />
                   </div>
+                  {uploadProgress > 0 && uploadProgress < 100 && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      큰 파일의 경우 서버로 전송하는 데 시간이 걸릴 수 있습니다. 잠시만 기다려주세요...
+                    </p>
+                  )}
                 </div>
               )}
               {videoFile && (

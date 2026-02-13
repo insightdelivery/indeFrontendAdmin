@@ -307,10 +307,20 @@ export const uploadVideoFile = async (
       maxBodyLength: 2 * 1024 * 1024 * 1024, // 2GB
       onUploadProgress: (progressEvent) => {
         if (progressEvent.total && onProgress) {
-          // 클라이언트 -> 서버 업로드 진행률 (약 90%까지)
-          // 실제 Cloudflare 업로드는 서버에서 진행되므로 정확한 진행률은 어려움
-          const progress = (progressEvent.loaded / progressEvent.total) * 90
+          // 클라이언트 -> 서버 업로드 진행률
+          // 큰 파일의 경우 서버가 파일을 받는 데 시간이 걸리므로
+          // 실제 진행률을 표시 (0-100%)
+          const progress = Math.min(
+            (progressEvent.loaded / progressEvent.total) * 100,
+            100
+          )
+          console.log(`[Video Upload] 진행률: ${progress.toFixed(2)}% (${progressEvent.loaded}/${progressEvent.total} bytes)`)
           onProgress(progress)
+        } else if (progressEvent.loaded && onProgress) {
+          // total이 없는 경우 (스트리밍 업로드)
+          // 최소한 업로드 중임을 표시
+          console.log(`[Video Upload] 업로드 중: ${progressEvent.loaded} bytes 전송됨`)
+          onProgress(1) // 최소한 1% 표시
         }
       },
     })
