@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SRC_DIR="/Users/hyoungjinnam/macSyncData/DEV/INDE/frontend_admin/out/"
-DST_DIR="/Users/hyoungjinnam/macSyncData/DEV/INDE/frontend_admin_deploy"
+SRC_DIR="/Users/pronhj/Documents/macSyncData/DEV/inde/frontend_admin/out/"
+DST_DIR="/Users/pronhj/Documents/macSyncData/DEV/inde/frontend_admin_deploy"
 
 # 1. out 폴더 존재 확인
 if [ ! -d "$SRC_DIR" ]; then
