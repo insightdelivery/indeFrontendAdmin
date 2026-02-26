@@ -45,7 +45,7 @@ export const SYS_CODE_GUBN = {
 export const ARTICLE_ROUTES = {
   LIST: '/admin/articles',
   NEW: '/admin/articles/new',
-  EDIT: (id: number) => `/admin/articles/${id}/edit`,
+  EDIT: (id: number) => `/admin/articles/edit?id=${id}`,
   DETAIL: (id: number) => `/admin/articles/${id}`,
   PUBLIC_VIEW: (id: number) => `/articles/${id}`,
 } as const

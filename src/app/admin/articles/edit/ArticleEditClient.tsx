@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -58,8 +58,9 @@ type ArticleFormData = z.infer<typeof articleSchema>
 
 export default function ArticleEditClient() {
   const router = useRouter()
-  const params = useParams<{ id: string }>()
-  const articleId = Number(params.id)
+  const searchParams = useSearchParams()
+  const idFromQuery = searchParams.get('id')
+  const articleId = idFromQuery ? Number(idFromQuery) : 0
   const { toast } = useToast()
   const [article, setArticle] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -86,6 +87,13 @@ export default function ArticleEditClient() {
   })
 
   const status = watch('status')
+
+  useEffect(() => {
+    if (!idFromQuery || Number.isNaN(articleId) || articleId <= 0) {
+      router.replace('/admin/articles')
+      return
+    }
+  }, [idFromQuery, articleId, router])
 
   useEffect(() => {
     if (articleId) {
