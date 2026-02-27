@@ -20,7 +20,11 @@ import {
   ChevronDown,
   ChevronRight,
   FileText,
-  Video
+  Video,
+  MessageSquare,
+  ClipboardList,
+  HelpCircle,
+  Mail
 } from 'lucide-react'
 
 export default function AdminLayout({
@@ -35,6 +39,7 @@ export default function AdminLayout({
   const [userInfo, setUserInfo] = useState(getUserInfo())
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [boardOpen, setBoardOpen] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -97,10 +102,24 @@ export default function AdminLayout({
     { href: '/admin/settings/admin-register', label: '관리자 등록', icon: UserPlus },
   ]
 
+  // 게시판 관리 하위 메뉴 정의
+  const boardSubMenus = [
+    { href: '/admin/board/notices', label: '공지사항', icon: ClipboardList },
+    { href: '/admin/board/faqs', label: 'FAQ', icon: HelpCircle },
+    { href: '/admin/board/inquiries', label: '1:1 문의', icon: Mail },
+  ]
+
   // 설정 메뉴가 열려야 하는지 확인 (현재 경로가 설정 하위 메뉴인 경우)
   useEffect(() => {
     if (pathname?.startsWith('/admin/settings')) {
       setSettingsOpen(true)
+    }
+  }, [pathname])
+
+  // 게시판 메뉴가 열려야 하는지 확인
+  useEffect(() => {
+    if (pathname?.startsWith('/admin/board')) {
+      setBoardOpen(true)
     }
   }, [pathname])
 
@@ -159,6 +178,51 @@ export default function AdminLayout({
                   </li>
                 )
               })}
+
+              {/* 게시판 관리 메뉴 (하위 메뉴 포함) */}
+              <li>
+                <button
+                  onClick={() => setBoardOpen(!boardOpen)}
+                  className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    pathname?.startsWith('/admin/board')
+                      ? 'bg-neon-yellow text-black font-semibold'
+                      : 'text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <MessageSquare className="h-5 w-5" />
+                    <span>게시판 관리</span>
+                  </div>
+                  {boardOpen ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </button>
+                {boardOpen && (
+                  <ul className="mt-2 ml-4 space-y-1">
+                    {boardSubMenus.map((subItem) => {
+                      const SubIcon = subItem.icon
+                      const isSubActive = pathname === subItem.href || (subItem.href !== '/admin/board/notices' && pathname?.startsWith(subItem.href))
+                      return (
+                        <li key={subItem.href}>
+                          <Link
+                            href={subItem.href}
+                            className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                              isSubActive
+                                ? 'bg-neon-yellow text-black font-semibold'
+                                : 'text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            <SubIcon className="h-4 w-4" />
+                            <span className="text-sm">{subItem.label}</span>
+                          </Link>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </li>
               
               {/* 설정 메뉴 (하위 메뉴 포함) */}
               <li>

@@ -222,7 +222,7 @@ export function RichTextEditor({
     if (!editor || !mounted) return
     const current = editor.getHTML()
     if (value !== current && value !== undefined) {
-      editor.commands.setContent(value || '', false)
+      editor.commands.setContent(value || '', { emitUpdate: false })
     }
   }, [value, mounted, editor])
 
