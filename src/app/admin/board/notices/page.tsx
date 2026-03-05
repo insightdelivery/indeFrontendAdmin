@@ -258,9 +258,10 @@ export default function NoticeListPage() {
               </div>
               <div>
                 <span className="text-sm text-gray-500">내용</span>
-                <div className="mt-1 rounded border bg-gray-50 p-4 text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">
-                  {detail.content}
-                </div>
+                <div
+                  className="mt-1 rounded border bg-gray-50 p-4 text-sm max-h-60 overflow-y-auto prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: detail.content || '' }}
+                />
               </div>
             </div>
           ) : (

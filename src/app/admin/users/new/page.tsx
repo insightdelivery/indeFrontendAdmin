@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createPublicMember } from '@/services/publicMembers'
@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ArrowLeft } from 'lucide-react'
+import { getSysCodeFromCache, getSysCode, createSysCodeOptions } from '@/lib/syscode'
 
 const JOINED_VIA_OPTIONS = [
   { value: 'LOCAL', label: '로컬 가입' },
@@ -24,6 +25,13 @@ const JOINED_VIA_OPTIONS = [
   { value: 'NAVER', label: '네이버' },
   { value: 'GOOGLE', label: '구글' },
 ]
+
+const POSITION_PARENT = 'SYS26127B006'
+const REGION_TYPE_PARENT = 'SYS26127B017'
+const REGION_DOMESTIC_PARENT = 'SYS26127B018'
+const REGION_FOREIGN_PARENT = 'SYS26127B019'
+/** Select "선택" 옵션 value (Radix Select는 빈 문자열 value 미지원) */
+const EMPTY_SELECT_VALUE = '__none__'
 
 export default function NewUserPage() {
   const router = useRouter()
@@ -34,12 +42,33 @@ export default function NewUserPage() {
   const [nickname, setNickname] = useState('')
   const [phone, setPhone] = useState('')
   const [position, setPosition] = useState('')
+  const [regionType, setRegionType] = useState('')
+  const [regionDomestic, setRegionDomestic] = useState('')
+  const [regionForeign, setRegionForeign] = useState('')
   const [joinedVia, setJoinedVia] = useState('LOCAL')
   const [isActive, setIsActive] = useState(true)
   const [isStaff, setIsStaff] = useState(false)
   const [newsletterAgree, setNewsletterAgree] = useState(false)
   const [emailVerified, setEmailVerified] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [positionOptions, setPositionOptions] = useState<{ value: string; label: string }[]>([])
+  const [regionTypeOptions, setRegionTypeOptions] = useState<{ value: string; label: string }[]>([])
+  const [regionDomesticOptions, setRegionDomesticOptions] = useState<{ value: string; label: string }[]>([])
+  const [regionForeignOptions, setRegionForeignOptions] = useState<{ value: string; label: string }[]>([])
+
+  useEffect(() => {
+    const load = async () => {
+      const pos = getSysCodeFromCache(POSITION_PARENT) ?? await getSysCode(POSITION_PARENT)
+      const rt = getSysCodeFromCache(REGION_TYPE_PARENT) ?? await getSysCode(REGION_TYPE_PARENT)
+      const rd = getSysCodeFromCache(REGION_DOMESTIC_PARENT) ?? await getSysCode(REGION_DOMESTIC_PARENT)
+      const rf = getSysCodeFromCache(REGION_FOREIGN_PARENT) ?? await getSysCode(REGION_FOREIGN_PARENT)
+      setPositionOptions(createSysCodeOptions(pos))
+      setRegionTypeOptions(createSysCodeOptions(rt))
+      setRegionDomesticOptions(createSysCodeOptions(rd))
+      setRegionForeignOptions(createSysCodeOptions(rf))
+    }
+    load()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -60,6 +89,9 @@ export default function NewUserPage() {
         nickname: nickname.trim(),
         phone: phone.trim(),
         position: position.trim() || undefined,
+        region_type: regionType === EMPTY_SELECT_VALUE || !regionType ? undefined : regionType,
+        region_domestic: regionDomestic.trim() || undefined,
+        region_foreign: regionForeign.trim() || undefined,
         joined_via: joinedVia,
         is_active: isActive,
         is_staff: isStaff,
@@ -124,8 +156,56 @@ export default function NewUserPage() {
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700 block mb-1">직분</label>
-                <Input value={position} onChange={(e) => setPosition(e.target.value)} placeholder="직분" />
+                <Select value={position || EMPTY_SELECT_VALUE} onValueChange={(v) => setPosition(v === EMPTY_SELECT_VALUE ? '' : v)}>
+                  <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={EMPTY_SELECT_VALUE}>선택</SelectItem>
+                    {positionOptions.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">지역 구분</label>
+                <Select value={regionType || EMPTY_SELECT_VALUE} onValueChange={(v) => { setRegionType(v === EMPTY_SELECT_VALUE ? '' : v); setRegionDomestic(''); setRegionForeign(''); }}>
+                  <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={EMPTY_SELECT_VALUE}>선택</SelectItem>
+                    {regionTypeOptions.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {regionType === 'SYS26127B018' && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-1">국내 지역</label>
+                  <Select value={regionDomestic || EMPTY_SELECT_VALUE} onValueChange={(v) => setRegionDomestic(v === EMPTY_SELECT_VALUE ? '' : v)}>
+                    <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={EMPTY_SELECT_VALUE}>선택</SelectItem>
+                      {regionDomesticOptions.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {regionType === 'SYS26127B019' && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-1">해외 지역</label>
+                  <Select value={regionForeign || EMPTY_SELECT_VALUE} onValueChange={(v) => setRegionForeign(v === EMPTY_SELECT_VALUE ? '' : v)}>
+                    <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={EMPTY_SELECT_VALUE}>선택</SelectItem>
+                      {regionForeignOptions.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div>
                 <label className="text-sm font-medium text-gray-700 block mb-1">가입 경로</label>
                 <Select value={joinedVia} onValueChange={setJoinedVia}>

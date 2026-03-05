@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft } from 'lucide-react'
+import { RichTextEditor } from '@/components/admin/RichTextEditor'
 
 export default function NewNoticePage() {
   const router = useRouter()
@@ -73,12 +74,10 @@ export default function NewNoticePage() {
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 block mb-1">내용</label>
-              <textarea
+              <RichTextEditor
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="내용"
-                rows={12}
-                className="w-full max-w-2xl border rounded-md p-3 text-sm"
+                onChange={(value) => setContent(value)}
+                placeholder="내용을 입력하세요"
               />
             </div>
             <div className="flex items-center gap-2">

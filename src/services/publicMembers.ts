@@ -24,6 +24,7 @@ export async function getPublicMemberList(params?: {
   page_size?: number
   search?: string
   ordering?: string
+  status?: 'ACTIVE' | 'WITHDRAW_REQUEST' | 'WITHDRAWN'
 }): Promise<PublicMemberListResponse> {
   const { data } = await apiClient.get(`${BASE}/`, { params })
   return unwrapResult<PublicMemberListResponse>(data)
@@ -46,4 +47,19 @@ export async function updatePublicMember(memberSid: number, body: PublicMemberCr
 
 export async function deletePublicMember(memberSid: number): Promise<void> {
   await apiClient.delete(`${BASE}/${memberSid}/`)
+}
+
+/** 관리자 탈퇴 처리 (Soft Delete): status=WITHDRAWN, is_active=false */
+export async function withdrawPublicMember(
+  memberSid: number,
+  body?: { reason?: string; detail_reason?: string }
+): Promise<{ detail: string; member_sid: number }> {
+  const { data } = await apiClient.post(`${BASE}/${memberSid}/withdraw/`, body ?? {})
+  return unwrapResult<{ detail: string; member_sid: number }>(data)
+}
+
+/** 탈퇴 회원 정상 복구 */
+export async function restorePublicMember(memberSid: number): Promise<{ detail: string; member_sid: number }> {
+  const { data } = await apiClient.post(`${BASE}/${memberSid}/restore/`, {})
+  return unwrapResult<{ detail: string; member_sid: number }>(data)
 }
