@@ -1,8 +1,7 @@
 import type { Metadata } from 'next'
 
+// 탭 제목·설명은 루트 src/app/layout.tsx 의 metadata 에서만 관리
 export const metadata: Metadata = {
-  title: '관리자 대시보드',
-  description: '관리자 대시보드',
   robots: {
     index: false,
     follow: false,

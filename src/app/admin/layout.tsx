@@ -302,7 +302,7 @@ export default function AdminLayout({
                 <Menu className="h-5 w-5" />
               </Button>
             )}
-            <span className="text-sm text-gray-600">관리자 대시보드</span>
+            <span className="text-sm text-gray-600">InDe Administrator</span>
           </div>
           <div className="flex items-center gap-4">
             {userInfo && (

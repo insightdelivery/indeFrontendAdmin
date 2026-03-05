@@ -6,8 +6,15 @@ import { Toaster } from "@/components/ui/toaster"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Admin Dashboard",
-  description: "관리자 대시보드",
+  title: "Inde Administrator",
+  description: "InDe 관리자",
+  icons: {
+    icon: [{ url: "/ms-icon-70x70.png", sizes: "70x70", type: "image/png" }],
+    apple: "/ms-icon-70x70.png",
+  },
+  other: {
+    "msapplication-TileImage": "/ms-icon-70x70.png",
+  },
   robots: {
     index: false,
     follow: false,
