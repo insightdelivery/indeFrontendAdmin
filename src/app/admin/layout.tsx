@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { logout, isAuthenticated, getUserInfo } from '@/services/auth'
@@ -42,31 +42,31 @@ export default function AdminLayout({
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [boardOpen, setBoardOpen] = useState(false)
 
+  // 마운트 시 한 번만 실행 (의존성 없음 → 메뉴 클릭 시 재실행/플리커 방지)
   useEffect(() => {
     setMounted(true)
     if (!isAuthenticated()) {
       router.push('/login')
-    } else {
-      setUserInfo(getUserInfo())
+      return
     }
-    
-    // 검색 로봇 차단 메타 태그 추가
+    setUserInfo(getUserInfo())
+
     const metaRobots = document.createElement('meta')
     metaRobots.name = 'robots'
     metaRobots.content = 'noindex, nofollow, noarchive, nosnippet, noimageindex'
     if (!document.querySelector('meta[name="robots"]')) {
       document.head.appendChild(metaRobots)
     }
-    
     const metaGooglebot = document.createElement('meta')
     metaGooglebot.name = 'googlebot'
     metaGooglebot.content = 'noindex, nofollow, noarchive, nosnippet, noimageindex'
     if (!document.querySelector('meta[name="googlebot"]')) {
       document.head.appendChild(metaGooglebot)
     }
-  }, [router])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: auth check + meta, router is stable
+  }, [])
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     try {
       const response = await logout()
       toast({
@@ -85,7 +85,7 @@ export default function AdminLayout({
       // 에러가 발생해도 로그인 페이지로 이동 (쿠키는 이미 삭제됨)
       router.push('/login')
     }
-  }
+  }, [router, toast])
 
   // 메뉴 항목 정의
   const menuItems = [
@@ -111,18 +111,12 @@ export default function AdminLayout({
     { href: '/admin/board/inquiries', label: '1:1 문의', icon: Mail },
   ]
 
-  // 설정 메뉴가 열려야 하는지 확인 (현재 경로가 설정 하위 메뉴인 경우)
+  // 경로에 따라 아코디언 열기 (설정/게시판). pathname 변경 시에만 실행
   useEffect(() => {
-    if (pathname?.startsWith('/admin/settings')) {
-      setSettingsOpen(true)
-    }
+    if (pathname?.startsWith('/admin/settings')) setSettingsOpen(true)
   }, [pathname])
-
-  // 게시판 메뉴가 열려야 하는지 확인
   useEffect(() => {
-    if (pathname?.startsWith('/admin/board')) {
-      setBoardOpen(true)
-    }
+    if (pathname?.startsWith('/admin/board')) setBoardOpen(true)
   }, [pathname])
 
   if (!mounted) {

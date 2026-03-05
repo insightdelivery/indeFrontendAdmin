@@ -212,6 +212,7 @@ function toast({ duration, ...props }: Toast & { duration?: number }) {
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
 
+  // 구독은 마운트 시 한 번만. [state] 넣으면 토스트 변경 시마다 effect 재실행 → 구독 해제/재등록 반복으로 불필요한 리렌더·플리커 유발
   React.useEffect(() => {
     listeners.push(setState)
     return () => {
@@ -220,7 +221,7 @@ function useToast() {
         listeners.splice(index, 1)
       }
     }
-  }, [state])
+  }, [])
 
   return {
     ...state,
