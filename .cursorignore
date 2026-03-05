@@ -1,0 +1,11 @@
+node_modules
+.venv
+venv
+build
+dist
+.next
+out
+__pycache__
+*.log
+*.sqlite3
+.env

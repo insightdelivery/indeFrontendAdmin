@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useParams, useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -15,6 +15,7 @@ import {
   type VideoUpdateRequest,
   VIDEO_STATUS,
   VISIBILITY_OPTIONS,
+  CONTENT_TYPE,
 } from '@/features/video'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -22,10 +23,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SysCodeSelect } from '@/components/admin/SysCodeSelect'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
-import { ArrowLeft, Trash2, Video as VideoIcon } from 'lucide-react'
+import { ArrowLeft, Trash2, Video as VideoIcon, GraduationCap } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 const schema = z.object({
@@ -58,10 +60,14 @@ function toDatetimeLocalValue(value?: string | null) {
   return local.toISOString().slice(0, 16)
 }
 
-export default function VideoEditClient() {
-  const params = useParams<{ id: string }>()
+export default function SeminarEditClient() {
+  const searchParams = useSearchParams()
   const router = useRouter()
   const { toast } = useToast()
+
+  const idParam = searchParams?.get('id')
+  const videoId = idParam ? Number(idParam) : NaN
+
   const [video, setVideo] = useState<Video | null>(null)
   const [thumbnail, setThumbnail] = useState<string>('')
   const [videoFile, setVideoFile] = useState<File | null>(null)
@@ -81,7 +87,7 @@ export default function VideoEditClient() {
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      contentType: 'video',
+      contentType: 'seminar',
       status: 'private',
       isNewBadge: false,
       isMaterialBadge: false,
@@ -92,9 +98,17 @@ export default function VideoEditClient() {
 
   useEffect(() => {
     const load = async () => {
-      if (!params?.id) return
+      if (!idParam || Number.isNaN(videoId)) {
+        toast({
+          title: '오류',
+          description: '잘못된 접근입니다. (id가 없습니다)',
+          variant: 'destructive',
+        })
+        router.push('/admin/seminar')
+        return
+      }
       try {
-        const data = await getVideo(Number(params.id))
+        const data = await getVideo(videoId)
         setVideo(data)
         setThumbnail(data.thumbnail || '')
         setVideoStreamId(data.videoStreamId || '')
@@ -117,14 +131,45 @@ export default function VideoEditClient() {
           scheduledAt: toDatetimeLocalValue(data.scheduledAt),
         })
       } catch (error: any) {
-        toast({ title: '오류', description: error.message || '데이터 로드 실패', variant: 'destructive' })
-        router.push('/admin/video')
+        toast({
+          title: '오류',
+          description: error.message || '데이터를 불러오지 못했습니다.',
+          variant: 'destructive',
+        })
+        router.push('/admin/seminar')
       }
     }
     load()
-  }, [params?.id, reset, router, toast])
+  }, [idParam, videoId, reset, router, toast])
 
-  const isScheduled = useMemo(() => watch('status') === VIDEO_STATUS.SCHEDULED, [watch('status')])
+  const isScheduled = useMemo(() => watch('status') === VIDEO_STATUS.SCHEDULED, [watch])
+
+  const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.name.toLowerCase().endsWith('.mp4')) {
+      toast({ title: '오류', description: 'MP4 파일만 업로드 가능합니다.', variant: 'destructive', duration: 15000 })
+      e.target.value = ''
+      return
+    }
+
+    const MAX_SIZE = 2 * 1024 * 1024 * 1024
+    if (file.size > MAX_SIZE) {
+      toast({
+        title: '오류',
+        description: `파일 크기가 2GB를 초과합니다. (현재: ${(file.size / (1024 * 1024 * 1024)).toFixed(2)}GB)`,
+        variant: 'destructive',
+        duration: 15000,
+      })
+      e.target.value = ''
+      return
+    }
+
+    setVideoFile(file)
+    setVideoStreamId('')
+    setValue('videoStreamId' as any, '')
+  }
 
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -134,50 +179,36 @@ export default function VideoEditClient() {
     reader.readAsDataURL(file)
   }
 
-  const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (!file.name.toLowerCase().endsWith('.mp4')) {
-      toast({ title: '오류', description: 'MP4 파일만 업로드 가능합니다.', variant: 'destructive', duration: 15000 })
-      return
-    }
-    if (file.size > 2 * 1024 * 1024 * 1024) {
-      toast({ title: '오류', description: '파일 크기는 2GB 이하여야 합니다.', variant: 'destructive', duration: 15000 })
-      return
-    }
-    setVideoFile(file)
-    setVideoStreamId('')
-  }
-
   const onSubmit = async (data: FormData) => {
     if (!video) return
     try {
       setSaving(true)
 
-      let finalStreamId = videoStreamId
+      let finalVideoStreamId = videoStreamId
       if (videoFile && !videoStreamId) {
-        const uploaded = await uploadVideoFile(videoFile)
-        finalStreamId = uploaded.videoStreamId
-        setVideoStreamId(finalStreamId)
+        const result = await uploadVideoFile(videoFile)
+        finalVideoStreamId = result.videoStreamId
+        setVideoStreamId(finalVideoStreamId)
       }
 
       const payload: VideoUpdateRequest = {
         id: video.id,
         ...data,
-        videoStreamId: finalStreamId || undefined,
+        contentType: 'seminar',
+        videoStreamId: finalVideoStreamId || undefined,
         thumbnail: thumbnail || undefined,
         scheduledAt: data.scheduledAt ? new Date(data.scheduledAt).toISOString() : undefined,
       }
 
       await updateVideo(payload)
-      toast({ title: '성공', description: '비디오가 수정되었습니다.' })
-      router.push(`/admin/video/${video.id}`)
+      toast({ title: '성공', description: '저장되었습니다.' })
+      router.push(`/admin/seminar/detail?id=${video.id}`)
     } catch (error: any) {
       toast({
         title: '오류',
-        description: error.message || '수정 실패',
+        description: error.message || '저장에 실패했습니다.',
         variant: 'destructive',
-        duration: 15000, // 15초
+        duration: 15000,
       })
     } finally {
       setSaving(false)
@@ -190,9 +221,13 @@ export default function VideoEditClient() {
       setDeleting(true)
       await deleteVideo(video.id)
       toast({ title: '성공', description: '콘텐츠가 삭제되었습니다.' })
-      router.push('/admin/video')
+      router.push('/admin/seminar')
     } catch (error: any) {
-      toast({ title: '오류', description: error.message || '삭제 실패', variant: 'destructive' })
+      toast({
+        title: '오류',
+        description: error.message || '삭제에 실패했습니다.',
+        variant: 'destructive',
+      })
     } finally {
       setDeleting(false)
     }
@@ -206,13 +241,13 @@ export default function VideoEditClient() {
     <div className="space-y-6 relative">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href={`/admin/video/${video.id}`}>
+          <Link href={`/admin/seminar/detail?id=${video.id}`}>
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               상세로
             </Button>
           </Link>
-          <h1 className="text-2xl font-bold">비디오 수정</h1>
+          <h1 className="text-2xl font-bold">세미나 수정</h1>
         </div>
         <div className="flex gap-2">
           <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
@@ -231,7 +266,10 @@ export default function VideoEditClient() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>콘텐츠 타입</Label>
-              <p className="text-sm text-gray-600 flex items-center gap-2 py-2"><VideoIcon className="h-4 w-4" />비디오</p>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <GraduationCap className="h-4 w-4" />
+                세미나
+              </div>
             </div>
             <div className="space-y-2">
               <Label>카테고리</Label>
@@ -271,7 +309,7 @@ export default function VideoEditClient() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-lg font-semibold">비디오 데이터</h2>
+          <h2 className="text-lg font-semibold">비디오 / 세미나 데이터</h2>
           <div className="space-y-2">
             <Label>대표 썸네일 이미지</Label>
             <div className="flex items-center gap-4">
@@ -313,47 +351,36 @@ export default function VideoEditClient() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>NEW 배지</Label>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">NEW 배지 표시</span>
+                <Switch checked={watch('isNewBadge')} onCheckedChange={(checked) => setValue('isNewBadge', checked)} />
+              </div>
+            </div>
           </div>
+
           {isScheduled && (
             <div className="space-y-2">
-              <Label>예약 일시</Label>
+              <Label>예약 발행 일시</Label>
               <Input type="datetime-local" {...register('scheduledAt')} />
             </div>
           )}
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>출연자</Label>
-              <Input {...register('speaker')} />
+              <Label>댓글</Label>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">댓글 허용</span>
+                <Switch checked={watch('allowComment')} onCheckedChange={(checked) => setValue('allowComment', checked)} />
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>출연자 소속</Label>
-              <Input {...register('speakerAffiliation')} />
-            </div>
-            <div className="space-y-2">
-              <Label>에디터</Label>
-              <Input {...register('editor')} />
-            </div>
-            <div className="space-y-2">
-              <Label>디렉터</Label>
-              <Input {...register('director')} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center gap-2">
-              <Switch checked={watch('allowRating')} onCheckedChange={(v) => setValue('allowRating', v)} />
-              <Label>별점 허용</Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch checked={watch('allowComment')} onCheckedChange={(v) => setValue('allowComment', v)} />
-              <Label>댓글 허용</Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch checked={watch('isNewBadge')} onCheckedChange={(v) => setValue('isNewBadge', v)} />
-              <Label>NEW 배지</Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch checked={watch('isMaterialBadge')} onCheckedChange={(v) => setValue('isMaterialBadge', v)} />
-              <Label>자료 배지</Label>
+              <Label>별점</Label>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600">별점 허용</span>
+                <Switch checked={watch('allowRating')} onCheckedChange={(checked) => setValue('allowRating', checked)} />
+              </div>
             </div>
           </div>
         </Card>
@@ -363,7 +390,7 @@ export default function VideoEditClient() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>콘텐츠 삭제</DialogTitle>
-            <DialogDescription>해당 콘텐츠를 삭제하시겠습니까?</DialogDescription>
+            <DialogDescription>삭제 시 사용자 라이브러리에서 접근이 제한됩니다. 삭제하시겠습니까?</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteOpen(false)}>취소</Button>
@@ -382,5 +409,3 @@ export default function VideoEditClient() {
     </div>
   )
 }
-
-

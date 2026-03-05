@@ -15,7 +15,6 @@ import {
   type VideoUpdateRequest,
   VIDEO_STATUS,
   VISIBILITY_OPTIONS,
-  CONTENT_TYPE,
 } from '@/features/video'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -23,11 +22,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SysCodeSelect } from '@/components/admin/SysCodeSelect'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
-import { ArrowLeft, Trash2, Video as VideoIcon, GraduationCap } from 'lucide-react'
+import { ArrowLeft, Trash2, Video as VideoIcon } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 const schema = z.object({
@@ -142,8 +140,6 @@ export default function VideoEditClient() {
     load()
   }, [idParam, videoId, reset, router, toast])
 
-  const contentType = watch('contentType')
-
   const isScheduled = useMemo(() => watch('status') === VIDEO_STATUS.SCHEDULED, [watch])
 
   const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -248,7 +244,7 @@ export default function VideoEditClient() {
               상세로
             </Button>
           </Link>
-          <h1 className="text-2xl font-bold">비디오/세미나 수정</h1>
+          <h1 className="text-2xl font-bold">비디오 수정</h1>
         </div>
         <div className="flex gap-2">
           <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
@@ -267,16 +263,7 @@ export default function VideoEditClient() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>콘텐츠 타입</Label>
-              <RadioGroup value={contentType} onValueChange={(v) => setValue('contentType', v as 'video' | 'seminar')} className="flex gap-4">
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value={CONTENT_TYPE.VIDEO} id="type-video" />
-                  <Label htmlFor="type-video" className="flex items-center gap-1"><VideoIcon className="h-4 w-4" />비디오</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value={CONTENT_TYPE.SEMINAR} id="type-seminar" />
-                  <Label htmlFor="type-seminar" className="flex items-center gap-1"><GraduationCap className="h-4 w-4" />세미나</Label>
-                </div>
-              </RadioGroup>
+              <p className="text-sm text-gray-600 flex items-center gap-2 py-2"><VideoIcon className="h-4 w-4" />비디오</p>
             </div>
             <div className="space-y-2">
               <Label>카테고리</Label>
@@ -316,7 +303,7 @@ export default function VideoEditClient() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <h2 className="text-lg font-semibold">비디오 / 세미나 데이터</h2>
+          <h2 className="text-lg font-semibold">비디오 데이터</h2>
           <div className="space-y-2">
             <Label>대표 썸네일 이미지</Label>
             <div className="flex items-center gap-4">

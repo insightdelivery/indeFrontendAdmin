@@ -11,6 +11,7 @@ import {
   updateVideoStatus,
   type Video,
   type VideoListParams,
+  CONTENT_TYPE,
   VIDEO_STATUS,
   SEARCH_TYPE,
   SORT_OPTIONS,
@@ -55,10 +56,12 @@ import {
   MessageSquare,
   Star,
   Video as VideoIcon,
+  FileVideo,
+  GraduationCap,
 } from 'lucide-react'
 import Image from 'next/image'
 
-export default function VideoListPage() {
+export default function SeminarListPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [videos, setVideos] = useState<Video[]>([])
@@ -73,7 +76,7 @@ export default function VideoListPage() {
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
 
-  // 필터 상태
+  // 필터 상태 (세미나만 조회)
   const [filters, setFilters] = useState<VideoListParams>({
     page: 1,
     pageSize: 20,
@@ -94,7 +97,7 @@ export default function VideoListPage() {
         ...filters,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
-        contentType: 'video',
+        contentType: 'seminar',
         category: category === '전체' ? undefined : category,
         visibility: visibility || undefined,
         status: status || undefined,
@@ -105,24 +108,18 @@ export default function VideoListPage() {
       const result = await getVideoList(params)
       setVideos(result.videos)
     } catch (error: any) {
-      // 401/403 에러인 경우 토큰 무효화로 간주하고 로그인 페이지로 리다이렉트
       if (error.response?.status === 401 || error.response?.status === 403) {
-        // axios 인터셉터가 이미 처리했지만, 추가로 확인
         if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-          // 쿠키 삭제
           Cookies.remove('accessToken')
           Cookies.remove('refreshToken')
           Cookies.remove('userInfo')
-          
-          // 로그인 페이지로 리다이렉트
           window.location.href = '/login'
           return
         }
       }
-      
       toast({
         title: '오류',
-        description: error.message || '비디오 목록을 불러오는데 실패했습니다.',
+        description: error.message || '세미나 목록을 불러오는데 실패했습니다.',
         variant: 'destructive',
         duration: 3000,
       })
@@ -160,7 +157,7 @@ export default function VideoListPage() {
     if (selectedIds.length === 0) {
       toast({
         title: '알림',
-        description: '삭제할 비디오를 선택해주세요.',
+        description: '삭제할 세미나를 선택해주세요.',
         duration: 3000,
       })
       return
@@ -176,14 +173,14 @@ export default function VideoListPage() {
         await deleteVideos(deleteTarget)
         toast({
           title: '성공',
-          description: `${deleteTarget.length}개의 비디오가 삭제되었습니다.`,
+          description: `${deleteTarget.length}개의 세미나가 삭제되었습니다.`,
           duration: 3000,
         })
       } else if (deleteTarget) {
         await deleteVideo(deleteTarget)
         toast({
           title: '성공',
-          description: '비디오가 삭제되었습니다.',
+          description: '세미나가 삭제되었습니다.',
           duration: 3000,
         })
       }
@@ -194,7 +191,7 @@ export default function VideoListPage() {
     } catch (error: any) {
       toast({
         title: '오류',
-        description: error.message || '비디오 삭제에 실패했습니다.',
+        description: error.message || '세미나 삭제에 실패했습니다.',
         variant: 'destructive',
         duration: 3000,
       })
@@ -214,7 +211,7 @@ export default function VideoListPage() {
       await updateVideoStatus(statusChangeTarget, newStatus)
       toast({
         title: '성공',
-        description: `${statusChangeTarget.length}개의 비디오 상태가 변경되었습니다.`,
+        description: `${statusChangeTarget.length}개의 세미나 상태가 변경되었습니다.`,
         duration: 3000,
       })
       setStatusChangeModalOpen(false)
@@ -224,7 +221,7 @@ export default function VideoListPage() {
     } catch (error: any) {
       toast({
         title: '오류',
-        description: error.message || '비디오 상태 변경에 실패했습니다.',
+        description: error.message || '세미나 상태 변경에 실패했습니다.',
         variant: 'destructive',
         duration: 3000,
       })
@@ -261,6 +258,15 @@ export default function VideoListPage() {
     )
   }
 
+  const getContentTypeBadge = (contentType: string) => {
+    return (
+      <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 flex items-center gap-1">
+        <GraduationCap className="h-3 w-3" />
+        세미나
+      </span>
+    )
+  }
+
   const resetFilters = () => {
     setStartDate('')
     setEndDate('')
@@ -274,14 +280,13 @@ export default function VideoListPage() {
 
   return (
     <div className="h-full space-y-6 relative">
-      {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">비디오 관리</h1>
-          <p className="text-gray-600">비디오 콘텐츠를 검색, 필터링하고 관리할 수 있습니다.</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">세미나 관리</h1>
+          <p className="text-gray-600">세미나 콘텐츠를 검색, 필터링하고 관리할 수 있습니다.</p>
         </div>
         <div className="flex gap-2">
-          <Link href="/admin/video/new">
+          <Link href="/admin/seminar/new">
             <Button className="bg-neon-yellow hover:bg-neon-yellow/90 text-black">
               <Plus className="h-4 w-4 mr-2" />
               새 콘텐츠
@@ -290,7 +295,6 @@ export default function VideoListPage() {
         </div>
       </div>
 
-      {/* 검색 및 필터 영역 */}
       <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
         <div className="flex items-center gap-2 mb-4">
           <Filter className="h-5 w-5 text-gray-500" />
@@ -304,7 +308,6 @@ export default function VideoListPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* 검색어 */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">검색어</label>
             <div className="flex gap-2">
@@ -336,7 +339,6 @@ export default function VideoListPage() {
             </div>
           </div>
 
-          {/* 카테고리 필터 */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">카테고리</label>
             <SysCodeSelect
@@ -350,7 +352,6 @@ export default function VideoListPage() {
             />
           </div>
 
-          {/* 노출 상태 */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">노출 상태</label>
             <Select value={status || 'all'} onValueChange={(value) => setStatus(value === 'all' ? '' : value)}>
@@ -367,7 +368,6 @@ export default function VideoListPage() {
             </Select>
           </div>
 
-          {/* 기간 검색 */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">등록일 (시작일)</label>
             <Input
@@ -385,7 +385,6 @@ export default function VideoListPage() {
             />
           </div>
 
-          {/* 정렬 */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">정렬</label>
             <Select value={sort} onValueChange={setSort}>
@@ -403,7 +402,6 @@ export default function VideoListPage() {
         </div>
       </div>
 
-      {/* 일괄 관리 액션 바 */}
       {selectedIds.length > 0 && (
         <div className="bg-neon-yellow rounded-lg border border-gray-200 p-4 flex items-center justify-between">
           <span className="font-medium text-black">
@@ -430,7 +428,6 @@ export default function VideoListPage() {
         </div>
       )}
 
-      {/* 비디오 목록 테이블 */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -449,11 +446,11 @@ export default function VideoListPage() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neon-yellow mx-auto mb-4"></div>
             로딩 중...
           </div>
-          ) : videos.length === 0 ? (
+        ) : videos.length === 0 ? (
           <div className="p-12 text-center text-gray-500">
             {searchTerm || category !== '전체' || visibility || status
               ? '검색 결과가 없습니다.'
-              : '등록된 비디오가 없습니다.'}
+              : '등록된 세미나가 없습니다.'}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -614,7 +611,7 @@ export default function VideoListPage() {
                         <Button variant="ghost" size="sm" title="상세" onClick={() => handleOpenDetail(video.id)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Link href={`/admin/video/edit?id=${video.id}`}>
+                        <Link href={`/admin/seminar/edit?id=${video.id}`}>
                           <Button variant="ghost" size="sm" title="수정">
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -638,15 +635,14 @@ export default function VideoListPage() {
         )}
       </div>
 
-      {/* 삭제 확인 모달 */}
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>비디오 삭제</DialogTitle>
+            <DialogTitle>세미나 삭제</DialogTitle>
             <DialogDescription>
               {Array.isArray(deleteTarget)
-                ? `선택한 ${deleteTarget.length}개의 비디오를 삭제하시겠습니까? 삭제 시 사용자의 북마크 및 관련 라이브러리에서 접근이 제한됩니다.`
-                : '이 비디오를 삭제하시겠습니까? 삭제 시 사용자의 북마크 및 관련 라이브러리에서 접근이 제한됩니다.'}
+                ? `선택한 ${deleteTarget.length}개의 세미나를 삭제하시겠습니까? 삭제 시 사용자의 북마크 및 관련 라이브러리에서 접근이 제한됩니다.`
+                : '이 세미나를 삭제하시겠습니까? 삭제 시 사용자의 북마크 및 관련 라이브러리에서 접근이 제한됩니다.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -660,13 +656,12 @@ export default function VideoListPage() {
         </DialogContent>
       </Dialog>
 
-      {/* 상태 변경 확인 모달 */}
       <Dialog open={statusChangeModalOpen} onOpenChange={setStatusChangeModalOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>상태 변경</DialogTitle>
             <DialogDescription>
-              선택한 {statusChangeTarget.length}개의 비디오를{' '}
+              선택한 {statusChangeTarget.length}개의 세미나를{' '}
               {newStatus === VIDEO_STATUS.PUBLIC
                 ? '공개'
                 : newStatus === VIDEO_STATUS.PRIVATE
@@ -684,13 +679,12 @@ export default function VideoListPage() {
         </DialogContent>
       </Dialog>
 
-      {/* 상세 미리보기 모달 */}
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>상세 미리보기</DialogTitle>
             <DialogDescription>
-              {selectedVideo?.title || '비디오 상세 정보'}
+              {selectedVideo?.title || '세미나 상세 정보'}
             </DialogDescription>
           </DialogHeader>
 
@@ -729,7 +723,7 @@ export default function VideoListPage() {
 
           <DialogFooter>
             {selectedVideo && (
-              <Link href={`/admin/video/edit?id=${selectedVideo.id}`}>
+              <Link href={`/admin/seminar/edit?id=${selectedVideo.id}`}>
                 <Button>
                   <Edit className="h-4 w-4 mr-2" />
                   수정
@@ -753,4 +747,3 @@ export default function VideoListPage() {
     </div>
   )
 }
-

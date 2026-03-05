@@ -119,7 +119,7 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">사용자 관리</h1>
+          <h1 className="text-2xl font-bold text-gray-900">회원 관리</h1>
           <p className="text-gray-600 text-sm">공개 회원(PublicMemberShip) 목록을 조회·수정·삭제할 수 있습니다.</p>
         </div>
         <Link href="/admin/users/new">

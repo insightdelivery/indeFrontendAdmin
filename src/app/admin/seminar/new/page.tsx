@@ -9,6 +9,7 @@ import {
   createVideo,
   uploadVideoFile,
   type VideoCreateRequest,
+  CONTENT_TYPE,
   VIDEO_STATUS,
   VISIBILITY_OPTIONS,
 } from '@/features/video'
@@ -23,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Switch } from '@/components/ui/switch'
 import { Card } from '@/components/ui/card'
 import { SysCodeSelect } from '@/components/admin/SysCodeSelect'
@@ -35,6 +37,7 @@ import {
   Upload,
   File,
   Video as VideoIcon,
+  GraduationCap,
 } from 'lucide-react'
 import Link from 'next/link'
 import { getUserInfo } from '@/services/auth'
@@ -42,7 +45,9 @@ import { RichTextEditor } from '@/components/admin/RichTextEditor'
 import apiClient from '@/lib/axios'
 
 const videoSchema = z.object({
-  contentType: z.literal('video'),
+  contentType: z.enum(['video', 'seminar'], {
+    required_error: '콘텐츠 타입을 선택해주세요.',
+  }),
   category: z.string().min(1, '카테고리를 선택해주세요.'),
   title: z.string().min(1, '제목을 입력해주세요.'),
   subtitle: z.string().optional(),
@@ -73,7 +78,7 @@ interface AttachmentFile {
   file?: File
 }
 
-export default function VideoCreatePage() {
+export default function SeminarCreatePage() {
   const router = useRouter()
   const { toast } = useToast()
   const [thumbnail, setThumbnail] = useState<string>('')
@@ -100,7 +105,7 @@ export default function VideoCreatePage() {
   } = useForm<VideoFormData>({
     resolver: zodResolver(videoSchema),
     defaultValues: {
-      contentType: 'video',
+      contentType: 'seminar',
       visibility: '',
       status: 'private',
       isNewBadge: false,
@@ -178,34 +183,31 @@ export default function VideoCreatePage() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // 파일 확장자 확인
     if (!file.name.toLowerCase().endsWith('.mp4')) {
       toast({
         title: '오류',
         description: 'MP4 파일만 업로드 가능합니다.',
         variant: 'destructive',
-        duration: 15000, // 15초
+        duration: 15000,
       })
-      e.target.value = '' // 파일 선택 초기화
+      e.target.value = ''
       return
     }
 
-    // 파일 크기 확인 (2GB 제한)
-    const MAX_SIZE = 2 * 1024 * 1024 * 1024 // 2GB
+    const MAX_SIZE = 2 * 1024 * 1024 * 1024
     if (file.size > MAX_SIZE) {
       toast({
         title: '오류',
         description: `파일 크기가 2GB를 초과합니다. (현재: ${(file.size / (1024 * 1024 * 1024)).toFixed(2)}GB)`,
         variant: 'destructive',
-        duration: 15000, // 15초
+        duration: 15000,
       })
-      e.target.value = '' // 파일 선택 초기화
+      e.target.value = ''
       return
     }
 
-    // 파일만 저장하고 업로드는 등록 버튼 클릭 시 수행
     setVideoFile(file)
-    setVideoStreamId('') // 기존 videoStreamId 초기화
+    setVideoStreamId('')
     setValue('videoStreamId', '')
   }
 
@@ -213,13 +215,12 @@ export default function VideoCreatePage() {
     try {
       setSaving(true)
 
-      // 비디오 파일이 있으면 먼저 업로드
       let finalVideoStreamId = videoStreamId
       if (videoFile && !videoStreamId) {
         try {
           setUploadingVideo(true)
           setUploadProgress(0)
-          
+
           const result = await uploadVideoFile(videoFile, (progress) => {
             setUploadProgress(progress)
           })
@@ -231,7 +232,7 @@ export default function VideoCreatePage() {
             title: '오류',
             description: error.message || '비디오 업로드에 실패했습니다.',
             variant: 'destructive',
-            duration: 15000, // 15초
+            duration: 15000,
           })
           setSaving(false)
           setUploadingVideo(false)
@@ -242,19 +243,17 @@ export default function VideoCreatePage() {
         }
       }
 
-      // videoStreamId 또는 videoUrl 검증
       if (!finalVideoStreamId && !data.videoUrl) {
         toast({
           title: '오류',
           description: '비디오 파일을 선택하거나 영상 URL을 입력해주세요.',
           variant: 'destructive',
-          duration: 15000, // 15초
+          duration: 15000,
         })
         setSaving(false)
         return
       }
 
-      // 썸네일 처리
       let thumbnailData: string | undefined = undefined
       if (thumbnail) {
         if (thumbnail.startsWith('data:image')) {
@@ -273,7 +272,6 @@ export default function VideoCreatePage() {
         }
       }
 
-      // scheduledAt 처리
       let scheduledAtISO = undefined
       if (data.scheduledAt) {
         const scheduledDate = new Date(data.scheduledAt)
@@ -282,7 +280,6 @@ export default function VideoCreatePage() {
         }
       }
 
-      // 첨부파일 업로드 (등록 버튼 클릭 시점에만 실행)
       const uploadedAttachments: Array<{ filename: string; url: string; size?: number }> = []
       if (attachments.length > 0) {
         try {
@@ -334,6 +331,7 @@ export default function VideoCreatePage() {
 
       const requestData: VideoCreateRequest = {
         ...data,
+        contentType: 'seminar',
         videoStreamId: finalVideoStreamId || undefined,
         questions: questions.filter((q) => q.trim() !== ''),
         tags: data.tags?.filter((tag) => tag.trim() !== ''),
@@ -349,15 +347,15 @@ export default function VideoCreatePage() {
 
       toast({
         title: '성공',
-        description: '비디오가 등록되었습니다.',
+        description: '세미나가 등록되었습니다.',
         duration: 3000,
       })
 
-      router.push('/admin/video')
+      router.push('/admin/seminar')
     } catch (error: any) {
       toast({
         title: '오류',
-        description: error.message || '비디오 등록에 실패했습니다.',
+        description: error.message || '세미나 등록에 실패했습니다.',
         variant: 'destructive',
         duration: 3000,
       })
@@ -368,18 +366,17 @@ export default function VideoCreatePage() {
 
   return (
     <div className="h-full space-y-6 relative">
-      {/* 상단 제어 바 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/admin/video">
+          <Link href="/admin/seminar">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               목록으로
             </Button>
           </Link>
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">새 비디오 등록</h1>
-            <p className="text-gray-600">비디오 정보를 입력하고 등록하세요.</p>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">새 세미나 등록</h1>
+            <p className="text-gray-600">세미나 정보를 입력하고 등록하세요.</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -394,17 +391,16 @@ export default function VideoCreatePage() {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* 콘텐츠 기본 설정 */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">콘텐츠 기본 설정</h2>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>콘텐츠 타입</Label>
-                <p className="text-sm text-gray-600 flex items-center gap-2 py-2">
-                  <VideoIcon className="h-4 w-4" />
-                  비디오
-                </p>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <GraduationCap className="h-4 w-4" />
+                  세미나 (고정)
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -448,7 +444,7 @@ export default function VideoCreatePage() {
               <Input
                 id="title"
                 {...register('title')}
-                placeholder="비디오 제목을 입력하세요"
+                placeholder="세미나 제목을 입력하세요"
               />
               {errors.title && (
                 <p className="text-sm text-red-600">{errors.title.message}</p>
@@ -469,7 +465,7 @@ export default function VideoCreatePage() {
               <RichTextEditor
                 value={watch('body') || ''}
                 onChange={(value) => setValue('body', value)}
-                placeholder="영상 상세 설명을 입력하세요"
+                placeholder="세미나 상세 설명을 입력하세요"
               />
             </div>
 
@@ -512,9 +508,8 @@ export default function VideoCreatePage() {
           </div>
         </Card>
 
-        {/* 핵심 데이터 */}
         <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">비디오 데이터</h2>
+          <h2 className="text-xl font-semibold mb-4">비디오 / 세미나 데이터</h2>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>대표 썸네일 이미지</Label>
@@ -592,8 +587,8 @@ export default function VideoCreatePage() {
               )}
               {videoFile && (
                 <div className={`mt-4 p-4 border rounded-lg ${
-                  videoStreamId 
-                    ? 'bg-green-50 border-green-200' 
+                  videoStreamId
+                    ? 'bg-green-50 border-green-200'
                     : 'bg-yellow-50 border-yellow-200'
                 }`}>
                   <div className="flex items-center justify-between">
@@ -623,7 +618,6 @@ export default function VideoCreatePage() {
                         setVideoFile(null)
                         setVideoStreamId('')
                         setValue('videoStreamId', '')
-                        // 파일 input 초기화
                         const fileInput = document.getElementById('video-upload') as HTMLInputElement
                         if (fileInput) {
                           fileInput.value = ''
@@ -699,7 +693,6 @@ export default function VideoCreatePage() {
           </div>
         </Card>
 
-        {/* 인물 및 연동 설정 */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">인물 및 연동 설정</h2>
           <div className="space-y-4">
@@ -743,7 +736,6 @@ export default function VideoCreatePage() {
           </div>
         </Card>
 
-        {/* 상호작용 설정 */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">상호작용 설정</h2>
           <div className="space-y-4">
@@ -799,7 +791,6 @@ export default function VideoCreatePage() {
           </div>
         </Card>
 
-        {/* 발행 및 시스템 정보 */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">발행 및 시스템 정보</h2>
           <div className="space-y-4">
@@ -850,4 +841,3 @@ export default function VideoCreatePage() {
     </div>
   )
 }
-

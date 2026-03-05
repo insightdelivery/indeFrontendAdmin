@@ -21,6 +21,7 @@ import {
   ChevronRight,
   FileText,
   Video,
+  GraduationCap,
   MessageSquare,
   ClipboardList,
   HelpCircle,
@@ -90,9 +91,10 @@ export default function AdminLayout({
   const menuItems = [
     { href: '/admin', label: '대시보드', icon: LayoutDashboard },
     { href: '/admin/articles', label: '아티클 관리', icon: FileText },
-    { href: '/admin/video', label: '비디오/세미나 관리', icon: Video },
-    { href: '/admin/users', label: '사용자 관리', icon: Users },
-    { href: '/admin/orders', label: '주문 관리', icon: ShoppingCart },
+    { href: '/admin/video', label: '비디오 관리', icon: Video },
+    { href: '/admin/seminar', label: '세미나 관리', icon: GraduationCap },
+    { href: '/admin/users', label: '회원관리', icon: Users },
+    { href: '/admin/orders', label: '결제관리', icon: ShoppingCart },
   ]
 
   // 설정 하위 메뉴 정의
@@ -140,7 +142,7 @@ export default function AdminLayout({
           {sidebarOpen && (
             <>
               <h1 className="text-xl font-bold">
-                <span className="text-black">INDE</span>
+                <span className="text-black">InDe</span>
                 <span className="text-brand-orange text-xs font-semibold ml-1">admin</span>
               </h1>
               <Button

@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { getSysCodeFromCache, getSysCodeName } from '@/lib/syscode'
 
-export default function VideoDetailClient() {
+export default function SeminarDetailClient() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { toast } = useToast()
@@ -31,7 +31,7 @@ export default function VideoDetailClient() {
           description: '잘못된 접근입니다. (id가 없습니다)',
           variant: 'destructive',
         })
-        router.push('/admin/video')
+        router.push('/admin/seminar')
         return
       }
 
@@ -45,7 +45,7 @@ export default function VideoDetailClient() {
           description: error.message || '상세 정보를 불러오지 못했습니다.',
           variant: 'destructive',
         })
-        router.push('/admin/video')
+        router.push('/admin/seminar')
       } finally {
         setLoading(false)
       }
@@ -59,7 +59,7 @@ export default function VideoDetailClient() {
       setDeleting(true)
       await deleteVideo(video.id)
       toast({ title: '성공', description: '콘텐츠가 삭제되었습니다.' })
-      router.push('/admin/video')
+      router.push('/admin/seminar')
     } catch (error: any) {
       toast({
         title: '오류',
@@ -81,16 +81,16 @@ export default function VideoDetailClient() {
     <div className="space-y-6 relative">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/admin/video">
+          <Link href="/admin/seminar">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               목록으로
             </Button>
           </Link>
-          <h1 className="text-2xl font-bold">비디오 상세</h1>
+          <h1 className="text-2xl font-bold">세미나 상세</h1>
         </div>
         <div className="flex gap-2">
-          <Link href={`/admin/video/edit?id=${video.id}`}>
+          <Link href={`/admin/seminar/edit?id=${video.id}`}>
             <Button>
               <Edit className="h-4 w-4 mr-2" />
               수정
@@ -174,5 +174,3 @@ export default function VideoDetailClient() {
     </div>
   )
 }
-
-
