@@ -69,6 +69,7 @@ export default function ArticleCreatePage() {
     handleSubmit,
     formState: { errors },
     setValue,
+    setError,
     watch,
     getValues,
   } = useForm<ArticleFormData>({
@@ -288,11 +289,21 @@ export default function ArticleCreatePage() {
 
       router.push('/admin/articles')
     } catch (error: any) {
+      const message = error?.message || '아티클 등록에 실패했습니다.'
+      const fieldErrors = (error as Error & { fieldErrors?: Record<string, string[]> })?.fieldErrors
+
+      if (fieldErrors && typeof setError === 'function') {
+        for (const [field, messages] of Object.entries(fieldErrors)) {
+          const msg = Array.isArray(messages) ? messages.join(' ') : String(messages)
+          setError(field as keyof ArticleFormData, { type: 'server', message: msg })
+        }
+      }
+
       toast({
         title: '오류',
-        description: error.message || '아티클 등록에 실패했습니다.',
+        description: message,
         variant: 'destructive',
-        duration: 3000,
+        duration: 5000,
       })
     } finally {
       setSaving(false)

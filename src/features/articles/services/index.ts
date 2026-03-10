@@ -108,7 +108,12 @@ export const createArticle = async (data: ArticleCreateRequest): Promise<Article
       errorMessage = error.message
     }
 
-    throw new Error(errorMessage)
+    const fieldErrors = error.response?.data?.IndeAPIResponse?.Result?.errors as Record<string, string[]> | undefined
+    const err = new Error(errorMessage) as Error & { fieldErrors?: Record<string, string[]> }
+    if (fieldErrors) {
+      err.fieldErrors = fieldErrors
+    }
+    throw err
   }
 }
 
