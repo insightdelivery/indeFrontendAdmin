@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { createArticle, type ArticleCreateRequest, ARTICLE_CATEGORIES, VISIBILITY_OPTIONS, PUBLISH_STATUS } from '@/features/articles'
+import { getAuthorsByContentType } from '@/features/contentAuthor'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,24 +33,33 @@ import {
   Trash2,
 } from 'lucide-react'
 import Link from 'next/link'
-import { getUserInfo } from '@/services/auth'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
 
-const articleSchema = z.object({
-  title: z.string().min(1, '제목을 입력해주세요.'),
-  subtitle: z.string().optional(),
-  content: z.string().min(1, '본문 내용을 입력해주세요.'),
-  category: z.string().min(1, '카테고리를 선택해주세요.'),
-  author: z.string().min(1, '작성자를 입력해주세요.'),
-  authorAffiliation: z.string().optional(),
-  visibility: z.string().min(1, '공개 범위를 선택해주세요.'), // sysCodeSid를 받도록 변경
-  status: z.string().min(1, '발행 상태를 선택해주세요.'), // sysCodeSid를 받도록 변경
-  isEditorPick: z.boolean().default(false),
-  tags: z.array(z.string()).optional(),
-  questions: z.array(z.string()).optional(),
-  previewLength: z.number().min(0).max(100).optional(),
-  scheduledAt: z.string().optional(),
-})
+const articleSchema = z
+  .object({
+    title: z.string().min(1, '제목을 입력해주세요.'),
+    subtitle: z.string().optional(),
+    content: z.string().min(1, '본문 내용을 입력해주세요.'),
+    category: z.string().min(1, '카테고리를 선택해주세요.'),
+    author: z.string().optional(),
+    author_id: z.union([z.number(), z.string()]).optional(),
+    authorAffiliation: z.string().optional(),
+    visibility: z.string().min(1, '공개 범위를 선택해주세요.'),
+    status: z.string().min(1, '발행 상태를 선택해주세요.'),
+    isEditorPick: z.boolean().default(false),
+    tags: z.array(z.string()).optional(),
+    previewLength: z.number().min(0).max(100).optional(),
+    scheduledAt: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      const aid = data.author_id != null && data.author_id !== '' ? Number(data.author_id) : undefined
+      const hasAuthorId = aid !== undefined && !Number.isNaN(aid)
+      const hasAuthor = !!data.author?.trim()
+      return hasAuthorId || hasAuthor
+    },
+    { message: '작성자(에디터)를 선택해주세요.', path: ['author_id'] }
+  )
 
 type ArticleFormData = z.infer<typeof articleSchema>
 
@@ -59,10 +69,11 @@ export default function ArticleCreatePage() {
   const [thumbnail, setThumbnail] = useState<string>('')
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
   const [tagInput, setTagInput] = useState('')
-  const [questions, setQuestions] = useState<string[]>([''])
   const [isScheduled, setIsScheduled] = useState(false)
   const [saving, setSaving] = useState(false)
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
+  /** 아티클 담당 에디터 목록(콘텐츠 유형 ARTICLE, 역할 EDITOR) */
+  const [editorOptions, setEditorOptions] = useState<{ author_id: number; name: string }[]>([])
 
   const {
     register,
@@ -75,23 +86,26 @@ export default function ArticleCreatePage() {
   } = useForm<ArticleFormData>({
     resolver: zodResolver(articleSchema),
     defaultValues: {
-      visibility: '', // sysCodeSid로 초기화 (빈 문자열, 선택 필수)
-      status: '', // sysCodeSid로 초기화 (빈 문자열, 선택 필수)
+      visibility: '',
+      status: '',
       isEditorPick: false,
       tags: [],
-      questions: [],
       previewLength: 50,
+      author_id: undefined as number | undefined,
+      author: '',
     },
   })
 
   const status = watch('status')
-  const userInfo = getUserInfo()
 
   useEffect(() => {
-    if (userInfo) {
-      setValue('author', userInfo.memberShipName || '')
-    }
-  }, [userInfo, setValue])
+    getAuthorsByContentType('ARTICLE')
+      .then((authors) => {
+        const editors = authors.filter((a) => a.role === 'EDITOR')
+        setEditorOptions(editors.map((a) => ({ author_id: a.author_id, name: a.name })))
+      })
+      .catch(() => setEditorOptions([]))
+  }, [])
 
   useEffect(() => {
     // status가 sysCodeSid인 경우도 처리할 수 있도록 수정
@@ -110,14 +124,13 @@ export default function ArticleCreatePage() {
         localStorage.setItem('article_draft', JSON.stringify({
           ...formData,
           thumbnail,
-          questions,
         }))
         console.log('자동 저장 완료')
       }
     }, 60000) // 1분
 
     return () => clearInterval(interval)
-  }, [autoSaveEnabled, getValues, thumbnail, questions])
+  }, [autoSaveEnabled, getValues, thumbnail])
 
   // 임시 저장 데이터 복원
   useEffect(() => {
@@ -126,12 +139,10 @@ export default function ArticleCreatePage() {
       try {
         const draftData = JSON.parse(draft)
         Object.keys(draftData).forEach((key) => {
-          if (key !== 'thumbnail' && key !== 'questions') {
+          if (key !== 'thumbnail') {
             setValue(key as keyof ArticleFormData, draftData[key])
           } else if (key === 'thumbnail') {
             setThumbnail(draftData.thumbnail)
-          } else if (key === 'questions') {
-            setQuestions(draftData.questions || [''])
           }
         })
       } catch (error) {
@@ -163,28 +174,6 @@ export default function ArticleCreatePage() {
   const handleRemoveTag = (index: number) => {
     const currentTags = getValues('tags') || []
     setValue('tags', currentTags.filter((_, i) => i !== index))
-  }
-
-  const handleAddQuestion = () => {
-    if (questions.length < 3) {
-      setQuestions([...questions, ''])
-    } else {
-      toast({
-        title: '알림',
-        description: '질문은 최대 3개까지 추가할 수 있습니다.',
-        duration: 3000,
-      })
-    }
-  }
-
-  const handleRemoveQuestion = (index: number) => {
-    setQuestions(questions.filter((_, i) => i !== index))
-  }
-
-  const handleQuestionChange = (index: number, value: string) => {
-    const newQuestions = [...questions]
-    newQuestions[index] = value
-    setQuestions(newQuestions)
   }
 
   // 본문 내용에서 모든 base64 이미지의 총 크기 계산
@@ -264,9 +253,13 @@ export default function ArticleCreatePage() {
         }
       }
 
+      const authorId = data.author_id != null && data.author_id !== '' ? Number(data.author_id) : undefined
+      const authorName = authorId ? editorOptions.find((e) => e.author_id === authorId)?.name ?? data.author : data.author
+
       const requestData: ArticleCreateRequest = {
         ...data,
-        questions: questions.filter((q) => q.trim() !== ''),
+        author_id: authorId ?? undefined,
+        author: authorName ?? '',
         tags: data.tags?.filter((tag) => tag.trim() !== ''),
         scheduledAt: scheduledAtISO,
       }
@@ -404,14 +397,29 @@ export default function ArticleCreatePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="author">작성자(에디터) *</Label>
-              <Input
-                id="author"
-                {...register('author')}
-                placeholder="작성자 이름"
-              />
-              {errors.author && (
-                <p className="text-sm text-red-600">{errors.author.message}</p>
+              <Label htmlFor="author_id">작성자(에디터) *</Label>
+              <Select
+                value={watch('author_id') != null ? String(watch('author_id')) : ''}
+                onValueChange={(value) => {
+                  const id = value === '' ? undefined : Number(value)
+                  setValue('author_id', id)
+                  const selected = editorOptions.find((e) => e.author_id === id)
+                  setValue('author', selected?.name ?? '')
+                }}
+              >
+                <SelectTrigger id="author_id">
+                  <SelectValue placeholder="작성자(에디터) 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {editorOptions.map((e) => (
+                    <SelectItem key={e.author_id} value={String(e.author_id)}>
+                      {e.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.author_id && (
+                <p className="text-sm text-red-600">{errors.author_id.message}</p>
               )}
             </div>
           </div>
@@ -553,42 +561,12 @@ export default function ArticleCreatePage() {
           </div>
         </Card>
 
-        {/* InDe 특화 기능 */}
+        {/* 적용 질문 (Q&A) */}
         <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">InDe 특화 기능</h2>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>적용 질문 (Q&A) 작성</Label>
-              <p className="text-xs text-gray-500 mb-2">
-                유저의 인사이트 도출을 위한 질문을 입력하세요 (최대 3개)
-              </p>
-              {questions.map((question, index) => (
-                <div key={index} className="flex gap-2 mb-2">
-                  <Input
-                    value={question}
-                    onChange={(e) => handleQuestionChange(index, e.target.value)}
-                    placeholder={`질문 ${index + 1}: 유저의 삶에 적용해볼 질문 입력`}
-                  />
-                  {questions.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveQuestion(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-              {questions.length < 3 && (
-                <Button type="button" variant="outline" onClick={handleAddQuestion}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  질문 추가
-                </Button>
-              )}
-            </div>
-          </div>
+          <h2 className="text-xl font-semibold mb-4">적용 질문 (Q&A)</h2>
+          <p className="text-sm text-gray-500">
+            아티클 저장 후 수정 페이지에서 이 콘텐츠에 대한 적용 질문을 등록·수정할 수 있습니다.
+          </p>
         </Card>
 
         {/* 발행 및 시스템 정보 */}

@@ -210,23 +210,7 @@ export default function ArticleViewClient() {
               </div>
             )}
 
-            {/* 질문 */}
-            {article.questions && article.questions.length > 0 && (
-              <div className="mb-8">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <HelpCircle className="h-4 w-4" />
-                  적용 질문
-                </h3>
-                <div className="space-y-3">
-                  {article.questions.map((question, index) => (
-                    <div key={index} className="p-4 bg-gray-50 rounded-lg">
-                      <p className="font-medium text-gray-700 mb-1">질문 {index + 1}</p>
-                      <p className="text-gray-600">{question}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* 적용 질문은 수정 페이지에서 content_question API로 관리됩니다. */}
 
             {/* 통계 정보 */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-6 border-t">

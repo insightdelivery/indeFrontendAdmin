@@ -10,6 +10,8 @@ export interface Article {
   thumbnail?: string
   category: string
   author: string
+  /** 콘텐츠 저자(ContentAuthor) PK */
+  author_id?: number | null
   authorAffiliation?: string
   visibility: 'all' | 'free' | 'paid' | 'purchased' | string
   status: 'draft' | 'published' | 'private' | 'scheduled' | 'deleted' | string
@@ -20,7 +22,6 @@ export interface Article {
   highlightCount: number
   questionCount: number
   tags?: string[]
-  questions?: string[]
   previewLength?: number
   scheduledAt?: string
   createdAt: string
@@ -68,12 +69,13 @@ export interface ArticleCreateRequest {
   thumbnail?: string
   category: string
   author: string
+  /** 콘텐츠 저자(에디터) PK. 보내면 백엔드에서 author를 저자 name으로 설정 */
+  author_id?: number | null
   authorAffiliation?: string
   visibility: 'all' | 'free' | 'paid' | 'purchased' | string
   status: 'draft' | 'published' | 'private' | 'scheduled' | string
   isEditorPick?: boolean
   tags?: string[]
-  questions?: string[]
   previewLength?: number
   scheduledAt?: string
 }

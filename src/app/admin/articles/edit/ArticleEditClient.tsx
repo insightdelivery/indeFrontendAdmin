@@ -12,6 +12,14 @@ import {
   type ArticleUpdateRequest,
   PUBLISH_STATUS,
 } from '@/features/articles'
+import { getAuthorsByContentType } from '@/features/contentAuthor'
+import {
+  getContentQuestions,
+  createContentQuestion,
+  updateContentQuestion,
+  deleteContentQuestion,
+  type ContentQuestion,
+} from '@/features/contentQuestion'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,22 +45,39 @@ import Link from 'next/link'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
 import { SysCodeSelect } from '@/components/admin/SysCodeSelect'
 import { SysCodeRadioGroup } from '@/components/admin/SysCodeRadioGroup'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
-const articleSchema = z.object({
-  title: z.string().min(1, '제목을 입력해주세요.'),
-  subtitle: z.string().optional(),
-  content: z.string().min(1, '본문 내용을 입력해주세요.'),
-  category: z.string().min(1, '카테고리를 선택해주세요.'),
-  author: z.string().min(1, '작성자를 입력해주세요.'),
-  authorAffiliation: z.string().optional(),
-  visibility: z.string().min(1, '공개 범위를 선택해주세요.'), // sysCodeSid를 받도록 변경
-  status: z.string().min(1, '발행 상태를 선택해주세요.'), // sysCodeSid를 받도록 변경
-  isEditorPick: z.boolean().default(false),
-  tags: z.array(z.string()).optional(),
-  questions: z.array(z.string()).optional(),
-  previewLength: z.number().min(0).max(100).optional(),
-  scheduledAt: z.string().optional(),
-})
+const articleSchema = z
+  .object({
+    title: z.string().min(1, '제목을 입력해주세요.'),
+    subtitle: z.string().optional(),
+    content: z.string().min(1, '본문 내용을 입력해주세요.'),
+    category: z.string().min(1, '카테고리를 선택해주세요.'),
+    author: z.string().optional(),
+    author_id: z.union([z.number(), z.string()]).optional(),
+    authorAffiliation: z.string().optional(),
+    visibility: z.string().min(1, '공개 범위를 선택해주세요.'),
+    status: z.string().min(1, '발행 상태를 선택해주세요.'),
+    isEditorPick: z.boolean().default(false),
+    tags: z.array(z.string()).optional(),
+    previewLength: z.number().min(0).max(100).optional(),
+    scheduledAt: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      const aid = data.author_id != null && data.author_id !== '' ? Number(data.author_id) : undefined
+      const hasAuthorId = aid !== undefined && !Number.isNaN(aid)
+      const hasAuthor = !!data.author?.trim()
+      return hasAuthorId || hasAuthor
+    },
+    { message: '작성자(에디터)를 선택해주세요.', path: ['author_id'] }
+  )
 
 type ArticleFormData = z.infer<typeof articleSchema>
 
@@ -69,10 +94,17 @@ export default function ArticleEditClient() {
   const [initialThumbnail, setInitialThumbnail] = useState<string>('') // 초기 썸네일 값 저장
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
   const [tagInput, setTagInput] = useState('')
-  const [questions, setQuestions] = useState<string[]>([''])
   const [isScheduled, setIsScheduled] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
+  /** 아티클 담당 에디터 목록(콘텐츠 유형 ARTICLE, 역할 EDITOR) */
+  const [editorOptions, setEditorOptions] = useState<{ author_id: number; name: string }[]>([])
+  /** 적용 질문 목록 (content_question API) */
+  const [contentQuestions, setContentQuestions] = useState<ContentQuestion[]>([])
+  const [questionsLoading, setQuestionsLoading] = useState(false)
+  const [newQuestionText, setNewQuestionText] = useState('')
+  const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null)
+  const [editingQuestionText, setEditingQuestionText] = useState('')
 
   const {
     register,
@@ -105,6 +137,15 @@ export default function ArticleEditClient() {
     setIsScheduled(false) // TODO: sysCodeSid를 확인하여 scheduled 상태인지 판단
   }, [status])
 
+  useEffect(() => {
+    getAuthorsByContentType('ARTICLE')
+      .then((authors) => {
+        const editors = authors.filter((a) => a.role === 'EDITOR')
+        setEditorOptions(editors.map((a) => ({ author_id: a.author_id, name: a.name })))
+      })
+      .catch(() => setEditorOptions([]))
+  }, [])
+
   // 자동 저장 (1분 간격)
   useEffect(() => {
     if (!autoSaveEnabled || !article) return
@@ -115,14 +156,25 @@ export default function ArticleEditClient() {
         localStorage.setItem(`article_draft_${articleId}`, JSON.stringify({
           ...formData,
           thumbnail,
-          questions,
         }))
         console.log('자동 저장 완료')
       }
     }, 60000) // 1분
 
     return () => clearInterval(interval)
-  }, [autoSaveEnabled, getValues, thumbnail, questions, articleId, article])
+  }, [autoSaveEnabled, getValues, thumbnail, articleId, article])
+
+  const loadContentQuestions = async (contentId: number) => {
+    setQuestionsLoading(true)
+    try {
+      const list = await getContentQuestions('ARTICLE', contentId)
+      setContentQuestions(list)
+    } catch {
+      setContentQuestions([])
+    } finally {
+      setQuestionsLoading(false)
+    }
+  }
 
   const loadArticle = async () => {
     try {
@@ -131,8 +183,7 @@ export default function ArticleEditClient() {
       setArticle(data)
       const initialThumb = data.thumbnail || ''
       setThumbnail(initialThumb)
-      setInitialThumbnail(initialThumb) // 초기 썸네일 값 저장
-      setQuestions(data.questions && data.questions.length > 0 ? data.questions : [''])
+      setInitialThumbnail(initialThumb)
 
       reset({
         title: data.title,
@@ -140,15 +191,17 @@ export default function ArticleEditClient() {
         content: data.content,
         category: data.category,
         author: data.author,
+        author_id: data.author_id ?? undefined,
         authorAffiliation: data.authorAffiliation || '',
         visibility: data.visibility,
         status: data.status,
         isEditorPick: data.isEditorPick || false,
         tags: data.tags || [],
-        questions: data.questions || [],
         previewLength: data.previewLength || 50,
         scheduledAt: data.scheduledAt ? new Date(data.scheduledAt).toISOString().slice(0, 16) : '',
       })
+      // 적용 질문 목록 로드 (content_question API)
+      loadContentQuestions(articleId)
     } catch (error: any) {
       toast({
         title: '오류',
@@ -187,26 +240,54 @@ export default function ArticleEditClient() {
     setValue('tags', currentTags.filter((_, i) => i !== index))
   }
 
-  const handleAddQuestion = () => {
-    if (questions.length < 3) {
-      setQuestions([...questions, ''])
-    } else {
-      toast({
-        title: '알림',
-        description: '질문은 최대 3개까지 추가할 수 있습니다.',
-        duration: 3000,
+  const handleAddContentQuestion = async () => {
+    if (!newQuestionText.trim()) {
+      toast({ title: '알림', description: '질문 내용을 입력해주세요.', variant: 'destructive' })
+      return
+    }
+    try {
+      await createContentQuestion({
+        content_type: 'ARTICLE',
+        content_id: articleId,
+        question_text: newQuestionText.trim(),
+        sort_order: contentQuestions.length,
+        is_required: true,
       })
+      setNewQuestionText('')
+      loadContentQuestions(articleId)
+      toast({ title: '성공', description: '질문이 등록되었습니다.' })
+    } catch (e: any) {
+      toast({ title: '오류', description: e?.message || '질문 등록에 실패했습니다.', variant: 'destructive' })
     }
   }
 
-  const handleRemoveQuestion = (index: number) => {
-    setQuestions(questions.filter((_, i) => i !== index))
+  const handleUpdateContentQuestion = async (q: ContentQuestion) => {
+    if (q.is_locked) return
+    const text = editingQuestionText.trim()
+    if (!text) return
+    try {
+      await updateContentQuestion(q.question_id, { question_text: text })
+      setEditingQuestionId(null)
+      setEditingQuestionText('')
+      loadContentQuestions(articleId)
+      toast({ title: '성공', description: '질문이 수정되었습니다.' })
+    } catch (e: any) {
+      toast({ title: '오류', description: e?.message || '질문 수정에 실패했습니다.', variant: 'destructive' })
+    }
   }
 
-  const handleQuestionChange = (index: number, value: string) => {
-    const newQuestions = [...questions]
-    newQuestions[index] = value
-    setQuestions(newQuestions)
+  const handleDeleteContentQuestion = async (q: ContentQuestion) => {
+    if (q.is_locked) {
+      toast({ title: '알림', description: '답변이 등록된 질문은 삭제할 수 없습니다.', variant: 'destructive' })
+      return
+    }
+    try {
+      await deleteContentQuestion(q.question_id)
+      loadContentQuestions(articleId)
+      toast({ title: '성공', description: '질문이 삭제되었습니다.' })
+    } catch (e: any) {
+      toast({ title: '오류', description: e?.message || '질문 삭제에 실패했습니다.', variant: 'destructive' })
+    }
   }
 
   // 본문 내용에서 모든 base64 이미지의 총 크기 계산
@@ -295,12 +376,19 @@ export default function ArticleEditClient() {
         }
       }
 
+      const authorIdRaw = data.author_id
+      const authorIdNormalized =
+        authorIdRaw != null && authorIdRaw !== ''
+          ? (typeof authorIdRaw === 'number' ? authorIdRaw : Number(authorIdRaw))
+          : undefined
+      const authorId = authorIdNormalized !== undefined && !Number.isNaN(authorIdNormalized) ? authorIdNormalized : undefined
+
       const requestData: ArticleUpdateRequest = {
         id: articleId,
         ...data,
-        questions: questions.filter((q) => q.trim() !== ''),
         tags: data.tags?.filter((tag) => tag.trim() !== ''),
         scheduledAt: scheduledAtISO,
+        author_id: authorId,
       }
 
       // 썸네일이 변경된 경우에만 requestData에 추가
@@ -461,14 +549,29 @@ export default function ArticleEditClient() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="author">작성자(에디터) *</Label>
-              <Input
-                id="author"
-                {...register('author')}
-                placeholder="작성자 이름"
-              />
-              {errors.author && (
-                <p className="text-sm text-red-600">{errors.author.message}</p>
+              <Label htmlFor="author_id">작성자(에디터) *</Label>
+              <Select
+                value={watch('author_id') != null ? String(watch('author_id')) : ''}
+                onValueChange={(value) => {
+                  const id = value === '' ? undefined : Number(value)
+                  setValue('author_id', id)
+                  const selected = editorOptions.find((e) => e.author_id === id)
+                  setValue('author', selected?.name ?? '')
+                }}
+              >
+                <SelectTrigger id="author_id">
+                  <SelectValue placeholder="작성자(에디터) 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {editorOptions.map((e) => (
+                    <SelectItem key={e.author_id} value={String(e.author_id)}>
+                      {e.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.author_id && (
+                <p className="text-sm text-red-600">{errors.author_id.message}</p>
               )}
             </div>
           </div>
@@ -606,42 +709,59 @@ export default function ArticleEditClient() {
           </div>
         </Card>
 
-        {/* InDe 특화 기능 */}
+        {/* 적용 질문 (Q&A) - content_question API */}
         <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">InDe 특화 기능</h2>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>적용 질문 (Q&A) 작성</Label>
-              <p className="text-xs text-gray-500 mb-2">
-                유저의 인사이트 도출을 위한 질문을 입력하세요 (최대 3개)
-              </p>
-              {questions.map((question, index) => (
-                <div key={index} className="flex gap-2 mb-2">
-                  <Input
-                    value={question}
-                    onChange={(e) => handleQuestionChange(index, e.target.value)}
-                    placeholder={`질문 ${index + 1}: 유저의 삶에 적용해볼 질문 입력`}
-                  />
-                  {questions.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveQuestion(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-              {questions.length < 3 && (
-                <Button type="button" variant="outline" onClick={handleAddQuestion}>
+          <h2 className="text-xl font-semibold mb-4">적용 질문 (Q&A)</h2>
+          <p className="text-xs text-gray-500 mb-4">
+            유저의 인사이트 도출을 위한 질문을 등록하세요. 답변이 하나라도 등록된 질문은 수정·삭제할 수 없습니다.
+          </p>
+          {questionsLoading ? (
+            <p className="text-sm text-gray-500">질문 목록 로딩 중...</p>
+          ) : (
+            <>
+              <ul className="space-y-2 mb-4">
+                {contentQuestions.map((q) => (
+                  <li key={q.question_id} className="flex items-center gap-2 border rounded p-2">
+                    {editingQuestionId === q.question_id ? (
+                      <>
+                        <Input
+                          value={editingQuestionText}
+                          onChange={(e) => setEditingQuestionText(e.target.value)}
+                          placeholder="질문 내용"
+                          className="flex-1"
+                        />
+                        <Button type="button" size="sm" onClick={() => handleUpdateContentQuestion(q)}>저장</Button>
+                        <Button type="button" size="sm" variant="ghost" onClick={() => { setEditingQuestionId(null); setEditingQuestionText('') }}>취소</Button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 text-sm">{q.question_text}</span>
+                        {q.is_locked && <span className="text-xs text-amber-600">(답변 등록됨)</span>}
+                        {!q.is_locked && (
+                          <>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingQuestionId(q.question_id); setEditingQuestionText(q.question_text) }}>수정</Button>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteContentQuestion(q)}><Trash2 className="h-4 w-4" /></Button>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <div className="flex gap-2">
+                <Input
+                  value={newQuestionText}
+                  onChange={(e) => setNewQuestionText(e.target.value)}
+                  placeholder="새 질문 입력 후 추가 버튼 클릭"
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddContentQuestion()}
+                />
+                <Button type="button" variant="outline" onClick={handleAddContentQuestion}>
                   <Plus className="h-4 w-4 mr-2" />
                   질문 추가
                 </Button>
-              )}
-            </div>
-          </div>
+              </div>
+            </>
+          )}
         </Card>
 
         {/* 발행 및 시스템 정보 */}

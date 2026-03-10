@@ -932,31 +932,7 @@ export default function ArticleListPage() {
                   </Card>
                 )}
 
-                {/* 질문 */}
-                {selectedArticle.questions && selectedArticle.questions.length > 0 && (
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <HelpCircle className="h-5 w-5" />
-                        적용 질문
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {selectedArticle.questions.map((question, index) => (
-                          <div key={index} className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border border-yellow-200">
-                            <div className="flex items-start gap-2">
-                              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-yellow-400 text-white flex items-center justify-center text-xs font-bold">
-                                {index + 1}
-                              </div>
-                              <p className="text-gray-700 font-medium">{question}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                {/* 적용 질문은 수정 페이지에서 별도 질문 API로 관리됩니다. */}
 
                 {/* 통계 정보 */}
                 <Card>

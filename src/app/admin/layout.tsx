@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { 
   LayoutDashboard, 
-  Users, 
-  ShoppingCart, 
-  Settings, 
+  Users,
+  UserCircle,
+  ShoppingCart,
+  Settings,
   LogOut,
   Menu,
   X,
@@ -93,6 +94,7 @@ export default function AdminLayout({
     { href: '/admin/articles', label: '아티클 관리', icon: FileText },
     { href: '/admin/video', label: '비디오 관리', icon: Video },
     { href: '/admin/seminar', label: '세미나 관리', icon: GraduationCap },
+    { href: '/admin/contentAuthor', label: '작성자 관리', icon: UserCircle },
     { href: '/admin/users', label: '회원관리', icon: Users },
     { href: '/admin/orders', label: '결제관리', icon: ShoppingCart },
   ]

@@ -318,23 +318,7 @@ export default function ArticleDetailClient() {
         </Card>
       )}
 
-      {/* 질문 */}
-      {article.questions && article.questions.length > 0 && (
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <HelpCircle className="h-5 w-5" />
-            적용 질문
-          </h2>
-          <div className="space-y-3">
-            {article.questions.map((question, index) => (
-              <div key={index} className="p-4 bg-gray-50 rounded-lg">
-                <p className="font-medium text-gray-700">질문 {index + 1}</p>
-                <p className="text-gray-600 mt-1">{question}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
+      {/* 적용 질문은 수정 페이지에서 별도 질문 API로 관리됩니다. */}
 
       {/* 통계 정보 */}
       <Card className="p-6">
