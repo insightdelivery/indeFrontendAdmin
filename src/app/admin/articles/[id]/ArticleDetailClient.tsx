@@ -32,10 +32,16 @@ import Image from 'next/image'
 import { getSysCodeName, getSysCodeFromCache } from '@/lib/syscode'
 import { formatDateTime } from '@/lib/utils'
 
-/** 본문 HTML에서 줄바꿈(\n)을 <br />로 변환해 상세보기에서 그대로 보이도록 함 */
+/**
+ * 본문 HTML을 상세보기에서 에디터처럼 줄바꿈이 보이도록 변환.
+ * - \r\n, \r, \n → <br />
+ * - TipTap은 Enter 시 새 <p>를 만들므로, </p><p> 사이에도 <br /> 삽입
+ */
 function contentWithLineBreaks(html: string): string {
   if (!html || typeof html !== 'string') return html
-  return html.replace(/\n/g, '<br />')
+  return html
+    .replace(/\r\n|\r|\n/g, '<br />')
+    .replace(/<\/p>\s*<p>/gi, '</p><br /><p>')
 }
 
 export default function ArticleDetailClient() {
@@ -299,7 +305,7 @@ export default function ArticleDetailClient() {
       <Card className="p-6">
         <h2 className="text-xl font-semibold mb-4">본문 내용</h2>
         <div
-          className="prose max-w-none [&_p]:mb-2 [&_br]:block"
+          className="prose max-w-none [&_p]:block [&_p]:mb-1 [&_br]:block"
           style={{ whiteSpace: 'pre-wrap' } as React.CSSProperties}
           dangerouslySetInnerHTML={{
             __html: contentWithLineBreaks(article.content),

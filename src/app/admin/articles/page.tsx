@@ -64,10 +64,16 @@ import {
 } from 'lucide-react'
 import Image from 'next/image'
 
-/** 본문 HTML에서 줄바꿈(\n)을 <br />로 변환해 상세보기에서 그대로 보이도록 함 */
+/**
+ * 본문 HTML을 상세보기에서 에디터처럼 줄바꿈이 보이도록 변환.
+ * - \r\n, \r, \n → <br />
+ * - TipTap은 Enter 시 새 <p>를 만들므로, </p><p> 사이에도 <br /> 삽입
+ */
 function contentWithLineBreaks(html: string): string {
   if (!html || typeof html !== 'string') return html
-  return html.replace(/\n/g, '<br />')
+  return html
+    .replace(/\r\n|\r|\n/g, '<br />')
+    .replace(/<\/p>\s*<p>/gi, '</p><br /><p>')
 }
 
 export default function ArticleListPage() {
@@ -923,7 +929,7 @@ export default function ArticleListPage() {
                   </CardHeader>
                   <CardContent>
                     <div
-                      className="prose prose-sm max-w-none min-h-[100px] p-4 bg-gray-50 rounded-lg border border-gray-200 [&_p]:mb-2 [&_br]:block"
+                      className="prose prose-sm max-w-none min-h-[100px] p-4 bg-gray-50 rounded-lg border border-gray-200 [&_p]:block [&_p]:mb-1 [&_br]:block"
                       style={{ whiteSpace: 'pre-wrap' } as React.CSSProperties}
                       dangerouslySetInnerHTML={{
                         __html: contentWithLineBreaks(selectedArticle.content),
