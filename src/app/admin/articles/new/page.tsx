@@ -221,26 +221,10 @@ export default function ArticleCreatePage() {
         return
       }
 
-      // 썸네일 업로드 처리
-      // base64 데이터는 백엔드에서 S3에 업로드하므로 그대로 전송
+      // 썸네일: 이미지 업로드(base64)만 전송. URL 입력 없음
       let thumbnailData: string | undefined = undefined
-      if (thumbnail) {
-        if (thumbnail.startsWith('data:image')) {
-          // base64 데이터인 경우 백엔드로 전송 (백엔드에서 S3에 업로드)
-          thumbnailData = thumbnail
-        } else {
-          // 이미 URL인 경우 (500자 제한)
-          if (thumbnail.length <= 500) {
-            thumbnailData = thumbnail
-          } else {
-            toast({
-              title: '경고',
-              description: '썸네일 URL이 너무 깁니다. (최대 500자)',
-              variant: 'destructive',
-              duration: 3000,
-            })
-          }
-        }
+      if (thumbnail && thumbnail.startsWith('data:image')) {
+        thumbnailData = thumbnail
       }
 
       // scheduledAt을 ISO 8601 형식으로 변환
@@ -269,7 +253,19 @@ export default function ArticleCreatePage() {
         requestData.thumbnail = thumbnailData
       }
 
-      await createArticle(requestData)
+      const created = await createArticle(requestData)
+
+      // API 응답에 생성된 글이 없으면 성공으로 처리하지 않음
+      if (!created?.id) {
+        toast({
+          title: '오류',
+          description: '등록 응답이 올바르지 않습니다. 다시 시도해주세요.',
+          variant: 'destructive',
+          duration: 5000,
+        })
+        setSaving(false)
+        return
+      }
 
       // 임시 저장 데이터 삭제
       localStorage.removeItem('article_draft')
@@ -301,6 +297,16 @@ export default function ArticleCreatePage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  /** 폼 검증 실패 시 안내 (API 미호출) */
+  const onInvalid = () => {
+    toast({
+      title: '입력 확인',
+      description: '필수 항목을 입력해주세요. 오류가 표시된 필드를 확인해주세요.',
+      variant: 'destructive',
+      duration: 4000,
+    })
   }
 
   const handleSaveDraft = async () => {
@@ -350,7 +356,7 @@ export default function ArticleCreatePage() {
             미리보기
           </Button>
           <Button
-            onClick={handleSubmit(onSubmit)}
+            onClick={handleSubmit(onSubmit, onInvalid)}
             disabled={saving}
             className="bg-neon-yellow hover:bg-neon-yellow/90 text-black"
           >
@@ -359,7 +365,7 @@ export default function ArticleCreatePage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-6">
         {/* 기본 정보 설정 */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">기본 정보</h2>

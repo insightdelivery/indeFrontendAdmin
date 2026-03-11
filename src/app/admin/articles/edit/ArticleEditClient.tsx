@@ -350,30 +350,15 @@ export default function ArticleEditClient() {
         }
       }
 
-      // 썸네일 처리
+      // 썸네일: 이미지 업로드(base64)만 전송. URL 입력 없음. 기존 표시용 URL은 전송하지 않음
       let thumbnailToSend: string | undefined = undefined
       if (thumbnailChanged) {
         if (!thumbnail || thumbnail === '') {
-          // 썸네일이 삭제된 경우 빈 문자열로 전송
           thumbnailToSend = ''
         } else if (thumbnail.startsWith('data:image')) {
-          // base64 데이터인 경우 백엔드로 전송 (백엔드에서 S3에 업로드)
           thumbnailToSend = thumbnail
-        } else {
-          // 이미 URL인 경우 (500자 제한)
-          if (thumbnail.length <= 500) {
-            thumbnailToSend = thumbnail
-          } else {
-            toast({
-              title: '경고',
-              description: '썸네일 URL이 너무 깁니다. (최대 500자)',
-              variant: 'destructive',
-              duration: 3000,
-            })
-            setSaving(false)
-            return
-          }
         }
+        // thumbnail이 URL(기존 presigned 등)이면 전송하지 않음 → 변경 없음 유지
       }
 
       const authorIdRaw = data.author_id

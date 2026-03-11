@@ -38,6 +38,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ListPagination } from '@/components/admin/ListPagination'
 import { formatDateTime } from '@/lib/utils'
 import {
   Plus,
@@ -77,11 +78,12 @@ export default function ArticleListPage() {
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
 
-  // 필터 상태
+  // 필터 상태 (페이지당 30개, listPageRules.md)
   const [filters, setFilters] = useState<ArticleListParams>({
     page: 1,
-    pageSize: 20,
+    pageSize: 30,
   })
+  const [total, setTotal] = useState(0)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [category, setCategory] = useState<string>('전체')
@@ -103,6 +105,7 @@ export default function ArticleListPage() {
       }
       const result = await getArticleList(params)
       setArticles(result.articles)
+      setTotal(result.total)
     } catch (error: any) {
       toast({
         title: '오류',
@@ -727,6 +730,19 @@ export default function ArticleListPage() {
               </tbody>
             </table>
           </div>
+        )}
+
+        {/* 페이지네이션 (listPageRules.md: << < 1..10 > >>, 30개씩) */}
+        {total > 0 && (
+          <ListPagination
+            currentPage={filters.page ?? 1}
+            totalPages={Math.ceil(total / (filters.pageSize ?? 30)) || 1}
+            onPageChange={(page) =>
+              setFilters((prev) => ({ ...prev, page }))
+            }
+            total={total}
+            disabled={loading}
+          />
         )}
       </div>
 
