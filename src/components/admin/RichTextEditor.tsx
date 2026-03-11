@@ -45,6 +45,7 @@ import { Color } from '@tiptap/extension-color'
 import { BackgroundColor } from '@tiptap/extension-text-style/background-color'
 import { FontFamily } from '@tiptap/extension-font-family'
 import { Extension } from '@tiptap/core'
+import { Divider, type DividerStyle } from '@/components/editor/extensions/Divider'
 
 /** TextStyle 마크에 fontSize 속성 추가 (폰트 크기) */
 const FontSize = Extension.create({
@@ -102,6 +103,7 @@ import {
   Superscript as SuperscriptIcon,
   Subscript as SubscriptIcon,
   Eraser,
+  Minus,
 } from 'lucide-react'
 
 interface RichTextEditorProps {
@@ -158,6 +160,13 @@ const FONT_SIZES = [
   { label: '24px', value: '24px' },
 ]
 
+const DIVIDER_OPTIONS: { label: string; style: DividerStyle }[] = [
+  { label: '기본 구분선', style: 'solid' },
+  { label: '점선 구분선', style: 'dashed' },
+  { label: '더블 구분선', style: 'double' },
+  { label: '그라데이션 구분선', style: 'gradient' },
+]
+
 export function RichTextEditor({
   value,
   onChange,
@@ -173,6 +182,7 @@ export function RichTextEditor({
   const [highlightOpen, setHighlightOpen] = useState(false)
   const [fontFamilyOpen, setFontFamilyOpen] = useState(false)
   const [fontSizeOpen, setFontSizeOpen] = useState(false)
+  const [dividerOpen, setDividerOpen] = useState(false)
 
   valueRef.current = value
 
@@ -189,7 +199,9 @@ export function RichTextEditor({
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
         codeBlock: false,
+        horizontalRule: false,
       }),
+      Divider,
       Underline,
       Superscript,
       Subscript,
@@ -643,6 +655,41 @@ export function RichTextEditor({
         </button>
         <div className="w-px h-5 bg-gray-200 mx-0.5" />
 
+        {/* 구분선 */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => { setDividerOpen((v) => !v); setFontFamilyOpen(false); setFontSizeOpen(false); }}
+            className="flex items-center gap-0.5 px-2 py-1.5 rounded hover:bg-gray-100 text-sm text-gray-700 min-w-[72px]"
+            title="구분선"
+          >
+            <Minus className="w-4 h-4" />
+            <span>구분선</span>
+            <ChevronDown className="w-4 h-4" />
+          </button>
+          {dividerOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setDividerOpen(false)} aria-hidden />
+              <div className="absolute left-0 top-full mt-0.5 py-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 min-w-[160px]">
+                {DIVIDER_OPTIONS.map(({ label, style }) => (
+                  <button
+                    key={style}
+                    type="button"
+                    onClick={() => {
+                      editor.chain().focus().insertDivider(style).run()
+                      setDividerOpen(false)
+                    }}
+                    className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+        <div className="w-px h-5 bg-gray-200 mx-0.5" />
+
         {/* 미디어 추가 */}
         <button
           type="button"
@@ -723,6 +770,31 @@ export function RichTextEditor({
           background: #f6fff8;
           color: #222;
           font-size: 15px;
+        }
+        .rich-text-editor .ProseMirror hr.divider-solid,
+        .tiptap hr.divider-solid {
+          border: none;
+          border-top: 1px solid #e5e7eb;
+          margin: 32px 0;
+        }
+        .rich-text-editor .ProseMirror hr.divider-dashed,
+        .tiptap hr.divider-dashed {
+          border: none;
+          border-top: 1px dashed #d1d5db;
+          margin: 32px 0;
+        }
+        .rich-text-editor .ProseMirror hr.divider-double,
+        .tiptap hr.divider-double {
+          border: none;
+          border-top: 3px double #d1d5db;
+          margin: 32px 0;
+        }
+        .rich-text-editor .ProseMirror hr.divider-gradient,
+        .tiptap hr.divider-gradient {
+          border: none;
+          height: 1px;
+          background: linear-gradient(to right, transparent, #9ca3af, transparent);
+          margin: 40px 0;
         }
       `}</style>
     </div>

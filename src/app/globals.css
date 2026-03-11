@@ -61,3 +61,13 @@ html, body {
   height: 100%;
   overflow: hidden;
 }
+
+/* 구분선(Divider) - 에디터·상세 본문 표시 공통 */
+.prose hr.divider-solid,
+.tiptap hr.divider-solid { border: none; border-top: 1px solid #e5e7eb; margin: 32px 0; }
+.prose hr.divider-dashed,
+.tiptap hr.divider-dashed { border: none; border-top: 1px dashed #d1d5db; margin: 32px 0; }
+.prose hr.divider-double,
+.tiptap hr.divider-double { border: none; border-top: 3px double #d1d5db; margin: 32px 0; }
+.prose hr.divider-gradient,
+.tiptap hr.divider-gradient { border: none; height: 1px; background: linear-gradient(to right, transparent, #9ca3af, transparent); margin: 40px 0; }
