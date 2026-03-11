@@ -43,6 +43,42 @@ import Subscript from '@tiptap/extension-subscript'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
 import { BackgroundColor } from '@tiptap/extension-text-style/background-color'
+import { FontFamily } from '@tiptap/extension-font-family'
+import { Extension } from '@tiptap/core'
+
+/** TextStyle 마크에 fontSize 속성 추가 (폰트 크기) */
+const FontSize = Extension.create({
+  name: 'fontSize',
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['textStyle'],
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: (element) => (element as HTMLElement).style?.fontSize ?? null,
+            renderHTML: (attributes) => {
+              if (!attributes.fontSize) return {}
+              return { style: `font-size: ${attributes.fontSize}` }
+            },
+          },
+        },
+      },
+    ]
+  },
+  addCommands() {
+    return {
+      setFontSize:
+        (fontSize: string) =>
+        ({ chain }: { chain: () => { setMark: (a: string, b: Record<string, unknown>) => { run: () => boolean } } }) =>
+          chain().setMark('textStyle', { fontSize }).run(),
+      unsetFontSize:
+        () =>
+        ({ commands }: { commands: { updateAttributes: (a: string, b: Record<string, unknown>) => boolean } }) =>
+          commands.updateAttributes('textStyle', { fontSize: null }),
+    }
+  },
+})
 import { useToast } from '@/hooks/use-toast'
 import {
   Undo2,
@@ -101,6 +137,27 @@ const HIGHLIGHT_COLORS = [
   '#fef08a', '#bbf7d0', '#bae6fd', '#e9d5ff', '#fed7aa', '#fbcfe8', '#ffffff',
 ]
 
+const FONT_FAMILIES = [
+  { label: '기본', value: '' },
+  { label: '굴림', value: 'Gulim, 굴림, sans-serif' },
+  { label: '맑은 고딕', value: 'Malgun Gothic, 맑은 고딕, sans-serif' },
+  { label: '바탕', value: 'Batang, 바탕, serif' },
+  { label: '궁서', value: 'Gungsuh, 궁서, serif' },
+  { label: 'Arial', value: 'Arial, Helvetica, sans-serif' },
+  { label: 'Times New Roman', value: 'Times New Roman, Times, serif' },
+]
+
+const FONT_SIZES = [
+  { label: '기본', value: '' },
+  { label: '10px', value: '10px' },
+  { label: '12px', value: '12px' },
+  { label: '14px', value: '14px' },
+  { label: '16px', value: '16px' },
+  { label: '18px', value: '18px' },
+  { label: '20px', value: '20px' },
+  { label: '24px', value: '24px' },
+]
+
 export function RichTextEditor({
   value,
   onChange,
@@ -114,6 +171,8 @@ export function RichTextEditor({
   const editorRef = useRef<Editor | null>(null)
   const [headingOpen, setHeadingOpen] = useState(false)
   const [highlightOpen, setHighlightOpen] = useState(false)
+  const [fontFamilyOpen, setFontFamilyOpen] = useState(false)
+  const [fontSizeOpen, setFontSizeOpen] = useState(false)
 
   valueRef.current = value
 
@@ -138,6 +197,8 @@ export function RichTextEditor({
       TextStyle,
       Color,
       BackgroundColor,
+      FontFamily.configure({ types: ['textStyle'] }),
+      FontSize,
       Link.configure({ openOnClick: false }),
       ImageWithAlign.configure({ allowBase64: true }),
       Placeholder.configure({ placeholder }),
@@ -344,6 +405,77 @@ export function RichTextEditor({
             </>
           )}
         </div>
+
+        {/* 폰트 */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => { setFontFamilyOpen((v) => !v); setFontSizeOpen(false); }}
+            className="flex items-center gap-0.5 px-2 py-1.5 rounded hover:bg-gray-100 text-sm text-gray-700 min-w-[88px]"
+            title="글꼴"
+          >
+            <span className="truncate max-w-[72px]">
+              {FONT_FAMILIES.find((f) => editor.isActive('textStyle', { fontFamily: f.value }))?.label ?? '글꼴'}
+            </span>
+            <ChevronDown className="w-4 h-4 shrink-0" />
+          </button>
+          {fontFamilyOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setFontFamilyOpen(false)} aria-hidden />
+              <div className="absolute left-0 top-full mt-0.5 py-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 min-w-[120px] max-h-[240px] overflow-y-auto">
+                {FONT_FAMILIES.map(({ label, value }) => (
+                  <button
+                    key={label || 'default'}
+                    type="button"
+                    onClick={() => {
+                      value ? editor.chain().focus().setFontFamily(value).run() : editor.chain().focus().unsetFontFamily().run()
+                      setFontFamilyOpen(false)
+                    }}
+                    className={`w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 ${editor.isActive('textStyle', { fontFamily: value }) ? 'bg-gray-100 font-medium' : ''}`}
+                    style={value ? { fontFamily: value } : undefined}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => { setFontSizeOpen((v) => !v); setFontFamilyOpen(false); }}
+            className="flex items-center gap-0.5 px-2 py-1.5 rounded hover:bg-gray-100 text-sm text-gray-700 min-w-[64px]"
+            title="글자 크기"
+          >
+            <span>
+              {FONT_SIZES.find((f) => editor.isActive('textStyle', { fontSize: f.value }))?.label ?? '크기'}
+            </span>
+            <ChevronDown className="w-4 h-4" />
+          </button>
+          {fontSizeOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setFontSizeOpen(false)} aria-hidden />
+              <div className="absolute left-0 top-full mt-0.5 py-1 bg-white border border-gray-200 rounded-md shadow-lg z-20 min-w-[90px]">
+                {FONT_SIZES.map(({ label, value }) => (
+                  <button
+                    key={label || 'default'}
+                    type="button"
+                    onClick={() => {
+                      value ? editor.chain().focus().setFontSize(value).run() : editor.chain().focus().unsetFontSize().run()
+                      setFontSizeOpen(false)
+                    }}
+                    className={`w-full px-3 py-1.5 text-left text-sm hover:bg-gray-100 ${editor.isActive('textStyle', { fontSize: value }) ? 'bg-gray-100 font-medium' : ''}`}
+                    style={value ? { fontSize: value } : undefined}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+        <div className="w-px h-5 bg-gray-200 mx-0.5" />
 
         {/* 글머리 / 번호 / 인용 */}
         <button
@@ -583,6 +715,14 @@ export function RichTextEditor({
         }
         .rich-text-editor .ProseMirror:focus {
           outline: none;
+        }
+        .rich-text-editor .ProseMirror blockquote {
+          border-left: 5px solid #03c75a;
+          padding: 12px 16px;
+          margin: 20px 0;
+          background: #f6fff8;
+          color: #222;
+          font-size: 15px;
         }
       `}</style>
     </div>

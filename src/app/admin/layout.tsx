@@ -126,7 +126,7 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
+    <div className="flex h-screen  overflow-hidden bg-white">
       {/* 사이드바 */}
       <aside
         className={`${
@@ -283,8 +283,8 @@ export default function AdminLayout({
         )}
       </aside>
 
-      {/* 메인 콘텐츠 영역 */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* 메인 콘텐츠 영역 - min-h-0으로 flex 자식이 뷰포트를 넘지 않게 해 스크롤 1개만 유지 */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* 상단 헤더 */}
         <header className="h-16 border-b bg-white shadow-sm flex items-center justify-between px-6">
           <div className="flex items-center gap-4">
@@ -318,9 +318,9 @@ export default function AdminLayout({
           </div>
         </header>
 
-        {/* 메인 콘텐츠 */}
-        <main className="flex-1 overflow-y-auto bg-white">
-          <div className="h-full p-6">
+        {/* 메인 콘텐츠 - 여기만 스크롤 */}
+        <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-white">
+          <div className="min-h-full p-6">
             {children}
           </div>
         </main>

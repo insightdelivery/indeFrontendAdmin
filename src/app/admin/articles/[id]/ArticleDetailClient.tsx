@@ -305,7 +305,7 @@ export default function ArticleDetailClient() {
       <Card className="p-6">
         <h2 className="text-xl font-semibold mb-4">본문 내용</h2>
         <div
-          className="prose max-w-none [&_p]:block [&_p]:mb-1 [&_br]:block"
+          className="prose max-w-none [&_p]:block [&_p]:mb-1 [&_br]:block [&_blockquote]:border-l-[5px] [&_blockquote]:border-l-[#03c75a] [&_blockquote]:py-3 [&_blockquote]:px-4 [&_blockquote]:my-5 [&_blockquote]:bg-[#f6fff8] [&_blockquote]:text-[#222] [&_blockquote]:text-[15px]"
           style={{ whiteSpace: 'pre-wrap' } as React.CSSProperties}
           dangerouslySetInnerHTML={{
             __html: contentWithLineBreaks(article.content),
