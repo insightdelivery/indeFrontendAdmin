@@ -64,6 +64,12 @@ import {
 } from 'lucide-react'
 import Image from 'next/image'
 
+/** 본문 HTML에서 줄바꿈(\n)을 <br />로 변환해 상세보기에서 그대로 보이도록 함 */
+function contentWithLineBreaks(html: string): string {
+  if (!html || typeof html !== 'string') return html
+  return html.replace(/\n/g, '<br />')
+}
+
 export default function ArticleListPage() {
   const router = useRouter()
   const { toast } = useToast()
@@ -907,7 +913,7 @@ export default function ArticleListPage() {
                   </Card>
                 )}
 
-                {/* 본문 내용 */}
+                {/* 본문 내용 (에디터 엔터 → 줄바꿈 표시) */}
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg flex items-center gap-2">
@@ -917,8 +923,11 @@ export default function ArticleListPage() {
                   </CardHeader>
                   <CardContent>
                     <div
-                      className="prose prose-sm max-w-none min-h-[100px] p-4 bg-gray-50 rounded-lg border border-gray-200"
-                      dangerouslySetInnerHTML={{ __html: selectedArticle.content }}
+                      className="prose prose-sm max-w-none min-h-[100px] p-4 bg-gray-50 rounded-lg border border-gray-200 [&_p]:mb-2 [&_br]:block"
+                      style={{ whiteSpace: 'pre-wrap' } as React.CSSProperties}
+                      dangerouslySetInnerHTML={{
+                        __html: contentWithLineBreaks(selectedArticle.content),
+                      }}
                     />
                   </CardContent>
                 </Card>

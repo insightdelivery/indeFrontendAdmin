@@ -32,6 +32,12 @@ import Image from 'next/image'
 import { getSysCodeName, getSysCodeFromCache } from '@/lib/syscode'
 import { formatDateTime } from '@/lib/utils'
 
+/** 본문 HTML에서 줄바꿈(\n)을 <br />로 변환해 상세보기에서 그대로 보이도록 함 */
+function contentWithLineBreaks(html: string): string {
+  if (!html || typeof html !== 'string') return html
+  return html.replace(/\n/g, '<br />')
+}
+
 export default function ArticleDetailClient() {
   const router = useRouter()
   const params = useParams()
@@ -289,12 +295,15 @@ export default function ArticleDetailClient() {
         </Card>
       )}
 
-      {/* 본문 내용 */}
+      {/* 본문 내용 (에디터 엔터 → 줄바꿈 표시) */}
       <Card className="p-6">
         <h2 className="text-xl font-semibold mb-4">본문 내용</h2>
         <div
-          className="prose max-w-none"
-          dangerouslySetInnerHTML={{ __html: article.content }}
+          className="prose max-w-none [&_p]:mb-2 [&_br]:block"
+          style={{ whiteSpace: 'pre-wrap' } as React.CSSProperties}
+          dangerouslySetInnerHTML={{
+            __html: contentWithLineBreaks(article.content),
+          }}
         />
       </Card>
 
