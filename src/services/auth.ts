@@ -1,5 +1,10 @@
 import apiClient from '@/lib/axios'
 import Cookies from 'js-cookie'
+import {
+  ADMIN_ACCESS_TOKEN_KEY,
+  ADMIN_REFRESH_TOKEN_KEY,
+  ADMIN_USER_INFO_KEY,
+} from '@/lib/adminAuthKeys'
 
 export interface LoginRequest {
   memberShipId: string
@@ -129,17 +134,17 @@ export const logout = async (): Promise<LogoutResponse> => {
     }
     
     // 쿠키 삭제
-    Cookies.remove('accessToken')
-    Cookies.remove('refreshToken')
-    Cookies.remove('userInfo')
+    Cookies.remove(ADMIN_ACCESS_TOKEN_KEY)
+    Cookies.remove(ADMIN_REFRESH_TOKEN_KEY)
+    Cookies.remove(ADMIN_USER_INFO_KEY)
     
     // Result에서 데이터 추출
     return apiResponse.Result
   } catch (error: any) {
     // 에러가 발생해도 로컬 쿠키는 삭제
-    Cookies.remove('accessToken')
-    Cookies.remove('refreshToken')
-    Cookies.remove('userInfo')
+    Cookies.remove(ADMIN_ACCESS_TOKEN_KEY)
+    Cookies.remove(ADMIN_REFRESH_TOKEN_KEY)
+    Cookies.remove(ADMIN_USER_INFO_KEY)
     
     // 에러 메시지 추출
     if (error.response?.data?.IndeAPIResponse?.Message) {
@@ -165,12 +170,12 @@ export const saveTokens = (accessToken: string, refreshToken: string, userInfo?:
     path: '/', // 모든 경로에서 접근 가능
   }
   
-  Cookies.set('accessToken', accessToken, cookieOptions)
-  Cookies.set('refreshToken', refreshToken, { ...cookieOptions, expires: 7 }) // 7일
-  
+  Cookies.set(ADMIN_ACCESS_TOKEN_KEY, accessToken, cookieOptions)
+  Cookies.set(ADMIN_REFRESH_TOKEN_KEY, refreshToken, { ...cookieOptions, expires: 7 }) // 7일
+
   // 사용자 정보도 저장 (선택사항)
   if (userInfo) {
-    Cookies.set('userInfo', JSON.stringify(userInfo), cookieOptions)
+    Cookies.set(ADMIN_USER_INFO_KEY, JSON.stringify(userInfo), cookieOptions)
   }
 }
 
@@ -178,7 +183,7 @@ export const saveTokens = (accessToken: string, refreshToken: string, userInfo?:
  * 사용자 정보 가져오기
  */
 export const getUserInfo = (): UserInfo | null => {
-  const userInfoStr = Cookies.get('userInfo')
+  const userInfoStr = Cookies.get(ADMIN_USER_INFO_KEY)
   if (userInfoStr) {
     try {
       return JSON.parse(userInfoStr) as UserInfo
@@ -193,13 +198,13 @@ export const getUserInfo = (): UserInfo | null => {
  * 토큰 확인
  */
 export const getAccessToken = (): string | undefined => {
-  return Cookies.get('accessToken')
+  return Cookies.get(ADMIN_ACCESS_TOKEN_KEY)
 }
 
 /**
  * 인증 상태 확인
  */
 export const isAuthenticated = (): boolean => {
-  return !!Cookies.get('accessToken')
+  return !!Cookies.get(ADMIN_ACCESS_TOKEN_KEY)
 }
 

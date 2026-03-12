@@ -39,6 +39,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDateTime } from '@/lib/utils'
 import Cookies from 'js-cookie'
+import { ADMIN_ACCESS_TOKEN_KEY, ADMIN_REFRESH_TOKEN_KEY, ADMIN_USER_INFO_KEY } from '@/lib/adminAuthKeys'
 import {
   Plus,
   Search,
@@ -109,12 +110,9 @@ export default function VideoListPage() {
       if (error.response?.status === 401 || error.response?.status === 403) {
         // axios 인터셉터가 이미 처리했지만, 추가로 확인
         if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-          // 쿠키 삭제
-          Cookies.remove('accessToken')
-          Cookies.remove('refreshToken')
-          Cookies.remove('userInfo')
-          
-          // 로그인 페이지로 리다이렉트
+          Cookies.remove(ADMIN_ACCESS_TOKEN_KEY)
+          Cookies.remove(ADMIN_REFRESH_TOKEN_KEY)
+          Cookies.remove(ADMIN_USER_INFO_KEY)
           window.location.href = '/login'
           return
         }

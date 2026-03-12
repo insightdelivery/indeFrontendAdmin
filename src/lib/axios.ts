@@ -1,5 +1,10 @@
 import axios, { AxiosError, InternalAxiosRequestConfig, AxiosResponse } from 'axios'
 import Cookies from 'js-cookie'
+import {
+  ADMIN_ACCESS_TOKEN_KEY,
+  ADMIN_REFRESH_TOKEN_KEY,
+  ADMIN_USER_INFO_KEY,
+} from '@/lib/adminAuthKeys'
 
 // Axios 인스턴스 생성
 const apiClient = axios.create({
@@ -30,12 +35,9 @@ const MAX_REFRESH_RETRIES = 3
  */
 const redirectToLogin = () => {
   if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-    // 쿠키 삭제
-    Cookies.remove('accessToken')
-    Cookies.remove('refreshToken')
-    Cookies.remove('userInfo')
-    
-    // 로그인 페이지로 리다이렉트
+    Cookies.remove(ADMIN_ACCESS_TOKEN_KEY)
+    Cookies.remove(ADMIN_REFRESH_TOKEN_KEY)
+    Cookies.remove(ADMIN_USER_INFO_KEY)
     window.location.href = '/login'
   }
 }
@@ -52,7 +54,7 @@ const refreshAccessToken = async (): Promise<string> => {
     console.log(`[Token Refresh] 토큰 갱신 시도 (${currentRetry}/${MAX_REFRESH_RETRIES})`)
     
     // 리프레시 토큰으로 갱신 (만료된 액세스 토큰 대신 사용 → 다중 탭/지연 401 시에도 로그인 유지)
-    const refreshToken = Cookies.get('refreshToken')
+    const refreshToken = Cookies.get(ADMIN_REFRESH_TOKEN_KEY)
     if (!refreshToken) {
       throw new Error('리프레시 토큰이 없습니다.')
     }
@@ -95,23 +97,20 @@ const refreshAccessToken = async (): Promise<string> => {
       throw new Error('토큰 갱신 응답에 토큰이 없습니다.')
     }
     
-    Cookies.set('accessToken', newAccessToken, {
+    Cookies.set(ADMIN_ACCESS_TOKEN_KEY, newAccessToken, {
       expires: 1,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       path: '/',
     })
-    
-    Cookies.set('refreshToken', newRefreshToken, {
+    Cookies.set(ADMIN_REFRESH_TOKEN_KEY, newRefreshToken, {
       expires: 7,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       path: '/',
     })
-
-    // 사용자 정보 업데이트
     if (responseData.user) {
-      Cookies.set('userInfo', JSON.stringify(responseData.user), {
+      Cookies.set(ADMIN_USER_INFO_KEY, JSON.stringify(responseData.user), {
         expires: 1,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
@@ -153,7 +152,7 @@ const refreshAccessToken = async (): Promise<string> => {
 // Request Interceptor: 토큰 자동 첨부
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = Cookies.get('accessToken')
+    const token = Cookies.get(ADMIN_ACCESS_TOKEN_KEY)
     
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`

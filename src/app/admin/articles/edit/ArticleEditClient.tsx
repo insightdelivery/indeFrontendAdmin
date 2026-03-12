@@ -376,9 +376,11 @@ export default function ArticleEditClient() {
         author_id: authorId,
       }
 
-      // 썸네일이 변경된 경우에만 requestData에 추가
+      // 썸네일: 변경된 경우에만 base64 또는 '' 전송. ...data에 포함된 기존 presigned URL은 전송하지 않음 (백엔드가 URL 미지원)
       if (thumbnailChanged && thumbnailToSend !== undefined) {
         requestData.thumbnail = thumbnailToSend
+      } else {
+        delete requestData.thumbnail
       }
 
       await updateArticle(requestData)

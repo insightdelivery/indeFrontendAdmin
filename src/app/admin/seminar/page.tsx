@@ -40,6 +40,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDateTime } from '@/lib/utils'
 import Cookies from 'js-cookie'
+import { ADMIN_ACCESS_TOKEN_KEY, ADMIN_REFRESH_TOKEN_KEY, ADMIN_USER_INFO_KEY } from '@/lib/adminAuthKeys'
 import {
   Plus,
   Search,
@@ -110,9 +111,9 @@ export default function SeminarListPage() {
     } catch (error: any) {
       if (error.response?.status === 401 || error.response?.status === 403) {
         if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-          Cookies.remove('accessToken')
-          Cookies.remove('refreshToken')
-          Cookies.remove('userInfo')
+          Cookies.remove(ADMIN_ACCESS_TOKEN_KEY)
+          Cookies.remove(ADMIN_REFRESH_TOKEN_KEY)
+          Cookies.remove(ADMIN_USER_INFO_KEY)
           window.location.href = '/login'
           return
         }
