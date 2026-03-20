@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDateTime } from '@/lib/utils'
+import VideoDetailSections from '@/components/video/VideoDetailSections'
 import Cookies from 'js-cookie'
 import { ADMIN_ACCESS_TOKEN_KEY, ADMIN_REFRESH_TOKEN_KEY, ADMIN_USER_INFO_KEY } from '@/lib/adminAuthKeys'
 import {
@@ -396,7 +397,6 @@ export default function SeminarListPage() {
                 <SelectItem value={SORT_OPTIONS.CREATED_AT}>최신순</SelectItem>
                 <SelectItem value={SORT_OPTIONS.VIEW_COUNT}>조회수순</SelectItem>
                 <SelectItem value={SORT_OPTIONS.RATING}>인기순(별점)</SelectItem>
-                <SelectItem value={SORT_OPTIONS.SHARE_COUNT}>공유순</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -681,44 +681,24 @@ export default function SeminarListPage() {
       </Dialog>
 
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>상세 미리보기</DialogTitle>
-            <DialogDescription>
-              {selectedVideo?.title || '세미나 상세 정보'}
-            </DialogDescription>
+            <DialogTitle>{selectedVideo?.title || '상세 미리보기'}</DialogTitle>
+            {selectedVideo?.subtitle ? (
+              <DialogDescription>{selectedVideo.subtitle}</DialogDescription>
+            ) : (
+              <DialogDescription className="sr-only">세미나 상세 미리보기</DialogDescription>
+            )}
           </DialogHeader>
 
           {selectedVideo && (
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
-              {(selectedVideo.videoStreamInfo?.embedUrl || selectedVideo.videoStreamId) && (
-                <div className="rounded border overflow-hidden">
-                  <iframe
-                    src={selectedVideo.videoStreamInfo?.embedUrl || `https://iframe.videodelivery.net/${selectedVideo.videoStreamId}`}
-                    className="w-full aspect-video"
-                    allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture"
-                    allowFullScreen
-                    title="video-preview"
-                  />
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div><span className="text-gray-500">상태</span><div>{getStatusBadge(selectedVideo.status)}</div></div>
-                <div><span className="text-gray-500">카테고리</span><div>{(() => {
-                  const codes = getSysCodeFromCache('SYS26209B002')
-                  return codes ? getSysCodeName(codes, selectedVideo.category) : null
-                })() || selectedVideo.category}</div></div>
-                <div><span className="text-gray-500">출연자</span><div>{selectedVideo.speaker || '-'}</div></div>
-                <div><span className="text-gray-500">작성자</span><div>{selectedVideo.editor || selectedVideo.director || '-'}</div></div>
-              </div>
-
-              {selectedVideo.body && (
-                <div>
-                  <div className="text-sm text-gray-500 mb-2">본문</div>
-                  <div className="prose max-w-none text-sm" dangerouslySetInnerHTML={{ __html: selectedVideo.body }} />
-                </div>
-              )}
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1 -mr-1">
+              <VideoDetailSections
+                video={selectedVideo}
+                compact
+                omitTitleSubtitle
+                seminarSourceOnly
+              />
             </div>
           )}
 

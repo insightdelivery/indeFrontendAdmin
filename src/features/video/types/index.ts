@@ -2,6 +2,8 @@
  * Video 도메인 타입 정의
  */
 
+import type { VideoSourceType } from '../constants'
+
 export interface Video {
   id: number
   displayId?: string
@@ -12,6 +14,7 @@ export interface Video {
   body?: string
   videoStreamId?: string
   videoUrl?: string
+  sourceType?: VideoSourceType
   thumbnail?: string
   speaker?: string
   speakerAffiliation?: string
@@ -64,7 +67,7 @@ export interface VideoListParams {
   searchType?: 'all' | 'title' | 'speaker' | 'keyword'
   editor?: string
   director?: string
-  sort?: 'createdAt' | 'viewCount' | 'rating' | 'shareCount'
+  sort?: 'createdAt' | 'viewCount' | 'rating'
 }
 
 export interface VideoListResponse {
@@ -94,8 +97,9 @@ export interface VideoCreateRequest {
   title: string
   subtitle?: string
   body?: string
-  videoStreamId?: string
-  videoUrl?: string
+  videoStreamId?: string | null
+  videoUrl?: string | null
+  sourceType?: VideoSourceType
   thumbnail?: string
   speaker?: string
   speakerAffiliation?: string

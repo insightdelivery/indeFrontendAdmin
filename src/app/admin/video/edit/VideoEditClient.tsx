@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -15,6 +15,7 @@ import {
   type VideoUpdateRequest,
   VIDEO_STATUS,
   VISIBILITY_OPTIONS,
+  VIDEO_SOURCE_TYPE,
 } from '@/features/video'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -25,8 +26,9 @@ import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SysCodeSelect } from '@/components/admin/SysCodeSelect'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
-import { ArrowLeft, Trash2, Video as VideoIcon } from 'lucide-react'
+import { ArrowLeft, Trash2, Video as VideoIcon, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
 const schema = z.object({
   contentType: z.enum(['video', 'seminar']),
@@ -34,6 +36,12 @@ const schema = z.object({
   title: z.string().min(1),
   subtitle: z.string().optional(),
   body: z.string().optional(),
+  sourceType: z.enum([
+    VIDEO_SOURCE_TYPE.FILE_UPLOAD,
+    VIDEO_SOURCE_TYPE.VIMEO,
+    VIDEO_SOURCE_TYPE.YOUTUBE,
+  ]),
+  videoUrl: z.string().optional(),
   visibility: z.string().min(1),
   status: z.string().min(1),
   speaker: z.string().optional(),
@@ -74,6 +82,11 @@ export default function VideoEditClient() {
   const [deleting, setDeleting] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const showCenterLoader = saving || deleting
+  const skipSourceEffectOnce = useRef(true)
+
+  useEffect(() => {
+    skipSourceEffectOnce.current = true
+  }, [idParam])
 
   const {
     register,
@@ -86,6 +99,7 @@ export default function VideoEditClient() {
     resolver: zodResolver(schema),
     defaultValues: {
       contentType: 'video',
+      sourceType: VIDEO_SOURCE_TYPE.FILE_UPLOAD,
       status: 'private',
       isNewBadge: false,
       isMaterialBadge: false,
@@ -110,12 +124,23 @@ export default function VideoEditClient() {
         setVideo(data)
         setThumbnail(data.thumbnail || '')
         setVideoStreamId(data.videoStreamId || '')
+        const inferredSource =
+          data.sourceType ||
+          (data.videoStreamId
+            ? VIDEO_SOURCE_TYPE.FILE_UPLOAD
+            : data.videoUrl && data.videoUrl.toLowerCase().includes('vimeo')
+              ? VIDEO_SOURCE_TYPE.VIMEO
+              : data.videoUrl
+                ? VIDEO_SOURCE_TYPE.YOUTUBE
+                : VIDEO_SOURCE_TYPE.FILE_UPLOAD)
         reset({
           contentType: data.contentType,
           category: data.category || '',
           title: data.title || '',
           subtitle: data.subtitle || '',
           body: data.body || '',
+          sourceType: inferredSource,
+          videoUrl: data.videoUrl || '',
           visibility: data.visibility || '',
           status: data.status || 'private',
           speaker: data.speaker || '',
@@ -141,6 +166,26 @@ export default function VideoEditClient() {
   }, [idParam, videoId, reset, router, toast])
 
   const isScheduled = useMemo(() => watch('status') === VIDEO_STATUS.SCHEDULED, [watch])
+  const sourceType = watch('sourceType')
+
+  const clearVideoFileSelection = useCallback(() => {
+    setVideoFile(null)
+    setVideoStreamId('')
+    const fileInput = document.getElementById('video-upload-edit') as HTMLInputElement | null
+    if (fileInput) fileInput.value = ''
+  }, [])
+
+  useEffect(() => {
+    if (skipSourceEffectOnce.current) {
+      skipSourceEffectOnce.current = false
+      return
+    }
+    if (sourceType === VIDEO_SOURCE_TYPE.FILE_UPLOAD) {
+      setValue('videoUrl', '')
+      return
+    }
+    clearVideoFileSelection()
+  }, [sourceType, setValue, clearVideoFileSelection])
 
   const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -166,7 +211,6 @@ export default function VideoEditClient() {
 
     setVideoFile(file)
     setVideoStreamId('')
-    setValue('videoStreamId' as any, '')
   }
 
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,17 +226,46 @@ export default function VideoEditClient() {
     try {
       setSaving(true)
 
+      const st = data.sourceType
       let finalVideoStreamId = videoStreamId
-      if (videoFile && !videoStreamId) {
-        const result = await uploadVideoFile(videoFile)
-        finalVideoStreamId = result.videoStreamId
-        setVideoStreamId(finalVideoStreamId)
+
+      if (st === VIDEO_SOURCE_TYPE.FILE_UPLOAD) {
+        if (videoFile && !videoStreamId) {
+          const result = await uploadVideoFile(videoFile)
+          finalVideoStreamId = result.videoStreamId
+          setVideoStreamId(finalVideoStreamId)
+        }
+        if (!finalVideoStreamId) {
+          toast({
+            title: '오류',
+            description: '파일을 업로드하거나 기존 Stream 영상이 있어야 합니다.',
+            variant: 'destructive',
+            duration: 15000,
+          })
+          setSaving(false)
+          return
+        }
+      } else {
+        const url = data.videoUrl?.trim()
+        if (!url) {
+          toast({
+            title: '오류',
+            description: 'Vimeo 또는 YouTube 영상 URL을 입력해주세요.',
+            variant: 'destructive',
+            duration: 15000,
+          })
+          setSaving(false)
+          return
+        }
       }
 
       const payload: VideoUpdateRequest = {
-        id: video.id,
         ...data,
-        videoStreamId: finalVideoStreamId || undefined,
+        id: video.id,
+        sourceType: st,
+        videoStreamId: st === VIDEO_SOURCE_TYPE.FILE_UPLOAD ? finalVideoStreamId : null,
+        videoUrl:
+          st === VIDEO_SOURCE_TYPE.FILE_UPLOAD ? null : (data.videoUrl || '').trim() || null,
         thumbnail: thumbnail || undefined,
         scheduledAt: data.scheduledAt ? new Date(data.scheduledAt).toISOString() : undefined,
       }
@@ -324,11 +397,87 @@ export default function VideoEditClient() {
               </div>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>영상 파일(MP4)</Label>
-            <Input type="file" accept="video/mp4" onChange={handleVideoFileChange} />
-            {videoStreamId && <p className="text-xs text-green-600">현재 Stream ID: {videoStreamId}</p>}
+          <div className="space-y-3">
+            <Label>영상 제공 방식 *</Label>
+            <RadioGroup
+              value={sourceType}
+              onValueChange={(v) =>
+                setValue('sourceType', v as FormData['sourceType'], { shouldValidate: true })
+              }
+              className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-6"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value={VIDEO_SOURCE_TYPE.FILE_UPLOAD} id="edit-src-upload" />
+                <Label htmlFor="edit-src-upload" className="font-normal cursor-pointer">
+                  파일 업로드 (Cloudflare Stream)
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value={VIDEO_SOURCE_TYPE.VIMEO} id="edit-src-vimeo" />
+                <Label htmlFor="edit-src-vimeo" className="font-normal cursor-pointer">
+                  Vimeo URL
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value={VIDEO_SOURCE_TYPE.YOUTUBE} id="edit-src-youtube" />
+                <Label htmlFor="edit-src-youtube" className="font-normal cursor-pointer">
+                  YouTube URL
+                </Label>
+              </div>
+            </RadioGroup>
           </div>
+
+          {sourceType === VIDEO_SOURCE_TYPE.FILE_UPLOAD && (
+            <div className="space-y-2">
+              <Label htmlFor="video-upload-edit">영상 파일(MP4)</Label>
+              <Input
+                id="video-upload-edit"
+                type="file"
+                accept="video/mp4"
+                onChange={handleVideoFileChange}
+              />
+              {videoStreamId && (
+                <p className="text-xs text-green-600">현재 Stream ID: {videoStreamId}</p>
+              )}
+              {videoFile && (
+                <div className="mt-2 flex items-center justify-between rounded border border-yellow-200 bg-yellow-50 p-3">
+                  <span className="text-sm text-yellow-900">{videoFile.name}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setVideoFile(null)
+                      const el = document.getElementById('video-upload-edit') as HTMLInputElement
+                      if (el) el.value = ''
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {sourceType !== VIDEO_SOURCE_TYPE.FILE_UPLOAD && (
+            <div className="space-y-2">
+              <Label htmlFor="edit-videoUrl">
+                {sourceType === VIDEO_SOURCE_TYPE.VIMEO ? 'Vimeo' : 'YouTube'} 영상 URL *
+              </Label>
+              <Input
+                id="edit-videoUrl"
+                {...register('videoUrl')}
+                placeholder={
+                  sourceType === VIDEO_SOURCE_TYPE.VIMEO
+                    ? 'https://vimeo.com/...'
+                    : 'https://www.youtube.com/watch?v=... 또는 https://youtu.be/...'
+                }
+              />
+              {errors.videoUrl && (
+                <p className="text-xs text-red-600">{errors.videoUrl.message}</p>
+              )}
+            </div>
+          )}
         </Card>
 
         <Card className="p-6 space-y-4">

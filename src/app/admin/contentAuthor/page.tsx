@@ -196,6 +196,7 @@ export default function ContentAuthorListPage() {
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-2 px-2">ID</th>
+                      <th className="text-left py-2 px-2 w-[56px]">프로필</th>
                       <th className="text-left py-2 px-2">이름</th>
                       <th className="text-left py-2 px-2">역할</th>
                       <th className="text-left py-2 px-2">상태</th>
@@ -208,7 +209,7 @@ export default function ContentAuthorListPage() {
                   <tbody>
                     {authors.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-8 text-center text-gray-500">
+                        <td colSpan={9} className="py-8 text-center text-gray-500">
                           등록된 저자가 없습니다.
                         </td>
                       </tr>
@@ -216,6 +217,18 @@ export default function ContentAuthorListPage() {
                       authors.map((author) => (
                         <tr key={author.author_id} className="border-b hover:bg-gray-50">
                           <td className="py-2 px-2">{author.author_id}</td>
+                          <td className="py-2 px-2 align-middle">
+                            <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 ring-1 ring-gray-200">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={(author.profile_image && author.profile_image.trim()) || '/editorDefault.png'}
+                                alt=""
+                                className="h-full w-full object-cover"
+                                width={40}
+                                height={40}
+                              />
+                            </div>
+                          </td>
                           <td className="py-2 px-2 font-medium">{author.name}</td>
                           <td className="py-2 px-2">{ROLE_LABELS[author.role] ?? author.role}</td>
                           <td className="py-2 px-2">

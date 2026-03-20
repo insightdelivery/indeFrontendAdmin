@@ -8,6 +8,15 @@ export const CONTENT_TYPE = {
   SEMINAR: 'seminar',
 } as const
 
+/** 비디오 본편 소스 (세미나는 항상 FILE_UPLOAD) */
+export const VIDEO_SOURCE_TYPE = {
+  FILE_UPLOAD: 'FILE_UPLOAD',
+  VIMEO: 'VIMEO',
+  YOUTUBE: 'YOUTUBE',
+} as const
+
+export type VideoSourceType = (typeof VIDEO_SOURCE_TYPE)[keyof typeof VIDEO_SOURCE_TYPE]
+
 // 공개 범위 (레거시, 실제로는 시스템 코드 사용)
 export const VISIBILITY_OPTIONS = [
   { value: 'all', label: '전체 공개' },
@@ -32,12 +41,11 @@ export const SEARCH_TYPE = {
   KEYWORD: 'keyword',
 } as const
 
-// 정렬 옵션
+// 정렬 옵션 (API는 createdAt / viewCount / rating 만 허용 — videoPlan §6.2.4)
 export const SORT_OPTIONS = {
-  CREATED_AT: 'createdAt', // 최신순
-  VIEW_COUNT: 'viewCount', // 조회수순
-  RATING: 'rating', // 인기순(별점)
-  SHARE_COUNT: 'shareCount', // 공유순
+  CREATED_AT: 'createdAt',
+  VIEW_COUNT: 'viewCount',
+  RATING: 'rating',
 } as const
 
 // 라우트 경로

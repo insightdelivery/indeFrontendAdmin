@@ -195,7 +195,9 @@ export default function SeminarEditClient() {
         id: video.id,
         ...data,
         contentType: 'seminar',
+        sourceType: 'FILE_UPLOAD',
         videoStreamId: finalVideoStreamId || undefined,
+        videoUrl: null,
         thumbnail: thumbnail || undefined,
         scheduledAt: data.scheduledAt ? new Date(data.scheduledAt).toISOString() : undefined,
       }

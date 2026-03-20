@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -11,6 +11,7 @@ import {
   type VideoCreateRequest,
   VIDEO_STATUS,
   VISIBILITY_OPTIONS,
+  VIDEO_SOURCE_TYPE,
 } from '@/features/video'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -40,6 +41,7 @@ import Link from 'next/link'
 import { getUserInfo } from '@/services/auth'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
 import apiClient from '@/lib/axios'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
 const videoSchema = z.object({
   contentType: z.literal('video'),
@@ -47,6 +49,11 @@ const videoSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요.'),
   subtitle: z.string().optional(),
   body: z.string().optional(),
+  sourceType: z.enum([
+    VIDEO_SOURCE_TYPE.FILE_UPLOAD,
+    VIDEO_SOURCE_TYPE.VIMEO,
+    VIDEO_SOURCE_TYPE.YOUTUBE,
+  ]),
   videoStreamId: z.string().optional(),
   videoUrl: z.string().optional(),
   speaker: z.string().optional(),
@@ -101,6 +108,7 @@ export default function VideoCreatePage() {
     resolver: zodResolver(videoSchema),
     defaultValues: {
       contentType: 'video',
+      sourceType: VIDEO_SOURCE_TYPE.FILE_UPLOAD,
       visibility: '',
       status: 'private',
       isNewBadge: false,
@@ -112,7 +120,24 @@ export default function VideoCreatePage() {
     },
   })
 
+  const sourceType = watch('sourceType')
   const status = watch('status')
+
+  const clearVideoFileSelection = useCallback(() => {
+    setVideoFile(null)
+    setVideoStreamId('')
+    setValue('videoStreamId', '')
+    const fileInput = document.getElementById('video-upload') as HTMLInputElement | null
+    if (fileInput) fileInput.value = ''
+  }, [setValue])
+
+  useEffect(() => {
+    if (sourceType === VIDEO_SOURCE_TYPE.FILE_UPLOAD) {
+      setValue('videoUrl', '')
+      return
+    }
+    clearVideoFileSelection()
+  }, [sourceType, setValue, clearVideoFileSelection])
   const userInfo = getUserInfo()
 
   useEffect(() => {
@@ -213,45 +238,59 @@ export default function VideoCreatePage() {
     try {
       setSaving(true)
 
-      // 비디오 파일이 있으면 먼저 업로드
       let finalVideoStreamId = videoStreamId
-      if (videoFile && !videoStreamId) {
-        try {
-          setUploadingVideo(true)
-          setUploadProgress(0)
-          
-          const result = await uploadVideoFile(videoFile, (progress) => {
-            setUploadProgress(progress)
-          })
-          finalVideoStreamId = result.videoStreamId
-          setVideoStreamId(finalVideoStreamId)
-          setValue('videoStreamId', finalVideoStreamId)
-        } catch (error: any) {
+      const st = data.sourceType
+
+      if (st === VIDEO_SOURCE_TYPE.FILE_UPLOAD) {
+        if (videoFile && !videoStreamId) {
+          try {
+            setUploadingVideo(true)
+            setUploadProgress(0)
+
+            const result = await uploadVideoFile(videoFile, (progress) => {
+              setUploadProgress(progress)
+            })
+            finalVideoStreamId = result.videoStreamId
+            setVideoStreamId(finalVideoStreamId)
+            setValue('videoStreamId', finalVideoStreamId)
+          } catch (error: any) {
+            toast({
+              title: '오류',
+              description: error.message || '비디오 업로드에 실패했습니다.',
+              variant: 'destructive',
+              duration: 15000,
+            })
+            setSaving(false)
+            setUploadingVideo(false)
+            return
+          } finally {
+            setUploadingVideo(false)
+            setUploadProgress(0)
+          }
+        }
+
+        if (!finalVideoStreamId) {
           toast({
             title: '오류',
-            description: error.message || '비디오 업로드에 실패했습니다.',
+            description: 'MP4 파일을 업로드하거나 Stream이 준비될 때까지 기다려주세요.',
             variant: 'destructive',
-            duration: 15000, // 15초
+            duration: 15000,
           })
           setSaving(false)
-          setUploadingVideo(false)
           return
-        } finally {
-          setUploadingVideo(false)
-          setUploadProgress(0)
         }
-      }
-
-      // videoStreamId 또는 videoUrl 검증
-      if (!finalVideoStreamId && !data.videoUrl) {
-        toast({
-          title: '오류',
-          description: '비디오 파일을 선택하거나 영상 URL을 입력해주세요.',
-          variant: 'destructive',
-          duration: 15000, // 15초
-        })
-        setSaving(false)
-        return
+      } else {
+        const url = data.videoUrl?.trim()
+        if (!url) {
+          toast({
+            title: '오류',
+            description: 'Vimeo 또는 YouTube 영상 URL을 입력해주세요.',
+            variant: 'destructive',
+            duration: 15000,
+          })
+          setSaving(false)
+          return
+        }
       }
 
       // 썸네일 처리
@@ -334,7 +373,13 @@ export default function VideoCreatePage() {
 
       const requestData: VideoCreateRequest = {
         ...data,
-        videoStreamId: finalVideoStreamId || undefined,
+        sourceType: st,
+        videoStreamId:
+          st === VIDEO_SOURCE_TYPE.FILE_UPLOAD ? finalVideoStreamId || undefined : null,
+        videoUrl:
+          st === VIDEO_SOURCE_TYPE.FILE_UPLOAD
+            ? null
+            : (data.videoUrl || '').trim() || null,
         questions: questions.filter((q) => q.trim() !== ''),
         tags: data.tags?.filter((tag) => tag.trim() !== ''),
         attachments: uploadedAttachments,
@@ -542,105 +587,161 @@ export default function VideoCreatePage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="video-upload">영상 파일 업로드 *</Label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                <div className="flex flex-col items-center justify-center gap-4">
-                  <VideoIcon className="h-8 w-8 text-gray-400" />
-                  <div className="text-center">
-                    <Label htmlFor="video-upload" className="cursor-pointer">
-                      <span className="text-blue-600 hover:text-blue-700">
-                        파일을 선택하거나 드래그 앤 드롭
-                      </span>
-                    </Label>
-                    <Input
-                      id="video-upload"
-                      type="file"
-                      accept="video/mp4"
-                      className="hidden"
-                      onChange={handleVideoFileChange}
-                      disabled={uploadingVideo}
-                    />
-                    <p className="text-xs text-gray-500 mt-2">
-                      MP4 파일만 업로드 가능합니다. (최대 2GB)
-                    </p>
-                  </div>
+            <div className="space-y-3">
+              <Label>영상 제공 방식 *</Label>
+              <RadioGroup
+                value={sourceType}
+                onValueChange={(v) =>
+                  setValue('sourceType', v as VideoFormData['sourceType'], { shouldValidate: true })
+                }
+                className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-6"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value={VIDEO_SOURCE_TYPE.FILE_UPLOAD} id="src-upload" />
+                  <Label htmlFor="src-upload" className="font-normal cursor-pointer">
+                    파일 업로드 (Cloudflare Stream)
+                  </Label>
                 </div>
-              </div>
-              {uploadingVideo && (
-                <div className="mt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600">
-                      업로드 중... {uploadProgress > 0 ? `(${uploadProgress.toFixed(2)}%)` : '(서버로 전송 중...)'}
-                    </span>
-                    <span className="text-sm text-gray-600">
-                      {videoFile && `${((videoFile.size * uploadProgress) / 100 / (1024 * 1024)).toFixed(2)}MB / ${(videoFile.size / (1024 * 1024)).toFixed(2)}MB`}
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.max(uploadProgress, 1)}%` }}
-                    />
-                  </div>
-                  {uploadProgress > 0 && uploadProgress < 100 && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      큰 파일의 경우 서버로 전송하는 데 시간이 걸릴 수 있습니다. 잠시만 기다려주세요...
-                    </p>
-                  )}
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value={VIDEO_SOURCE_TYPE.VIMEO} id="src-vimeo" />
+                  <Label htmlFor="src-vimeo" className="font-normal cursor-pointer">
+                    Vimeo URL
+                  </Label>
                 </div>
-              )}
-              {videoFile && (
-                <div className={`mt-4 p-4 border rounded-lg ${
-                  videoStreamId 
-                    ? 'bg-green-50 border-green-200' 
-                    : 'bg-yellow-50 border-yellow-200'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <VideoIcon className={`h-5 w-5 ${
-                        videoStreamId ? 'text-green-600' : 'text-yellow-600'
-                      }`} />
-                      <div>
-                        <p className={`text-sm font-medium ${
-                          videoStreamId ? 'text-green-900' : 'text-yellow-900'
-                        }`}>
-                          {videoFile.name}
-                        </p>
-                        <p className={`text-xs ${
-                          videoStreamId ? 'text-green-700' : 'text-yellow-700'
-                        }`}>
-                          크기: {(videoFile.size / (1024 * 1024)).toFixed(2)}MB
-                          {!videoStreamId && ' (등록 버튼 클릭 시 업로드됩니다)'}
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setVideoFile(null)
-                        setVideoStreamId('')
-                        setValue('videoStreamId', '')
-                        // 파일 input 초기화
-                        const fileInput = document.getElementById('video-upload') as HTMLInputElement
-                        if (fileInput) {
-                          fileInput.value = ''
-                        }
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value={VIDEO_SOURCE_TYPE.YOUTUBE} id="src-youtube" />
+                  <Label htmlFor="src-youtube" className="font-normal cursor-pointer">
+                    YouTube URL
+                  </Label>
                 </div>
-              )}
-              {!videoFile && !uploadingVideo && (
-                <p className="text-sm text-gray-500 mt-2">
-                  MP4 파일을 선택해주세요. (등록 버튼 클릭 시 업로드됩니다)
-                </p>
-              )}
+              </RadioGroup>
             </div>
+
+            {sourceType === VIDEO_SOURCE_TYPE.FILE_UPLOAD && (
+              <div className="space-y-2">
+                <Label htmlFor="video-upload">영상 파일 업로드 *</Label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
+                  <div className="flex flex-col items-center justify-center gap-4">
+                    <VideoIcon className="h-8 w-8 text-gray-400" />
+                    <div className="text-center">
+                      <Label htmlFor="video-upload" className="cursor-pointer">
+                        <span className="text-blue-600 hover:text-blue-700">
+                          파일을 선택하거나 드래그 앤 드롭
+                        </span>
+                      </Label>
+                      <Input
+                        id="video-upload"
+                        type="file"
+                        accept="video/mp4"
+                        className="hidden"
+                        onChange={handleVideoFileChange}
+                        disabled={uploadingVideo}
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        MP4 파일만 업로드 가능합니다. (최대 2GB)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                {uploadingVideo && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm text-gray-600">
+                        업로드 중...{' '}
+                        {uploadProgress > 0 ? `(${uploadProgress.toFixed(2)}%)` : '(서버로 전송 중...)'}
+                      </span>
+                      <span className="text-sm text-gray-600">
+                        {videoFile &&
+                          `${((videoFile.size * uploadProgress) / 100 / (1024 * 1024)).toFixed(2)}MB / ${(videoFile.size / (1024 * 1024)).toFixed(2)}MB`}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.max(uploadProgress, 1)}%` }}
+                      />
+                    </div>
+                    {uploadProgress > 0 && uploadProgress < 100 && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        큰 파일의 경우 서버로 전송하는 데 시간이 걸릴 수 있습니다. 잠시만 기다려주세요...
+                      </p>
+                    )}
+                  </div>
+                )}
+                {videoFile && (
+                  <div
+                    className={`mt-4 p-4 border rounded-lg ${
+                      videoStreamId ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <VideoIcon
+                          className={`h-5 w-5 ${videoStreamId ? 'text-green-600' : 'text-yellow-600'}`}
+                        />
+                        <div>
+                          <p
+                            className={`text-sm font-medium ${
+                              videoStreamId ? 'text-green-900' : 'text-yellow-900'
+                            }`}
+                          >
+                            {videoFile.name}
+                          </p>
+                          <p
+                            className={`text-xs ${videoStreamId ? 'text-green-700' : 'text-yellow-700'}`}
+                          >
+                            크기: {(videoFile.size / (1024 * 1024)).toFixed(2)}MB
+                            {!videoStreamId && ' (등록 버튼 클릭 시 업로드됩니다)'}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setVideoFile(null)
+                          setVideoStreamId('')
+                          setValue('videoStreamId', '')
+                          const fileInput = document.getElementById('video-upload') as HTMLInputElement
+                          if (fileInput) fileInput.value = ''
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {!videoFile && !uploadingVideo && (
+                  <p className="text-sm text-gray-500 mt-2">
+                    MP4 파일을 선택해주세요. (등록 버튼 클릭 시 업로드됩니다)
+                  </p>
+                )}
+              </div>
+            )}
+
+            {sourceType !== VIDEO_SOURCE_TYPE.FILE_UPLOAD && (
+              <div className="space-y-2">
+                <Label htmlFor="videoUrl">
+                  {sourceType === VIDEO_SOURCE_TYPE.VIMEO ? 'Vimeo' : 'YouTube'} 영상 URL *
+                </Label>
+                <Input
+                  id="videoUrl"
+                  {...register('videoUrl')}
+                  placeholder={
+                    sourceType === VIDEO_SOURCE_TYPE.VIMEO
+                      ? 'https://vimeo.com/...'
+                      : 'https://www.youtube.com/watch?v=... 또는 https://youtu.be/...'
+                  }
+                />
+                {errors.videoUrl && (
+                  <p className="text-sm text-red-600">{errors.videoUrl.message}</p>
+                )}
+                <p className="text-xs text-gray-500">
+                  해당 플랫폼의 시청 페이지 또는 공유 URL을 붙여넣으세요.
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>강의 자료 (첨부파일)</Label>

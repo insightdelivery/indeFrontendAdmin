@@ -53,7 +53,6 @@ const videoSchema = z.object({
   subtitle: z.string().optional(),
   body: z.string().optional(),
   videoStreamId: z.string().optional(),
-  videoUrl: z.string().optional(),
   speaker: z.string().optional(),
   speakerAffiliation: z.string().optional(),
   editor: z.string().optional(),
@@ -243,10 +242,10 @@ export default function SeminarCreatePage() {
         }
       }
 
-      if (!finalVideoStreamId && !data.videoUrl) {
+      if (!finalVideoStreamId) {
         toast({
           title: '오류',
-          description: '비디오 파일을 선택하거나 영상 URL을 입력해주세요.',
+          description: '세미나 영상(MP4)을 업로드해주세요.',
           variant: 'destructive',
           duration: 15000,
         })
@@ -332,7 +331,9 @@ export default function SeminarCreatePage() {
       const requestData: VideoCreateRequest = {
         ...data,
         contentType: 'seminar',
+        sourceType: 'FILE_UPLOAD',
         videoStreamId: finalVideoStreamId || undefined,
+        videoUrl: null,
         questions: questions.filter((q) => q.trim() !== ''),
         tags: data.tags?.filter((tag) => tag.trim() !== ''),
         attachments: uploadedAttachments,
