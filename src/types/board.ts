@@ -3,6 +3,8 @@ export interface NoticeListItem {
   id: number
   title: string
   is_pinned: boolean
+  /** www GNB 상단 공지 노출 여부 (구 API 미배포 시 생략 가능) */
+  show_in_gnb?: boolean
   view_count: number
   created_at: string
 }

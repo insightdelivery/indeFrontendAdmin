@@ -18,6 +18,7 @@ export default function NewNoticePage() {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [isPinned, setIsPinned] = useState(false)
+  const [showInGnb, setShowInGnb] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,7 +29,12 @@ export default function NewNoticePage() {
     }
     try {
       setSubmitting(true)
-      await createNotice({ title: title.trim(), content: content.trim(), is_pinned: isPinned })
+      await createNotice({
+        title: title.trim(),
+        content: content.trim(),
+        is_pinned: isPinned,
+        show_in_gnb: showInGnb,
+      })
       toast({ title: '등록 완료', description: '공지가 등록되었습니다.', duration: 3000 })
       router.push('/admin/board/notices')
     } catch (e: any) {
@@ -80,11 +86,19 @@ export default function NewNoticePage() {
                 placeholder="내용을 입력하세요"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <Checkbox id="pin" checked={isPinned} onCheckedChange={(v) => setIsPinned(!!v)} />
-              <label htmlFor="pin" className="text-sm">
-                상단 고정
-              </label>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
+              <div className="flex items-center gap-2">
+                <Checkbox id="pin" checked={isPinned} onCheckedChange={(v) => setIsPinned(!!v)} />
+                <label htmlFor="pin" className="text-sm">
+                  상단 고정
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="gnb" checked={showInGnb} onCheckedChange={(v) => setShowInGnb(!!v)} />
+                <label htmlFor="gnb" className="text-sm">
+                  GNB 상단에 표시
+                </label>
+              </div>
             </div>
             <div className="flex gap-2">
               <Button type="submit" disabled={submitting} className="bg-neon-yellow hover:bg-neon-yellow/90 text-black">

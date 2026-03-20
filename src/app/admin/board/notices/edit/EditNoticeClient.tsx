@@ -19,6 +19,7 @@ export default function EditNoticeClient({ id }: { id: string }) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [isPinned, setIsPinned] = useState(false)
+  const [showInGnb, setShowInGnb] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
@@ -29,6 +30,7 @@ export default function EditNoticeClient({ id }: { id: string }) {
         setTitle(data.title)
         setContent(data.content)
         setIsPinned(data.is_pinned)
+        setShowInGnb(data.show_in_gnb ?? false)
       })
       .catch((e: any) => {
         toast({
@@ -49,7 +51,12 @@ export default function EditNoticeClient({ id }: { id: string }) {
     }
     try {
       setSubmitting(true)
-      await updateNotice(idNum, { title: title.trim(), content: content.trim(), is_pinned: isPinned })
+      await updateNotice(idNum, {
+        title: title.trim(),
+        content: content.trim(),
+        is_pinned: isPinned,
+        show_in_gnb: showInGnb,
+      })
       toast({ title: '수정 완료', description: '공지가 수정되었습니다.', duration: 3000 })
       router.push('/admin/board/notices')
     } catch (e: any) {
@@ -109,11 +116,19 @@ export default function EditNoticeClient({ id }: { id: string }) {
                 placeholder="내용을 입력하세요"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <Checkbox id="pin" checked={isPinned} onCheckedChange={(v) => setIsPinned(!!v)} />
-              <label htmlFor="pin" className="text-sm">
-                상단 고정
-              </label>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
+              <div className="flex items-center gap-2">
+                <Checkbox id="pin" checked={isPinned} onCheckedChange={(v) => setIsPinned(!!v)} />
+                <label htmlFor="pin" className="text-sm">
+                  상단 고정
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="gnb-edit" checked={showInGnb} onCheckedChange={(v) => setShowInGnb(!!v)} />
+                <label htmlFor="gnb-edit" className="text-sm">
+                  GNB 상단에 표시
+                </label>
+              </div>
             </div>
             <div className="flex gap-2">
               <Button type="submit" disabled={submitting} className="bg-neon-yellow hover:bg-neon-yellow/90 text-black">

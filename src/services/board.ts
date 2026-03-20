@@ -41,13 +41,23 @@ export async function getNotice(id: number): Promise<NoticeDetail> {
 }
 
 /** 공지 생성 */
-export async function createNotice(body: { title: string; content: string; is_pinned?: boolean }): Promise<NoticeDetail> {
+export async function createNotice(body: {
+  title: string
+  content: string
+  is_pinned?: boolean
+  show_in_gnb?: boolean
+}): Promise<NoticeDetail> {
   const { data } = await apiClient.post(`${BASE}/notices/`, body)
   return unwrapResult<NoticeDetail>(data)
 }
 
 /** 공지 수정 */
-export async function updateNotice(id: number, body: { title: string; content: string; is_pinned?: boolean }): Promise<NoticeDetail> {
+export async function updateNotice(id: number, body: {
+  title: string
+  content: string
+  is_pinned?: boolean
+  show_in_gnb?: boolean
+}): Promise<NoticeDetail> {
   const { data } = await apiClient.put(`${BASE}/notices/${id}/`, body)
   return unwrapResult<NoticeDetail>(data)
 }

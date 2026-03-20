@@ -19,6 +19,11 @@ interface SysCodeCache {
 const CACHE_DURATION = 24 * 60 * 60 * 1000 // 24시간 (밀리초)
 const CACHE_KEY = 'sysCodeData' // 단일 캐시 키 사용
 
+/** Display Event — eventTypeCode (eventBannerPlan) */
+export const DISPLAY_EVENT_TYPE_PARENT = 'SYS26320B003'
+/** Display Event — contentTypeCode */
+export const DISPLAY_CONTENT_TYPE_PARENT = 'SYS26320B009'
+
 // syscode 데이터를 localStorage에서 가져오기
 export const getSysCodeFromCache = (sysCodeGubn: string): SysCodeItem[] | null => {
   try {

@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, Search, Edit, Trash2, Pin } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Pin, PanelTop } from 'lucide-react'
 
 function formatDate(s: string) {
   return new Date(s).toLocaleString('ko-KR', {
@@ -149,6 +149,7 @@ export default function NoticeListPage() {
                     <th className="text-center p-3 font-medium w-16">번호</th>
                     <th className="text-left p-3 font-medium">제목</th>
                     <th className="text-center p-3 font-medium w-20">상단고정</th>
+                    <th className="text-center p-3 font-medium w-20">GNB</th>
                     <th className="text-center p-3 font-medium w-24">조회수</th>
                     <th className="text-right p-3 font-medium w-[140px] min-w-[140px] whitespace-nowrap">등록일</th>
                     <th className="text-right p-3 font-medium w-28">관리</th>
@@ -172,6 +173,15 @@ export default function NoticeListPage() {
                       </td>
                       <td className="p-3 text-center">
                         {row.is_pinned ? <Pin className="h-4 w-4 inline text-amber-500" /> : '-'}
+                      </td>
+                      <td className="p-3 text-center">
+                        {row.show_in_gnb ? (
+                          <span title="GNB 상단 표시">
+                            <PanelTop className="h-4 w-4 inline text-sky-600" aria-hidden />
+                          </span>
+                        ) : (
+                          '-'
+                        )}
                       </td>
                       <td className="p-3 text-center">{row.view_count}</td>
                       <td className="p-3 text-right text-gray-600 whitespace-nowrap w-[140px] min-w-[140px]">{formatDate(row.created_at)}</td>
@@ -251,6 +261,10 @@ export default function NoticeListPage() {
               <div>
                 <span className="text-sm text-gray-500">상단고정</span>
                 <p>{detail.is_pinned ? '예' : '아니오'}</p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-500">GNB 상단에 표시</span>
+                <p>{detail.show_in_gnb ? '예' : '아니오'}</p>
               </div>
               <div>
                 <span className="text-sm text-gray-500">조회수 · 등록일</span>

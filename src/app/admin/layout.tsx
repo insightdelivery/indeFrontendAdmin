@@ -26,7 +26,8 @@ import {
   MessageSquare,
   ClipboardList,
   HelpCircle,
-  Mail
+  Mail,
+  Images,
 } from 'lucide-react'
 
 export default function AdminLayout({
@@ -95,6 +96,7 @@ export default function AdminLayout({
     { href: '/admin/video', label: '비디오 관리', icon: Video },
     { href: '/admin/seminar', label: '세미나 관리', icon: GraduationCap },
     { href: '/admin/contentAuthor', label: '작성자 관리', icon: UserCircle },
+    { href: '/admin/display-events', label: '이벤트 베너 관리', icon: Images },
     { href: '/admin/users', label: '회원관리', icon: Users },
     { href: '/admin/orders', label: '결제관리', icon: ShoppingCart },
   ]
