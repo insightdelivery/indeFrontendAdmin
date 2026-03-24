@@ -11,6 +11,7 @@ import {
 } from '@/lib/syscode'
 import type { SysCodeItem } from '@/lib/syscode'
 import { createDisplayEvent, getDisplayEvent, updateDisplayEvent } from '@/services/displayEvent'
+import { uploadEventBannerImage, validateEventBannerImageFile } from '@/services/eventBannerImageUpload'
 import type { DisplayEventWritePayload } from '@/types/displayEvent'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -24,7 +25,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 
 function toDatetimeLocal(iso: string | null | undefined): string {
   if (!iso) return ''
@@ -51,6 +52,7 @@ export default function DisplayEventForm({ eventId }: Props) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(!!eventId)
   const [saving, setSaving] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [eventTypes, setEventTypes] = useState<SysCodeItem[]>([])
   const [contentTypes, setContentTypes] = useState<SysCodeItem[]>([])
 
@@ -59,7 +61,13 @@ export default function DisplayEventForm({ eventId }: Props) {
   const [contentIdStr, setContentIdStr] = useState('')
   const [title, setTitle] = useState('')
   const [subtitle, setSubtitle] = useState('')
+  const [badgeText, setBadgeText] = useState('')
+  /** 저장·API payload용 (S3 직링크). 비공개 버킷이라 `<img>`에는 쓰지 않음 */
   const [imageUrl, setImageUrl] = useState('')
+  /** 서버에서 내려준 Presigned 또는 업로드 응답 `displayUrl` — 미리보기 전용 */
+  const [imageDisplayUrl, setImageDisplayUrl] = useState<string | null>(null)
+  /** 업로드 완료 전 로컬 미리보기(blob:) — 언마운트·교체 시 revoke */
+  const [imagePreviewBlobUrl, setImagePreviewBlobUrl] = useState<string | null>(null)
   const [linkUrl, setLinkUrl] = useState('')
   const [displayOrder, setDisplayOrder] = useState(0)
   const [isActive, setIsActive] = useState(true)
@@ -95,6 +103,14 @@ export default function DisplayEventForm({ eventId }: Props) {
   }, [loadCodes])
 
   useEffect(() => {
+    return () => {
+      if (imagePreviewBlobUrl) {
+        URL.revokeObjectURL(imagePreviewBlobUrl)
+      }
+    }
+  }, [imagePreviewBlobUrl])
+
+  useEffect(() => {
     if (!eventId) {
       setLoading(false)
       return
@@ -110,7 +126,9 @@ export default function DisplayEventForm({ eventId }: Props) {
         setContentIdStr(row.contentId != null ? String(row.contentId) : '')
         setTitle(row.title || '')
         setSubtitle(row.subtitle || '')
+        setBadgeText(row.badgeText || '')
         setImageUrl(row.imageUrl || '')
+        setImageDisplayUrl(null)
         setLinkUrl(row.linkUrl || '')
         setDisplayOrder(row.displayOrder ?? 0)
         setIsActive(row.isActive !== false)
@@ -149,6 +167,7 @@ export default function DisplayEventForm({ eventId }: Props) {
       contentId: hasValidContentId ? parsedContentId : null,
       title: title.trim() || null,
       subtitle: subtitle.trim() || null,
+      badgeText: badgeText.trim() || null,
       imageUrl: imageUrl.trim() || null,
       linkUrl: linkDisabled ? null : linkUrl.trim() || null,
       displayOrder,
@@ -277,8 +296,92 @@ export default function DisplayEventForm({ eventId }: Props) {
             </div>
 
             <div className="grid gap-2">
-              <Label>이미지 URL (비우면 콘텐츠 썸네일)</Label>
-              <Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+              <Label>배지 (비우면 www 히어로에서 칩 미표시)</Label>
+              <Input
+                value={badgeText}
+                onChange={(e) => setBadgeText(e.target.value)}
+                maxLength={100}
+                placeholder="예: Director's Pick"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="de-banner-image">배너 이미지</Label>
+              <p className="text-xs text-muted-foreground">
+                JPEG / PNG / GIF / WebP, 최대 4MB. 비우면 연결된 콘텐츠 썸네일을 사용합니다.
+              </p>
+              <Input
+                id="de-banner-image"
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp"
+                className="cursor-pointer"
+                disabled={uploadingImage || saving}
+                onChange={async (e) => {
+                  const f = e.target.files?.[0]
+                  e.target.value = ''
+                  if (!f) return
+                  try {
+                    validateEventBannerImageFile(f)
+                  } catch (err: unknown) {
+                    toast({
+                      title: '선택한 파일을 사용할 수 없습니다',
+                      description: err instanceof Error ? err.message : '이미지를 확인해 주세요.',
+                      variant: 'destructive',
+                    })
+                    return
+                  }
+                  const blobUrl = URL.createObjectURL(f)
+                  setImagePreviewBlobUrl(blobUrl)
+                  try {
+                    setUploadingImage(true)
+                    const { storageUrl, displayUrl } = await uploadEventBannerImage(f)
+                    setImageUrl(storageUrl)
+                    setImageDisplayUrl(displayUrl)
+                    setImagePreviewBlobUrl(null)
+                    toast({ title: '업로드 완료', description: '배너 이미지가 반영되었습니다.' })
+                  } catch (err: unknown) {
+                    setImagePreviewBlobUrl(null)
+                    toast({
+                      title: '업로드 실패',
+                      description: err instanceof Error ? err.message : '이미지를 올리지 못했습니다.',
+                      variant: 'destructive',
+                    })
+                  } finally {
+                    setUploadingImage(false)
+                  }
+                }}
+              />
+              {uploadingImage ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  업로드 중…
+                </div>
+              ) : null}
+              {imagePreviewBlobUrl || imageDisplayUrl || imageUrl ? (
+                <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
+                  <div className="relative aspect-[16/9] max-h-40 w-full overflow-hidden rounded bg-black/5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imagePreviewBlobUrl || imageDisplayUrl || imageUrl}
+                      alt=""
+                      className="h-full w-full object-contain"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={saving || uploadingImage}
+                    onClick={() => {
+                      setImageUrl('')
+                      setImageDisplayUrl(null)
+                      setImagePreviewBlobUrl(null)
+                    }}
+                  >
+                    이미지 제거 (콘텐츠 썸네일 사용)
+                  </Button>
+                </div>
+              ) : null}
             </div>
 
             <div className="grid gap-2">
@@ -323,7 +426,7 @@ export default function DisplayEventForm({ eventId }: Props) {
             </div>
 
             <div className="flex gap-3 pt-4">
-              <Button type="submit" disabled={saving}>
+              <Button type="submit" disabled={saving || uploadingImage}>
                 {saving ? '저장 중…' : eventId ? '수정' : '등록'}
               </Button>
               <Button type="button" variant="outline" asChild>

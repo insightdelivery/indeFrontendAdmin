@@ -6,6 +6,7 @@ export interface DisplayEventHeroItem {
   contentId: number | null
   title: string | null
   subtitle: string | null
+  badgeText?: string | null
   imageUrl: string | null
   linkUrl: string | null
   content: {
@@ -26,6 +27,7 @@ export interface DisplayEventWritePayload {
   contentId?: number | null
   title?: string | null
   subtitle?: string | null
+  badgeText?: string | null
   imageUrl?: string | null
   linkUrl?: string | null
   displayOrder?: number
