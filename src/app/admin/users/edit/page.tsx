@@ -17,7 +17,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ArrowLeft } from 'lucide-react'
-import { getSysCodeFromCache, getSysCode, createSysCodeOptions } from '@/lib/syscode'
 import type { PublicMemberStatus } from '@/types/publicMember'
 
 const JOINED_VIA_OPTIONS = [
@@ -26,25 +25,6 @@ const JOINED_VIA_OPTIONS = [
   { value: 'NAVER', label: '네이버' },
   { value: 'GOOGLE', label: '구글' },
 ]
-
-/** localStorage sysCodeData 키: 직분 */
-const POSITION_PARENT = 'SYS26127B006'
-/** 지역구분 (국내/해외) */
-const REGION_TYPE_PARENT = 'SYS26127B017'
-/** 국내 지역 상세 */
-const REGION_DOMESTIC_PARENT = 'SYS26127B018'
-/** 해외 지역 상세 */
-const REGION_FOREIGN_PARENT = 'SYS26127B019'
-
-/** Select "선택" 옵션 value (Radix Select는 빈 문자열 value 미지원) */
-const EMPTY_SELECT_VALUE = '__none__'
-
-function toRegionTypeSysCode(apiValue: string | null | undefined): string {
-  if (!apiValue) return ''
-  if (apiValue === 'DOMESTIC') return 'SYS26127B018'
-  if (apiValue === 'FOREIGN') return 'SYS26127B019'
-  return apiValue
-}
 
 export default function EditUserPage() {
   const router = useRouter()
@@ -57,13 +37,6 @@ export default function EditUserPage() {
   const [name, setName] = useState('')
   const [nickname, setNickname] = useState('')
   const [phone, setPhone] = useState('')
-  const [position, setPosition] = useState('')
-  const [birthYear, setBirthYear] = useState<number | ''>('')
-  const [birthMonth, setBirthMonth] = useState<number | ''>('')
-  const [birthDay, setBirthDay] = useState<number | ''>('')
-  const [regionType, setRegionType] = useState('')
-  const [regionDomestic, setRegionDomestic] = useState('')
-  const [regionForeign, setRegionForeign] = useState('')
   const [joinedVia, setJoinedVia] = useState('LOCAL')
   const [isActive, setIsActive] = useState(true)
   const [isStaff, setIsStaff] = useState(false)
@@ -72,10 +45,6 @@ export default function EditUserPage() {
   const [profileCompleted, setProfileCompleted] = useState(true)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [positionOptions, setPositionOptions] = useState<{ value: string; label: string }[]>([])
-  const [regionTypeOptions, setRegionTypeOptions] = useState<{ value: string; label: string }[]>([])
-  const [regionDomesticOptions, setRegionDomesticOptions] = useState<{ value: string; label: string }[]>([])
-  const [regionForeignOptions, setRegionForeignOptions] = useState<{ value: string; label: string }[]>([])
   const [memberStatus, setMemberStatus] = useState<PublicMemberStatus | ''>('')
   const [withdrawReason, setWithdrawReason] = useState('')
   const [withdrawDetailReason, setWithdrawDetailReason] = useState('')
@@ -88,20 +57,6 @@ export default function EditUserPage() {
   ]
 
   useEffect(() => {
-    const load = async () => {
-      const pos = getSysCodeFromCache(POSITION_PARENT) ?? await getSysCode(POSITION_PARENT)
-      const rt = getSysCodeFromCache(REGION_TYPE_PARENT) ?? await getSysCode(REGION_TYPE_PARENT)
-      const rd = getSysCodeFromCache(REGION_DOMESTIC_PARENT) ?? await getSysCode(REGION_DOMESTIC_PARENT)
-      const rf = getSysCodeFromCache(REGION_FOREIGN_PARENT) ?? await getSysCode(REGION_FOREIGN_PARENT)
-      setPositionOptions(createSysCodeOptions(pos))
-      setRegionTypeOptions(createSysCodeOptions(rt))
-      setRegionDomesticOptions(createSysCodeOptions(rd))
-      setRegionForeignOptions(createSysCodeOptions(rf))
-    }
-    load()
-  }, [])
-
-  useEffect(() => {
     if (Number.isNaN(memberSid)) {
       setLoading(false)
       return
@@ -112,13 +67,6 @@ export default function EditUserPage() {
         setName(data.name)
         setNickname(data.nickname)
         setPhone(data.phone)
-        setPosition(data.position ?? '')
-        setBirthYear(data.birth_year ?? '')
-        setBirthMonth(data.birth_month ?? '')
-        setBirthDay(data.birth_day ?? '')
-        setRegionType(toRegionTypeSysCode(data.region_type))
-        setRegionDomestic(data.region_domestic ?? '')
-        setRegionForeign(data.region_foreign ?? '')
         setJoinedVia(data.joined_via)
         setIsActive(data.is_active)
         setIsStaff(data.is_staff)
@@ -153,13 +101,13 @@ export default function EditUserPage() {
         name: name.trim(),
         nickname: nickname.trim(),
         phone: phone.trim(),
-        position: position.trim() || undefined,
-        birth_year: birthYear === '' ? null : Number(birthYear),
-        birth_month: birthMonth === '' ? null : Number(birthMonth),
-        birth_day: birthDay === '' ? null : Number(birthDay),
-        region_type: regionType === EMPTY_SELECT_VALUE || !regionType ? undefined : regionType,
-        region_domestic: regionDomestic.trim() || undefined,
-        region_foreign: regionForeign.trim() || undefined,
+        position: '',
+        birth_year: null,
+        birth_month: null,
+        birth_day: null,
+        region_type: null,
+        region_domestic: null,
+        region_foreign: null,
         joined_via: joinedVia,
         is_active: isActive,
         is_staff: isStaff,
@@ -292,70 +240,6 @@ export default function EditUserPage() {
                 <label className="text-sm font-medium text-gray-700 block mb-1">연락처 *</label>
                 <Input value={phone} onChange={(e) => setPhone(e.target.value)} required />
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">직분</label>
-                <Select value={position || EMPTY_SELECT_VALUE} onValueChange={(v) => setPosition(v === EMPTY_SELECT_VALUE ? '' : v)}>
-                  <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={EMPTY_SELECT_VALUE}>선택</SelectItem>
-                    {positionOptions.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">출생년도</label>
-                <Input type="number" value={birthYear} onChange={(e) => setBirthYear(e.target.value === '' ? '' : Number(e.target.value))} placeholder="1990" min={1900} max={2100} />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">출생월</label>
-                <Input type="number" value={birthMonth} onChange={(e) => setBirthMonth(e.target.value === '' ? '' : Number(e.target.value))} placeholder="1" min={1} max={12} />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">출생일</label>
-                <Input type="number" value={birthDay} onChange={(e) => setBirthDay(e.target.value === '' ? '' : Number(e.target.value))} placeholder="1" min={1} max={31} />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">지역 구분</label>
-                <Select value={regionType || EMPTY_SELECT_VALUE} onValueChange={(v) => { setRegionType(v === EMPTY_SELECT_VALUE ? '' : v); setRegionDomestic(''); setRegionForeign(''); }}>
-                  <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={EMPTY_SELECT_VALUE}>선택</SelectItem>
-                    {regionTypeOptions.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {regionType === 'SYS26127B018' && (
-                <div>
-                  <label className="text-sm font-medium text-gray-700 block mb-1">국내 지역</label>
-                  <Select value={regionDomestic || EMPTY_SELECT_VALUE} onValueChange={(v) => setRegionDomestic(v === EMPTY_SELECT_VALUE ? '' : v)}>
-                    <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={EMPTY_SELECT_VALUE}>선택</SelectItem>
-                      {regionDomesticOptions.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              {regionType === 'SYS26127B019' && (
-                <div>
-                  <label className="text-sm font-medium text-gray-700 block mb-1">해외 지역</label>
-                  <Select value={regionForeign || EMPTY_SELECT_VALUE} onValueChange={(v) => setRegionForeign(v === EMPTY_SELECT_VALUE ? '' : v)}>
-                    <SelectTrigger><SelectValue placeholder="선택" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={EMPTY_SELECT_VALUE}>선택</SelectItem>
-                      {regionForeignOptions.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
               <div>
                 <label className="text-sm font-medium text-gray-700 block mb-1">가입 경로</label>
                 <Select value={joinedVia} onValueChange={setJoinedVia}>
