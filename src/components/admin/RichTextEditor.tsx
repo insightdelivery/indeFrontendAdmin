@@ -5,7 +5,6 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import type { Editor } from '@tiptap/core'
 import { mergeAttributes } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
 import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
@@ -200,9 +199,10 @@ export function RichTextEditor({
         heading: { levels: [1, 2, 3] },
         codeBlock: false,
         horizontalRule: false,
+        // v3 StarterKit에 link·underline이 포함됨 → 별도 확장과 이중 등록 시 경고 발생
+        link: false,
       }),
       Divider,
-      Underline,
       Superscript,
       Subscript,
       TextAlign.configure({ types: ['heading', 'paragraph', 'image'] }),
