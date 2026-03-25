@@ -332,7 +332,7 @@ export default function VideoCreatePage() {
               formData.append('file', att.file)
               formData.append('folder', 'video/attachments/')
 
-              const response = await apiClient.post('/files/upload/', formData, {
+              const response = await apiClient.post('/files/upload', formData, {
                 headers: {
                   'Content-Type': 'multipart/form-data',
                 },

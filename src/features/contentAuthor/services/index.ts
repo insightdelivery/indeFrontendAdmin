@@ -50,7 +50,7 @@ export async function uploadProfileImage(file: File): Promise<string> {
   formData.append('file', file)
   formData.append('folder', 'content-author/profile/')
   const response = await apiClient.post<{ IndeAPIResponse: { ErrorCode: string; Message: string; Result: { url: string } } }>(
-    '/files/upload/',
+    '/files/upload',
     formData,
     { headers: { 'Content-Type': 'multipart/form-data' } }
   )

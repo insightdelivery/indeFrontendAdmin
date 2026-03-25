@@ -30,13 +30,13 @@ export async function getNoticeList(params?: {
   search?: string
   ordering?: string
 }): Promise<NoticeListResponse> {
-  const { data } = await apiClient.get(`${BASE}/notices/`, { params })
+  const { data } = await apiClient.get(`${BASE}/notices`, { params })
   return unwrapResult<NoticeListResponse>(data)
 }
 
 /** 공지 상세 */
 export async function getNotice(id: number): Promise<NoticeDetail> {
-  const { data } = await apiClient.get(`${BASE}/notices/${id}/`)
+  const { data } = await apiClient.get(`${BASE}/notices/${id}`)
   return unwrapResult<NoticeDetail>(data)
 }
 
@@ -47,7 +47,7 @@ export async function createNotice(body: {
   is_pinned?: boolean
   show_in_gnb?: boolean
 }): Promise<NoticeDetail> {
-  const { data } = await apiClient.post(`${BASE}/notices/`, body)
+  const { data } = await apiClient.post(`${BASE}/notices`, body)
   return unwrapResult<NoticeDetail>(data)
 }
 
@@ -58,58 +58,58 @@ export async function updateNotice(id: number, body: {
   is_pinned?: boolean
   show_in_gnb?: boolean
 }): Promise<NoticeDetail> {
-  const { data } = await apiClient.put(`${BASE}/notices/${id}/`, body)
+  const { data } = await apiClient.put(`${BASE}/notices/${id}`, body)
   return unwrapResult<NoticeDetail>(data)
 }
 
 /** 공지 삭제 */
 export async function deleteNotice(id: number): Promise<void> {
-  await apiClient.delete(`${BASE}/notices/${id}/`)
+  await apiClient.delete(`${BASE}/notices/${id}`)
 }
 
 /** FAQ 목록 */
 export async function getFAQList(params?: { page?: number; page_size?: number }): Promise<FAQListResponse> {
-  const { data } = await apiClient.get(`${BASE}/faqs/`, { params })
+  const { data } = await apiClient.get(`${BASE}/faqs`, { params })
   return unwrapResult<FAQListResponse>(data)
 }
 
 /** FAQ 상세 */
 export async function getFAQ(id: number): Promise<FAQItem> {
-  const { data } = await apiClient.get(`${BASE}/faqs/${id}/`)
+  const { data } = await apiClient.get(`${BASE}/faqs/${id}`)
   return unwrapResult<FAQItem>(data)
 }
 
 /** FAQ 생성 */
 export async function createFAQ(body: { question: string; answer: string; order?: number }): Promise<FAQItem> {
-  const { data } = await apiClient.post(`${BASE}/faqs/`, body)
+  const { data } = await apiClient.post(`${BASE}/faqs`, body)
   return unwrapResult<FAQItem>(data)
 }
 
 /** FAQ 수정 */
 export async function updateFAQ(id: number, body: { question: string; answer: string; order?: number }): Promise<FAQItem> {
-  const { data } = await apiClient.put(`${BASE}/faqs/${id}/`, body)
+  const { data } = await apiClient.put(`${BASE}/faqs/${id}`, body)
   return unwrapResult<FAQItem>(data)
 }
 
 /** FAQ 삭제 */
 export async function deleteFAQ(id: number): Promise<void> {
-  await apiClient.delete(`${BASE}/faqs/${id}/`)
+  await apiClient.delete(`${BASE}/faqs/${id}`)
 }
 
 /** 1:1 문의 목록 */
 export async function getInquiryList(params?: { page?: number; page_size?: number }): Promise<InquiryListResponse> {
-  const { data } = await apiClient.get(`${BASE}/inquiries/`, { params })
+  const { data } = await apiClient.get(`${BASE}/inquiries`, { params })
   return unwrapResult<InquiryListResponse>(data)
 }
 
 /** 1:1 문의 상세 */
 export async function getInquiry(id: number): Promise<InquiryDetail> {
-  const { data } = await apiClient.get(`${BASE}/inquiries/${id}/`)
+  const { data } = await apiClient.get(`${BASE}/inquiries/${id}`)
   return unwrapResult<InquiryDetail>(data)
 }
 
 /** 1:1 문의 답변 저장 */
 export async function answerInquiry(id: number, answer: string): Promise<InquiryDetail> {
-  const { data } = await apiClient.patch(`${BASE}/inquiries/${id}/`, { answer })
+  const { data } = await apiClient.patch(`${BASE}/inquiries/${id}`, { answer })
   return unwrapResult<InquiryDetail>(data)
 }

@@ -110,7 +110,7 @@ export default function SystemCodePage() {
       setLoading(true);
       setError(null);
       
-      const response = await apiClient.get('/systemmanage/syscode/code_tree/');
+      const response = await apiClient.get('/systemmanage/syscode/code_tree');
       
       // ViewSet은 배열을 직접 반환
       let transformedData: CodeCategory[] = [];
@@ -273,7 +273,7 @@ export default function SystemCodePage() {
       
       try {
         // 상세 정보 조회 API 호출
-        const response = await apiClient.get(`/systemmanage/syscode/${item.id}/`);
+        const response = await apiClient.get(`/systemmanage/syscode/${item.id}`);
         
         let detailData: SystemCode | null = null;
         
@@ -502,7 +502,7 @@ export default function SystemCodePage() {
         sysCodeSort: codeForm.sysCodeSort ? parseInt(codeForm.sysCodeSort) : null
       };
 
-      const response = await apiClient.post('/systemmanage/syscode/', createData);
+      const response = await apiClient.post('/systemmanage/syscode', createData);
 
       // ViewSet은 생성된 객체를 직접 반환 (201 Created)
       if (response.status === 201 || response.data) {
@@ -559,7 +559,7 @@ export default function SystemCodePage() {
         sysCodeSort: codeForm.sysCodeSort ? parseInt(codeForm.sysCodeSort) : null
       };
 
-      const response = await apiClient.put(`/systemmanage/syscode/${codeForm.sysCodeSid}/`, updateData);
+      const response = await apiClient.put(`/systemmanage/syscode/${codeForm.sysCodeSid}`, updateData);
 
       // ViewSet은 수정된 객체를 직접 반환 (200 OK)
       if (response.status === 200 || response.data) {
@@ -658,7 +658,7 @@ export default function SystemCodePage() {
         return;
       }
 
-      const response = await apiClient.delete(`/systemmanage/syscode/${selectedCode.sysCodeSid}/`);
+      const response = await apiClient.delete(`/systemmanage/syscode/${selectedCode.sysCodeSid}`);
 
       // ViewSet은 삭제 시 204 No Content 반환
       if (response.status === 204 || response.status === 200) {

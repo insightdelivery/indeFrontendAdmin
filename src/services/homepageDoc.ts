@@ -24,7 +24,7 @@ function unwrapInde<T>(data: unknown): T {
 }
 
 export async function listHomepageDocs(): Promise<HomepageDocPayload[]> {
-  const { data } = await apiClient.get<unknown>('/homepage-doc-info/')
+  const { data } = await apiClient.get<unknown>('/homepage-doc-info')
   const result = unwrapInde<{ documents: HomepageDocPayload[] }>(data)
   return result.documents ?? []
 }
@@ -33,6 +33,6 @@ export async function putHomepageDoc(
   docType: HomepageDocType,
   body: { title: string | null; bodyHtml: string; isPublished: boolean }
 ): Promise<HomepageDocPayload> {
-  const { data } = await apiClient.put<unknown>(`/homepage-doc-info/${docType}/`, body)
+  const { data } = await apiClient.put<unknown>(`/homepage-doc-info/${docType}`, body)
   return unwrapInde<HomepageDocPayload>(data)
 }

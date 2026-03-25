@@ -23,7 +23,7 @@ export async function getContentQuestions(
   contentId: number
 ): Promise<ContentQuestion[]> {
   const response = await apiClient.get<{ IndeAPIResponse: { ErrorCode: string; Message: string; Result: ContentQuestion[] } }>(
-    '/content/questions/',
+    '/content/questions',
     { params: { content_type: contentType, content_id: contentId } }
   )
   const result = unwrap(response)
@@ -35,7 +35,7 @@ export async function createContentQuestion(
   data: ContentQuestionCreateRequest
 ): Promise<ContentQuestion> {
   const response = await apiClient.post<{ IndeAPIResponse: { ErrorCode: string; Message: string; Result: ContentQuestion } }>(
-    '/content/questions/',
+    '/content/questions',
     data
   )
   return unwrap(response)
@@ -47,7 +47,7 @@ export async function updateContentQuestion(
   data: ContentQuestionUpdateRequest
 ): Promise<ContentQuestion> {
   const response = await apiClient.put<{ IndeAPIResponse: { ErrorCode: string; Message: string; Result: ContentQuestion } }>(
-    `/content/questions/${questionId}/`,
+    `/content/questions/${questionId}`,
     data
   )
   return unwrap(response)
@@ -55,5 +55,5 @@ export async function updateContentQuestion(
 
 /** 질문 삭제 */
 export async function deleteContentQuestion(questionId: number): Promise<void> {
-  await apiClient.delete(`/content/questions/${questionId}/`)
+  await apiClient.delete(`/content/questions/${questionId}`)
 }

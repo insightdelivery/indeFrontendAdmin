@@ -79,9 +79,9 @@ export const setSysCodeToCache = (sysCodeGubn: string, data: SysCodeItem[]): voi
 // syscode 데이터를 API에서 가져오기
 export const fetchSysCodeFromAPI = async (sysCodeGubn: string): Promise<SysCodeItem[]> => {
   try {
-    console.log(`syscode API 호출: /systemmanage/syscode/?sysCodeParentsSid=${sysCodeGubn}`)
+    console.log(`syscode API 호출: /systemmanage/syscode?sysCodeParentsSid=${sysCodeGubn}`)
     
-    const response = await apiClient.get(`/systemmanage/syscode/`, {
+    const response = await apiClient.get(`/systemmanage/syscode`, {
       params: {
         sysCodeParentsSid: sysCodeGubn
       }
@@ -181,9 +181,9 @@ export const createSysCodeOptions = (sysCodeList: SysCodeItem[]) => {
  */
 export const fetchSysCodeByParent = async (parentId: string): Promise<SysCodeItem[]> => {
   try {
-    console.log(`📡 시스템 코드 하위 레벨 조회 API 호출: /systemmanage/syscode/by_parent/?parent_id=${parentId}`)
+    console.log(`📡 시스템 코드 하위 레벨 조회 API 호출: /systemmanage/syscode/by_parent?parent_id=${parentId}`)
     
-    const response = await apiClient.get('/systemmanage/syscode/by_parent/', {
+    const response = await apiClient.get('/systemmanage/syscode/by_parent', {
       params: {
         parent_id: parentId
       }

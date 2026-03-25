@@ -25,7 +25,7 @@ export async function listDisplayEvents(params?: {
   contentTypeCode?: string
   isActive?: string
 }): Promise<{ results: DisplayEventHeroItem[]; count: number }> {
-  const { data } = await apiClient.get<unknown>('/display-events/', { params })
+  const { data } = await apiClient.get<unknown>('/display-events', { params })
 
   const plain = data as {
     count?: number
@@ -47,12 +47,12 @@ export async function listDisplayEvents(params?: {
 }
 
 export async function getDisplayEvent(id: number): Promise<DisplayEventHeroItem> {
-  const { data } = await apiClient.get(`/display-events/${id}/`)
+  const { data } = await apiClient.get(`/display-events/${id}`)
   return unwrapInde<DisplayEventHeroItem>(data)
 }
 
 export async function createDisplayEvent(payload: DisplayEventWritePayload): Promise<DisplayEventHeroItem> {
-  const { data } = await apiClient.post('/display-events/', payload)
+  const { data } = await apiClient.post('/display-events', payload)
   return unwrapInde<DisplayEventHeroItem>(data)
 }
 
@@ -60,10 +60,10 @@ export async function updateDisplayEvent(
   id: number,
   payload: Partial<DisplayEventWritePayload>
 ): Promise<DisplayEventHeroItem> {
-  const { data } = await apiClient.patch(`/display-events/${id}/`, payload)
+  const { data } = await apiClient.patch(`/display-events/${id}`, payload)
   return unwrapInde<DisplayEventHeroItem>(data)
 }
 
 export async function deleteDisplayEvent(id: number): Promise<void> {
-  await apiClient.delete(`/display-events/${id}/`)
+  await apiClient.delete(`/display-events/${id}`)
 }

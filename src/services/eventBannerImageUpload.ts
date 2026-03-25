@@ -1,6 +1,6 @@
 import apiClient from '@/lib/axios'
 
-/** `POST /files/upload/` — folder `event-banner/` (백엔드 4MB·이미지 타입 검증과 일치) */
+/** `POST /files/upload` — folder `event-banner/` (백엔드 4MB·이미지 타입 검증과 일치) */
 export const EVENT_BANNER_IMAGE_MAX_BYTES = 4 * 1024 * 1024
 export const EVENT_BANNER_UPLOAD_FOLDER = 'event-banner/'
 
@@ -34,7 +34,7 @@ export async function uploadEventBannerImage(file: File): Promise<EventBannerUpl
   formData.append('folder', EVENT_BANNER_UPLOAD_FOLDER)
   formData.append('prefix', 'banner')
 
-  const response = await apiClient.post('/files/upload/', formData, {
+  const response = await apiClient.post('/files/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 
