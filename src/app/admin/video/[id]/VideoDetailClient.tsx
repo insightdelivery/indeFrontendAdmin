@@ -67,24 +67,24 @@ export default function VideoDetailClient() {
 
   return (
     <div className="space-y-6 relative">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3 min-w-0">
           <Link href="/admin/video">
-            <Button variant="ghost" size="sm">
+            <Button type="button" variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               목록으로
             </Button>
           </Link>
-          <h1 className="text-2xl font-bold">비디오 상세</h1>
+          <h1 className="text-lg font-semibold text-gray-900">비디오 상세</h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center justify-end gap-2">
           <Link href={`/admin/video/${video.id}/edit`}>
-            <Button>
+            <Button type="button" variant="outline" size="sm">
               <Edit className="h-4 w-4 mr-2" />
               수정
             </Button>
           </Link>
-          <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+          <Button type="button" size="sm" className="bg-red-500 text-white hover:bg-red-600" onClick={() => setDeleteOpen(true)}>
             <Trash2 className="h-4 w-4 mr-2" />
             삭제
           </Button>
@@ -145,9 +145,9 @@ export default function VideoDetailClient() {
             <DialogTitle>콘텐츠 삭제</DialogTitle>
             <DialogDescription>삭제 시 사용자 라이브러리에서 접근이 제한됩니다. 삭제하시겠습니까?</DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>취소</Button>
-            <Button variant="destructive" onClick={handleDelete}>삭제</Button>
+          <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(false)}>취소</Button>
+            <Button type="button" size="sm" className="bg-red-500 text-white hover:bg-red-600" onClick={handleDelete}>삭제</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -155,7 +155,7 @@ export default function VideoDetailClient() {
       {deleting && (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
           <div className="bg-white rounded-full p-6 shadow-lg">
-            <div className="animate-spin rounded-full h-10 w-10 border-4 border-neon-yellow border-t-transparent" />
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-900 border-t-transparent" />
           </div>
         </div>
       )}

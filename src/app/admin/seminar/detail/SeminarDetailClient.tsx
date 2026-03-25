@@ -96,24 +96,24 @@ export default function SeminarDetailClient() {
 
   return (
     <div className="space-y-6 relative">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
+        <div className="flex items-center gap-3 min-w-0">
           <Link href="/admin/seminar">
-            <Button variant="ghost" size="sm">
+            <Button type="button" variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               목록으로
             </Button>
           </Link>
-          <h1 className="text-2xl font-bold tracking-tight">세미나 상세</h1>
+          <h1 className="text-lg font-semibold text-gray-900">세미나 상세</h1>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <Link href={`/admin/seminar/edit?id=${video.id}`}>
-            <Button>
+            <Button type="button" variant="outline" size="sm">
               <Edit className="h-4 w-4 mr-2" />
               수정
             </Button>
           </Link>
-          <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+          <Button type="button" size="sm" className="bg-red-500 text-white hover:bg-red-600" onClick={() => setDeleteOpen(true)}>
             <Trash2 className="h-4 w-4 mr-2" />
             삭제
           </Button>
@@ -128,9 +128,9 @@ export default function SeminarDetailClient() {
             <DialogTitle>콘텐츠 삭제</DialogTitle>
             <DialogDescription>삭제 시 사용자 라이브러리에서 접근이 제한됩니다. 삭제하시겠습니까?</DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>취소</Button>
-            <Button variant="destructive" onClick={handleDelete}>삭제</Button>
+          <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(false)}>취소</Button>
+            <Button type="button" size="sm" className="bg-red-500 text-white hover:bg-red-600" onClick={handleDelete}>삭제</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

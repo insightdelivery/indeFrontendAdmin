@@ -436,7 +436,7 @@ export default function EditUserPage() {
               </label>
             </div>
             <div className="flex gap-2">
-              <Button type="submit" disabled={submitting} className="bg-neon-yellow hover:bg-neon-yellow/90 text-black">
+              <Button type="submit" disabled={submitting} size="sm" className="bg-black text-white hover:bg-gray-800">
                 {submitting ? '저장 중...' : '저장'}
               </Button>
               <Link href="/admin/users">

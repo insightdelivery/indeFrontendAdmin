@@ -143,19 +143,19 @@ export default function DisplayEventsListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">이벤트 베너 관리</h1>
+          <h1 className="text-lg font-semibold text-gray-900">이벤트 베너 관리</h1>
           <p className="text-sm text-gray-500 mt-1">
             Hero 배너 등 노출 행을 관리합니다. (eventBannerPlan)
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+        <div className="flex items-center justify-end gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             새로고침
           </Button>
-          <Button asChild size="sm" className="bg-neon-yellow text-black hover:bg-neon-yellow/90">
+          <Button asChild size="sm" className="bg-black text-white hover:bg-gray-800">
             <Link href="/admin/display-events/new">
               <Plus className="h-4 w-4 mr-2" />
               등록
@@ -298,11 +298,11 @@ export default function DisplayEventsListPage() {
               ID {deleteTarget?.displayEventId} 항목을 삭제할까요? 이 작업은 되돌릴 수 없습니다.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+          <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(false)}>
               취소
             </Button>
-            <Button variant="destructive" onClick={() => void confirmDelete()}>
+            <Button type="button" size="sm" className="bg-red-500 text-white hover:bg-red-600" onClick={() => void confirmDelete()}>
               삭제
             </Button>
           </DialogFooter>

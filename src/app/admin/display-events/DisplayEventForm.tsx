@@ -209,13 +209,13 @@ export default function DisplayEventForm({ eventId }: Props) {
   return (
     <div className="w-full">
       <div className="mb-6">
-        <Button variant="ghost" size="sm" asChild className="mb-2">
+        <Button type="button" variant="outline" size="sm" asChild className="mb-2">
           <Link href="/admin/display-events" className="gap-2">
             <ArrowLeft className="h-4 w-4" />
             목록
           </Link>
         </Button>
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-lg font-semibold text-gray-900">
           {eventId ? '이벤트 베너 수정' : '이벤트 베너 등록'}
         </h1>
         <p className="text-sm text-gray-500 mt-1">

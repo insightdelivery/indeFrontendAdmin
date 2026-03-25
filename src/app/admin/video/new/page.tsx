@@ -412,26 +412,27 @@ export default function VideoCreatePage() {
   }
 
   return (
-    <div className="h-full space-y-6 relative">
-      {/* 상단 제어 바 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="space-y-6 relative">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4 min-w-0">
           <Link href="/admin/video">
-            <Button variant="ghost" size="sm">
+            <Button type="button" variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               목록으로
             </Button>
           </Link>
-          <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">새 비디오 등록</h1>
-            <p className="text-gray-600">비디오 정보를 입력하고 등록하세요.</p>
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold text-gray-900">새 비디오 등록</h1>
+            <p className="text-sm text-gray-600 mt-1">비디오 정보를 입력하고 등록하세요.</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-shrink-0 items-center justify-end gap-2">
           <Button
+            type="button"
             onClick={handleSubmit(onSubmit)}
             disabled={saving}
-            className="bg-neon-yellow hover:bg-neon-yellow/90 text-black"
+            size="sm"
+            className="bg-black text-white hover:bg-gray-800"
           >
             {saving ? '저장 중...' : '등록'}
           </Button>
@@ -944,7 +945,7 @@ export default function VideoCreatePage() {
       {showCenterLoader && (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
           <div className="bg-white rounded-full p-6 shadow-lg">
-            <div className="animate-spin rounded-full h-10 w-10 border-4 border-neon-yellow border-t-transparent" />
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-900 border-t-transparent" />
           </div>
         </div>
       )}

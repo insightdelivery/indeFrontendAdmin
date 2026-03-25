@@ -443,7 +443,7 @@ export default function ArticleEditClient() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neon-yellow"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
       </div>
     )
   }
@@ -453,27 +453,28 @@ export default function ArticleEditClient() {
   }
 
   return (
-    <div className="h-full space-y-6">
-      {/* 상단 제어 바 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4 min-w-0">
           <Link href="/admin/articles">
-            <Button variant="ghost" size="sm">
+            <Button type="button" variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               목록으로
             </Button>
           </Link>
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <h1 className="text-4xl font-bold text-gray-900">아티클 수정</h1>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-lg font-semibold text-gray-900">아티클 수정</h1>
               {getStatusBadge(article.status)}
             </div>
-            <p className="text-gray-600">아티클 정보를 수정하세요.</p>
+            <p className="text-sm text-gray-600 mt-1">아티클 정보를 수정하세요.</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-shrink-0 items-center justify-end gap-2">
           <Button
+            type="button"
             variant="outline"
+            size="sm"
             onClick={() => {
               window.open(`/articles/${articleId}`, '_blank')
             }}
@@ -482,18 +483,22 @@ export default function ArticleEditClient() {
             미리보기
           </Button>
           <Button
-            variant="destructive"
+            type="button"
+            size="sm"
+            className="bg-black text-white hover:bg-gray-800"
+            onClick={handleSubmit(onSubmit)}
+            disabled={saving}
+          >
+            {saving ? '저장 중...' : '수정 완료'}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className="bg-red-500 text-white hover:bg-red-600"
             onClick={() => setDeleteModalOpen(true)}
           >
             <Trash2 className="h-4 w-4 mr-2" />
             삭제
-          </Button>
-          <Button
-            onClick={handleSubmit(onSubmit)}
-            disabled={saving}
-            className="bg-neon-yellow hover:bg-neon-yellow/90 text-black"
-          >
-            {saving ? '저장 중...' : '수정 완료'}
           </Button>
         </div>
       </div>
@@ -825,11 +830,11 @@ export default function ArticleEditClient() {
               이 아티클을 휴지통으로 이동하시겠습니까? 삭제된 콘텐츠는 유저 페이지에서 즉시 노출 중단됩니다.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteModalOpen(false)}>
+          <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setDeleteModalOpen(false)}>
               취소
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
+            <Button type="button" size="sm" className="bg-red-500 text-white hover:bg-red-600" onClick={handleDelete}>
               삭제
             </Button>
           </DialogFooter>

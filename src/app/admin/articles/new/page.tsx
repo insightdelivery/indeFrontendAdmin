@@ -321,24 +321,25 @@ export default function ArticleCreatePage() {
   }
 
   return (
-    <div className="h-full space-y-6">
-      {/* 상단 제어 바 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4 min-w-0">
           <Link href="/admin/articles">
-            <Button variant="ghost" size="sm">
+            <Button type="button" variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               목록으로
             </Button>
           </Link>
-          <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">새 아티클 등록</h1>
-            <p className="text-gray-600">아티클 정보를 입력하고 등록하세요.</p>
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold text-gray-900">새 아티클 등록</h1>
+            <p className="text-sm text-gray-600 mt-1">아티클 정보를 입력하고 등록하세요.</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-shrink-0 items-center justify-end gap-2">
           <Button
+            type="button"
             variant="outline"
+            size="sm"
             onClick={handleSaveDraft}
             disabled={saving}
           >
@@ -346,9 +347,10 @@ export default function ArticleCreatePage() {
             임시 저장
           </Button>
           <Button
+            type="button"
             variant="outline"
+            size="sm"
             onClick={() => {
-              // 미리보기 기능 (새 탭에서 열기)
               window.open('/articles/preview', '_blank')
             }}
           >
@@ -356,9 +358,11 @@ export default function ArticleCreatePage() {
             미리보기
           </Button>
           <Button
+            type="button"
             onClick={handleSubmit(onSubmit, onInvalid)}
             disabled={saving}
-            className="bg-neon-yellow hover:bg-neon-yellow/90 text-black"
+            size="sm"
+            className="bg-black text-white hover:bg-gray-800"
           >
             {saving ? '저장 중...' : '등록'}
           </Button>

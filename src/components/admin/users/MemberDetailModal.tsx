@@ -199,7 +199,7 @@ export function MemberDetailModal({ open, onOpenChange, detail, loading }: Membe
         <DialogFooter className="px-6 py-4 border-t bg-gray-50/50 shrink-0 flex-row gap-2">
           {detail && (
             <Link href={`/admin/users/edit?id=${detail.member_sid}`}>
-              <Button className="bg-neon-yellow hover:bg-neon-yellow/90 text-black">수정</Button>
+              <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800">수정</Button>
             </Link>
           )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>

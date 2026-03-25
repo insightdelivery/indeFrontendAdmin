@@ -17,9 +17,19 @@ import {
 } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { TreeView, type TreeDataItem } from '@/components/ui/tree-view';
-import { Search, Plus, Edit, Trash2, RotateCcw, Folder } from 'lucide-react';
+import { Plus, Edit, Trash2, RotateCcw, Folder } from 'lucide-react';
 import apiClient from '@/lib/axios';
-import { formatDateTime } from '@/lib/utils';
+import { cn, formatDateTime } from '@/lib/utils';
+
+/** adminLayoutPlan.md §16.2.1 — 액션 버튼 파스텔 (variant로 색 대체 금지) */
+const adminActionBtn = {
+  gray: 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200',
+  blue: 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200',
+  green: 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-200',
+  purple: 'bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200',
+  red: 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-200',
+} as const;
+import { useToast } from '@/hooks/use-toast';
 
 // 백엔드 API와 호환되는 시스템 코드 인터페이스
 interface SystemCode {
@@ -54,6 +64,7 @@ interface CodeCategory extends TreeDataItem {
 }
 
 export default function SystemCodePage() {
+  const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [selectedCode, setSelectedCode] = useState<SystemCode | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -228,29 +239,6 @@ export default function SystemCodePage() {
     }
     
     setTreeKey(prev => prev + 1);
-  };
-
-  // 트리에서 특정 노드만 업데이트하는 함수
-  const updateTreeNodeInTree = (sysCodeSid: string, updateData: Partial<SystemCode>) => {
-    const updateNode = (items: CodeCategory[]): CodeCategory[] => {
-      return items.map(item => {
-        if (item.id === sysCodeSid) {
-          return {
-            ...item,
-            name: updateData.sysCodeName || item.name,
-          };
-        }
-        if (item.children && item.children.length > 0) {
-          return {
-            ...item,
-            children: updateNode(item.children),
-          };
-        }
-        return item;
-      });
-    };
-
-    setCodeCategories(prevCategories => updateNode(prevCategories));
   };
 
   // 트리 아이템 선택 핸들러
@@ -458,11 +446,26 @@ export default function SystemCodePage() {
     setError(null);
   };
 
+  const toastApiError = (err: any, fallback: string) => {
+    const msg =
+      err.response?.data?.message ||
+      err.response?.data?.IndeAPIResponse?.Message ||
+      err.response?.data?.Message ||
+      err.response?.data?.error ||
+      fallback;
+    toast({ title: '오류', description: msg, variant: 'destructive', duration: 3000 });
+  };
+
   // 코드 추가 핸들러
   const handleAddCode = async () => {
     try {
       if (!codeForm.sysCodeName) {
-        setError('코드 이름은 필수 입력 항목입니다.');
+        toast({
+          title: '입력 확인',
+          description: '코드 이름은 필수 입력 항목입니다.',
+          variant: 'destructive',
+          duration: 3000,
+        });
         return;
       }
 
@@ -508,26 +511,15 @@ export default function SystemCodePage() {
         // 등록에 사용한 부모 코드를 유지 (시스템 코드가 있었으면 그것을, 없었으면 기존 부모 코드를)
         resetForm();
         setCodeForm(prev => ({ ...prev, sysCodeParentsSid: parentCodeSid || '' }));
-        setError('✅ 시스템 코드가 성공적으로 등록되었습니다.');
-        setTimeout(() => setError(null), 3000);
+        toast({ title: '등록 완료', description: '시스템 코드가 등록되었습니다.', duration: 3000 });
       } else {
-        const errorMessage = response.data?.message || response.data?.IndeAPIResponse?.Message || '시스템 코드 등록에 실패했습니다.';
-        setError(errorMessage);
+        const errorMessage =
+          response.data?.message || response.data?.IndeAPIResponse?.Message || '시스템 코드 등록에 실패했습니다.';
+        toast({ title: '등록 실패', description: errorMessage, variant: 'destructive', duration: 3000 });
       }
     } catch (err: any) {
       console.error('시스템 코드 등록 실패:', err);
-      
-      if (err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else if (err.response?.data?.IndeAPIResponse?.Message) {
-        setError(err.response.data.IndeAPIResponse.Message);
-      } else if (err.response?.data?.Message) {
-        setError(err.response.data.Message);
-      } else if (err.response?.data?.error) {
-        setError(err.response.data.error);
-      } else {
-        setError('시스템 코드 등록 중 오류가 발생했습니다.');
-      }
+      toastApiError(err, '시스템 코드 등록 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
@@ -537,7 +529,12 @@ export default function SystemCodePage() {
   const handleEditCode = async () => {
     try {
       if (!codeForm.sysCodeSid || !codeForm.sysCodeName) {
-        setError('시스템 코드와 코드 이름은 필수 입력 항목입니다.');
+        toast({
+          title: '입력 확인',
+          description: '시스템 코드와 코드 이름은 필수 입력 항목입니다.',
+          variant: 'destructive',
+          duration: 3000,
+        });
         return;
       }
 
@@ -567,44 +564,38 @@ export default function SystemCodePage() {
       // ViewSet은 수정된 객체를 직접 반환 (200 OK)
       if (response.status === 200 || response.data) {
         setError(null);
-        const currentExpandedItems = new Set(expandedItems);
-        updateTreeNodeInTree(codeForm.sysCodeSid, {
-          sysCodeName: codeForm.sysCodeName,
-          sysCodeVal: codeForm.sysCodeVal,
-          sysCodeUse: codeForm.sysCodeUse,
-          sysCodeSort: codeForm.sysCodeSort ? parseInt(codeForm.sysCodeSort) : null
-        });
-        setExpandedItems(currentExpandedItems);
-        if (selectedCode) {
-          const updatedSelectedCode = {
+        await fetchSystemCodeTree();
+        const payload = response.data;
+        if (payload?.sysCodeSid) {
+          setSelectedCode(payload as SystemCode);
+        } else if (selectedCode) {
+          setSelectedCode({
             ...selectedCode,
             sysCodeName: codeForm.sysCodeName,
-            sysCodeVal: codeForm.sysCodeVal,
+            sysCodeParentsSid: codeForm.sysCodeParentsSid,
+            sysCodeValName: codeForm.sysCodeValName || null,
+            sysCodeVal: codeForm.sysCodeVal || null,
+            sysCodeVal1Name: codeForm.sysCodeVal1Name || null,
+            sysCodeVal1: codeForm.sysCodeVal1 || null,
+            sysCodeVal2Name: codeForm.sysCodeVal2Name || null,
+            sysCodeVal2: codeForm.sysCodeVal2 || null,
+            sysCodeVal3Name: codeForm.sysCodeVal3Name || null,
+            sysCodeVal3: codeForm.sysCodeVal3 || null,
+            sysCodeVal4Name: codeForm.sysCodeVal4Name || null,
+            sysCodeVal4: codeForm.sysCodeVal4 || null,
             sysCodeUse: codeForm.sysCodeUse,
-            sysCodeSort: codeForm.sysCodeSort ? parseInt(codeForm.sysCodeSort) : null
-          };
-          setSelectedCode(updatedSelectedCode);
+            sysCodeSort: codeForm.sysCodeSort ? parseInt(codeForm.sysCodeSort, 10) : null,
+          });
         }
-        setError('✅ 시스템 코드가 성공적으로 수정되었습니다.');
-        setTimeout(() => setError(null), 3000);
+        toast({ title: '수정 완료', description: '시스템 코드가 수정되었습니다.', duration: 3000 });
       } else {
-        const errorMessage = response.data?.message || response.data?.IndeAPIResponse?.Message || '시스템 코드 수정에 실패했습니다.';
-        setError(errorMessage);
+        const errorMessage =
+          response.data?.message || response.data?.IndeAPIResponse?.Message || '시스템 코드 수정에 실패했습니다.';
+        toast({ title: '수정 실패', description: errorMessage, variant: 'destructive', duration: 3000 });
       }
     } catch (err: any) {
       console.error('시스템 코드 수정 실패:', err);
-      
-      if (err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else if (err.response?.data?.IndeAPIResponse?.Message) {
-        setError(err.response.data.IndeAPIResponse.Message);
-      } else if (err.response?.data?.Message) {
-        setError(err.response.data.Message);
-      } else if (err.response?.data?.error) {
-        setError(err.response.data.error);
-      } else {
-        setError('시스템 코드 수정 중 오류가 발생했습니다.');
-      }
+      toastApiError(err, '시스템 코드 수정 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
@@ -637,7 +628,12 @@ export default function SystemCodePage() {
   const handleDeleteCode = async () => {
     try {
       if (!selectedCode) {
-        setError('삭제할 코드를 선택해주세요.');
+        toast({
+          title: '선택 필요',
+          description: '삭제할 코드를 선택해주세요.',
+          variant: 'destructive',
+          duration: 3000,
+        });
         return;
       }
 
@@ -653,7 +649,12 @@ export default function SystemCodePage() {
       setError(null);
 
       if (!selectedCode.sysCodeSid) {
-        setError('유효하지 않은 코드 ID입니다.');
+        toast({
+          title: '오류',
+          description: '유효하지 않은 코드 ID입니다.',
+          variant: 'destructive',
+          duration: 3000,
+        });
         return;
       }
 
@@ -665,26 +666,15 @@ export default function SystemCodePage() {
         await fetchSystemCodeTree();
         setSelectedCode(null);
         resetForm();
-        setError('✅ 시스템 코드가 성공적으로 삭제되었습니다.');
-        setTimeout(() => setError(null), 3000);
+        toast({ title: '삭제 완료', description: '시스템 코드가 삭제되었습니다.', duration: 3000 });
       } else {
-        const errorMessage = response.data?.message || response.data?.IndeAPIResponse?.Message || '시스템 코드 삭제에 실패했습니다.';
-        setError(errorMessage);
+        const errorMessage =
+          response.data?.message || response.data?.IndeAPIResponse?.Message || '시스템 코드 삭제에 실패했습니다.';
+        toast({ title: '삭제 실패', description: errorMessage, variant: 'destructive', duration: 3000 });
       }
     } catch (err: any) {
       console.error('시스템 코드 삭제 실패:', err);
-      
-      if (err.response?.data?.message) {
-        setError(err.response.data.message);
-      } else if (err.response?.data?.IndeAPIResponse?.Message) {
-        setError(err.response.data.IndeAPIResponse.Message);
-      } else if (err.response?.data?.Message) {
-        setError(err.response.data.Message);
-      } else if (err.response?.data?.error) {
-        setError(err.response.data.error);
-      } else {
-        setError('시스템 코드 삭제 중 오류가 발생했습니다.');
-      }
+      toastApiError(err, '시스템 코드 삭제 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
@@ -693,27 +683,29 @@ export default function SystemCodePage() {
   if (!mounted) return null;
 
   return (
-    <div className="h-full space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">시스템 코드 관리</h1>
-        <p className="text-gray-600">시스템 코드를 조회하고 관리할 수 있습니다.</p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-6">
+        <div className="min-w-0 pr-4">
+          <h1 className="text-lg font-semibold text-gray-900">시스템 코드 관리</h1>
+          <p className="text-sm text-gray-600 mt-1">시스템 코드를 조회하고 관리할 수 있습니다.</p>
+        </div>
       </div>
 
-      <div className="flex h-full space-x-4">
+      <div className="flex flex-col lg:flex-row gap-4 lg:space-x-0">
         {/* 왼쪽: 코드 목록 */}
-        <div className="w-1/3 bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="w-full lg:w-1/3 flex flex-col min-h-0 bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-gray-800 font-bold text-sm">리스트</h3>
               {mounted && (
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className="text-xs px-2 py-1 h-6"
+                <Button
+                  type="button"
+                  size="sm"
+                  className={cn(adminActionBtn.blue, 'h-6 gap-1 px-2 py-1 text-xs')}
                   onClick={handleRefresh}
                   disabled={loading}
                 >
-                  <RotateCcw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+                  <RotateCcw className={`h-3 w-3 shrink-0 ${loading ? 'animate-spin' : ''}`} />
                   새로고침
                 </Button>
               )}
@@ -730,37 +722,40 @@ export default function SystemCodePage() {
                     placeholder="코드ID 또는 코드명으로 검색..."
                     onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   />
-                  <Button 
-                    size="sm" 
-                    className="text-xs px-2 py-1 h-6"
+                  <Button
+                    type="button"
+                    size="sm"
+                    className={cn(adminActionBtn.blue, 'h-6 px-2 py-1 text-xs')}
                     onClick={handleSearch}
                   >
-                    <Search className="w-3 h-3" />
+                    조회
                   </Button>
                   {(searchKeyword || searchResults.length > 0) && (
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="text-xs px-2 py-1 h-6"
+                    <Button
+                      type="button"
+                      size="sm"
+                      className={cn(adminActionBtn.gray, 'h-6 px-2 py-1 text-xs')}
                       onClick={clearSearch}
+                      aria-label="검색 초기화"
                     >
-                      <RotateCcw className="w-3 h-3" />
+                      <RotateCcw className="h-3 w-3" />
                     </Button>
                   )}
                 </div>
                 
                 {/* 검색 결과 표시 */}
                 {(searchKeyword || searchResults.length > 0) && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-md p-2">
+                  <div className="rounded-md border border-gray-200 bg-gray-50 p-2">
                     <div className="flex items-center justify-between mb-2">
-                      <div className="text-blue-700 text-xs font-medium">
+                      <div className="text-xs font-medium text-gray-800">
                         🔍 검색어: "{searchKeyword}"
                       </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        className="text-xs px-2 py-1 h-5 bg-white hover:bg-blue-100"
+                      <Button
+                        type="button"
+                        size="sm"
+                        className={cn(adminActionBtn.gray, 'h-6 min-h-0 px-2 py-0 text-xs')}
                         onClick={clearSearch}
+                        aria-label="검색 패널 닫기"
                       >
                         ✕
                       </Button>
@@ -768,14 +763,14 @@ export default function SystemCodePage() {
                     
                     {searchResults.length > 0 ? (
                       <>
-                        <div className="text-blue-600 text-xs mb-2">
+                        <div className="mb-2 text-xs text-gray-600">
                           📊 검색 결과: {searchResults.length}건
                         </div>
-                        <div className="space-y-1 max-h-32 overflow-y-auto">
+                        <div className="max-h-32 space-y-1 overflow-y-auto">
                           {searchResults.slice(0, 8).map((result) => (
                             <div 
                               key={result.sysCodeSid}
-                              className="flex items-center justify-between p-1 bg-white rounded border border-blue-200 hover:bg-blue-100 cursor-pointer transition-colors"
+                              className="flex cursor-pointer items-center justify-between rounded border border-gray-200 bg-white p-1 transition-colors hover:bg-gray-100"
                               onClick={() => {
                                 handleTreeItemSelect({
                                   id: result.sysCodeSid,
@@ -789,18 +784,18 @@ export default function SystemCodePage() {
                               }}
                             >
                               <div className="flex items-center space-x-2">
-                                <span className="text-blue-600 text-xs font-mono bg-blue-100 px-1 py-0.5 rounded">
+                                <span className="rounded bg-gray-100 px-1 py-0.5 font-mono text-xs text-gray-800">
                                   {result.sysCodeSid}
                                 </span>
-                                <span className="text-blue-700 text-xs">
+                                <span className="text-xs text-gray-800">
                                   {result.sysCodeName}
                                 </span>
                               </div>
-                              <span className="text-blue-500 text-xs">→</span>
+                              <span className="text-xs text-gray-500">→</span>
                             </div>
                           ))}
                           {searchResults.length > 8 && (
-                            <div className="text-blue-600 text-xs text-center py-1 bg-blue-100 rounded">
+                            <div className="rounded bg-gray-100 py-1 text-center text-xs text-gray-600">
                               ... 외 {searchResults.length - 8}건 더 있음
                             </div>
                           )}
@@ -819,18 +814,26 @@ export default function SystemCodePage() {
             {mounted && (
               <div className="flex items-center justify-between mt-3">
                 <div className="flex items-center space-x-2">
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className={`text-xs px-2 py-1 h-6 ${isExpanded ? 'bg-blue-100 border-blue-300' : ''}`}
+                  <Button
+                    type="button"
+                    size="sm"
+                    className={cn(
+                      adminActionBtn.gray,
+                      'h-6 px-2 py-1 text-xs',
+                      isExpanded && 'border-gray-300 bg-gray-200 hover:bg-gray-200'
+                    )}
                     onClick={handleExpandAll}
                   >
                     {isExpanded ? '전체 펼침 ✓' : '전체 펼침'}
                   </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className={`text-xs px-2 py-1 h-6 ${isCollapsed ? 'bg-blue-100 border-blue-300' : ''}`}
+                  <Button
+                    type="button"
+                    size="sm"
+                    className={cn(
+                      adminActionBtn.gray,
+                      'h-6 px-2 py-1 text-xs',
+                      isCollapsed && 'border-gray-300 bg-gray-200 hover:bg-gray-200'
+                    )}
                     onClick={handleCollapseAll}
                   >
                     {isCollapsed ? '전체 접음 ✓' : '전체 접음'}
@@ -840,7 +843,7 @@ export default function SystemCodePage() {
             )}
           </div>
           
-          <div className="p-4 overflow-y-auto" style={{ height: 'calc(100vh - 280px)' }}>
+          <div className="p-4 overflow-y-auto max-h-[28rem] lg:max-h-[32rem]">
             {/* 로딩 상태 */}
             {loading && (
               <div className="flex items-center justify-center h-32">
@@ -852,10 +855,10 @@ export default function SystemCodePage() {
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-4">
                 <div className="text-red-700 text-sm">{error}</div>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  className="text-xs mt-2"
+                <Button
+                  type="button"
+                  size="sm"
+                  className={cn(adminActionBtn.blue, 'mt-2 text-xs')}
                   onClick={handleRefresh}
                 >
                   다시 시도
@@ -889,58 +892,59 @@ export default function SystemCodePage() {
         </div>
 
         {/* 오른쪽: 항목 입력 폼 */}
-        <div className="flex-1">
-          <Card className="border-blue-100 bg-gradient-to-r from-blue-40 to-indigo-50">
-            <CardHeader className="bg-blue-100 px-4 py-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <h3 className="text-blue-700 font-semibold text-sm">항목</h3>
+        <div className="flex-1 min-w-0">
+          <Card className="border border-gray-200 shadow-sm">
+            <CardHeader className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 flex-wrap items-center gap-3">
+                  <h3 className="text-sm font-semibold text-gray-900">항목</h3>
                   {selectedCode && (
-                    <div className="flex items-center space-x-2 px-3 py-1 bg-blue-200 rounded-full">
-                      <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                      <span className="text-blue-800 text-xs font-medium">
+                    <div className="flex items-center gap-2 rounded-full bg-gray-200 px-3 py-1">
+                      <div className="h-2 w-2 rounded-full bg-gray-600" />
+                      <span className="text-xs font-medium text-gray-800">
                         {selectedCode.sysCodeName} 상세정보
                       </span>
                     </div>
                   )}
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Button 
-                    size="sm" 
-                    className="flex items-center space-x-1 bg-green-500 hover:bg-green-600 text-white border-0 text-sm px-3 py-1"
+                <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className={cn(adminActionBtn.gray, 'gap-1')}
+                    onClick={resetForm}
+                  >
+                    <RotateCcw className="h-3 w-3 shrink-0" />
+                    초기화
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className={cn(adminActionBtn.purple, 'gap-1')}
+                    onClick={handleEditCode}
+                  >
+                    <Edit className="h-3 w-3 shrink-0" />
+                    수정
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className={cn(adminActionBtn.green, 'gap-1')}
                     onClick={handleAddCode}
                     disabled={loading}
                   >
-                    <Plus className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-                    <span>{loading ? '등록 중...' : '등록'}</span>
+                    <Plus className={`h-3 w-3 shrink-0 ${loading ? 'animate-spin' : ''}`} />
+                    {loading ? '등록 중...' : '등록'}
                   </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="flex items-center space-x-1 bg-blue-400 hover:bg-blue-500 text-white border-white text-sm px-3 py-1"
-                    onClick={handleEditCode}
-                  >
-                    <Edit className="w-3 h-3" />
-                    <span>수정</span>
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="flex items-center space-x-1 bg-red-400 hover:bg-red-500 text-white border-white text-sm px-3 py-1"
+                  <Button
+                    type="button"
+                    size="sm"
+                    className={cn(adminActionBtn.red, 'gap-1')}
                     onClick={handleDeleteCode}
                     disabled={loading || !selectedCode || !selectedCode.sysCodeSid}
                   >
-                    <Trash2 className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-                    <span>{loading ? '삭제 중...' : '삭제'}</span>
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    className="flex items-center space-x-1 bg-gray-400 hover:bg-gray-500 text-white border-white text-sm px-3 py-1"
-                    onClick={resetForm}
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Clear</span>
+                    <Trash2 className={`h-3 w-3 shrink-0 ${loading ? 'animate-spin' : ''}`} />
+                    {loading ? '삭제 중...' : '삭제'}
                   </Button>
                 </div>
               </div>
@@ -950,7 +954,7 @@ export default function SystemCodePage() {
               {/* 첫 번째 행: 기본 정보 */}
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div>
-                  <label className="text-blue-700 font-semibold text-xs">시스템 코드 *</label>
+                  <label className="text-gray-700 font-medium text-xs">시스템 코드 *</label>
                   <Input 
                     value={codeForm.sysCodeSid}
                     onChange={(e) => setCodeForm({...codeForm, sysCodeSid: e.target.value})}
@@ -960,7 +964,7 @@ export default function SystemCodePage() {
                 </div>
                 
                 <div>
-                  <label className="text-blue-700 font-semibold text-xs">부모 코드</label>
+                  <label className="text-gray-700 font-medium text-xs">부모 코드</label>
                   <Input
                     value={codeForm.sysCodeParentsSid}
                     onChange={(e) => setCodeForm({...codeForm, sysCodeParentsSid: e.target.value})}
@@ -970,11 +974,11 @@ export default function SystemCodePage() {
                 </div>
                 
                 <div>
-                  <label className="text-blue-700 font-semibold text-xs">코드 이름 *</label>
+                  <label className="text-gray-700 font-medium text-xs">코드 이름 *</label>
                   <Input
                     value={codeForm.sysCodeName}
                     onChange={(e) => setCodeForm({...codeForm, sysCodeName: e.target.value})}
-                    className="border-blue-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="border-gray-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
               </div>
@@ -982,20 +986,20 @@ export default function SystemCodePage() {
               {/* 두 번째 행: 값 관련 필드들 */}
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="text-blue-700 font-semibold text-xs">값 이름</label>
+                  <label className="text-gray-700 font-medium text-xs">값 이름</label>
                   <Input
                     value={codeForm.sysCodeValName}
                     onChange={(e) => setCodeForm({...codeForm, sysCodeValName: e.target.value})}
-                    className="border-blue-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="border-gray-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
                 
                 <div>
-                  <label className="text-blue-700 font-semibold text-xs">값</label>
+                  <label className="text-gray-700 font-medium text-xs">값</label>
                   <Input
                     value={codeForm.sysCodeVal}
                     onChange={(e) => setCodeForm({...codeForm, sysCodeVal: e.target.value})}
-                    className="border-blue-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="border-gray-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
               </div>
@@ -1003,20 +1007,20 @@ export default function SystemCodePage() {
               {/* 세 번째 행: 추가 값 필드들 */}
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="text-blue-700 font-semibold text-xs">값1 이름</label>
+                  <label className="text-gray-700 font-medium text-xs">값1 이름</label>
                   <Input
                     value={codeForm.sysCodeVal1Name}
                     onChange={(e) => setCodeForm({...codeForm, sysCodeVal1Name: e.target.value})}
-                    className="border-blue-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="border-gray-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
                 
                 <div>
-                  <label className="text-blue-700 font-semibold text-xs">값1</label>
+                  <label className="text-gray-700 font-medium text-xs">값1</label>
                   <Input
                     value={codeForm.sysCodeVal1}
                     onChange={(e) => setCodeForm({...codeForm, sysCodeVal1: e.target.value})}
-                    className="border-blue-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="border-gray-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
               </div>
@@ -1024,20 +1028,20 @@ export default function SystemCodePage() {
               {/* 네 번째 행: 추가 값 필드들 */}
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="text-blue-700 font-semibold text-xs">값2 이름</label>
+                  <label className="text-gray-700 font-medium text-xs">값2 이름</label>
                   <Input
                     value={codeForm.sysCodeVal2Name}
                     onChange={(e) => setCodeForm({...codeForm, sysCodeVal2Name: e.target.value})}
-                    className="border-blue-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="border-gray-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
                 
                 <div>
-                  <label className="text-blue-700 font-semibold text-xs">값2</label>
+                  <label className="text-gray-700 font-medium text-xs">값2</label>
                   <Input 
                     value={codeForm.sysCodeVal2}
                     onChange={(e) => setCodeForm({...codeForm, sysCodeVal2: e.target.value})}
-                    className="border-blue-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="border-gray-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
               </div>
@@ -1045,20 +1049,20 @@ export default function SystemCodePage() {
               {/* 다섯 번째 행: 추가 값 필드들 */}
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="text-blue-700 font-semibold text-xs">값3 이름</label>
+                  <label className="text-gray-700 font-medium text-xs">값3 이름</label>
                   <Input 
                     value={codeForm.sysCodeVal3Name}
                     onChange={(e) => setCodeForm({...codeForm, sysCodeVal3Name: e.target.value})}
-                    className="border-blue-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="border-gray-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
                 
                 <div>
-                  <label className="text-blue-700 font-semibold text-xs">값3</label>
+                  <label className="text-gray-700 font-medium text-xs">값3</label>
                   <Input 
                     value={codeForm.sysCodeVal3}
                     onChange={(e) => setCodeForm({...codeForm, sysCodeVal3: e.target.value})}
-                    className="border-blue-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="border-gray-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
               </div>
@@ -1066,20 +1070,20 @@ export default function SystemCodePage() {
               {/* 여섯 번째 행: 추가 값 필드들 */}
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="text-blue-700 font-semibold text-xs">값4 이름</label>
+                  <label className="text-gray-700 font-medium text-xs">값4 이름</label>
                   <Input 
                     value={codeForm.sysCodeVal4Name}
                     onChange={(e) => setCodeForm({...codeForm, sysCodeVal4Name: e.target.value})}
-                    className="border-blue-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="border-gray-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
                 
                 <div>
-                  <label className="text-blue-700 font-semibold text-xs">값4</label>
+                  <label className="text-gray-700 font-medium text-xs">값4</label>
                   <Input 
                     value={codeForm.sysCodeVal4}
                     onChange={(e) => setCodeForm({...codeForm, sysCodeVal4: e.target.value})}
-                    className="border-blue-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="border-gray-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
               </div>
@@ -1087,7 +1091,7 @@ export default function SystemCodePage() {
               {/* 일곱 번째 행: 설정 및 관리 필드들 */}
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div>
-                  <label className="text-blue-700 font-semibold text-xs">사용 여부</label>
+                  <label className="text-gray-700 font-medium text-xs">사용 여부</label>
                   <div className="h-8 flex items-center">
                     <RadioGroup 
                       value={codeForm.sysCodeUse} 
@@ -1095,28 +1099,28 @@ export default function SystemCodePage() {
                       className="flex space-x-2"
                     >
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="Y" className="text-blue-600 w-5 h-5" />
-                        <Label className="text-blue-700 text-sm">사용함</Label>
+                        <RadioGroupItem value="Y" className="h-5 w-5" />
+                        <Label className="text-gray-700 text-sm">사용함</Label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="N" className="text-blue-600 w-5 h-5" />
-                        <Label className="text-blue-700 text-sm">사용안함</Label>
+                        <RadioGroupItem value="N" className="h-5 w-5" />
+                        <Label className="text-gray-700 text-sm">사용안함</Label>
                       </div>
                     </RadioGroup>
                   </div>
                 </div>
                 
                 <div>
-                  <label className="text-blue-700 font-semibold text-xs">코드 정렬</label>
+                  <label className="text-gray-700 font-medium text-xs">코드 정렬</label>
                   <Input 
                     value={codeForm.sysCodeSort}
                     onChange={(e) => setCodeForm({...codeForm, sysCodeSort: e.target.value})}
-                    className="border-blue-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="border-gray-300 bg-white text-sm py-1 h-8 focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
                 
                 <div>
-                  <label className="text-blue-700 font-semibold text-xs">등록자</label>
+                  <label className="text-gray-700 font-medium text-xs">등록자</label>
                   <Input 
                     value={codeForm.sysCodeRegUserName}
                     onChange={(e) => setCodeForm({...codeForm, sysCodeRegUserName: e.target.value})}
@@ -1129,7 +1133,7 @@ export default function SystemCodePage() {
               {/* 여덟 번째 행: 등록일시 */}
               <div className="mb-4">
                 <div>
-                  <label className="text-blue-700 font-semibold text-xs">등록일시</label>
+                  <label className="text-gray-700 font-medium text-xs">등록일시</label>
                   <Input 
                     value={codeForm.sysCodeRegDateTime}
                     onChange={(e) => {

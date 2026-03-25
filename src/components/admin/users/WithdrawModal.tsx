@@ -80,11 +80,11 @@ export function WithdrawModal({ open, onOpenChange, member, onConfirm }: Withdra
             />
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={submitting}>
+        <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={handleClose} disabled={submitting}>
             취소
           </Button>
-          <Button variant="destructive" onClick={handleConfirm} disabled={submitting}>
+          <Button type="button" size="sm" className="bg-red-500 text-white hover:bg-red-600" onClick={handleConfirm} disabled={submitting}>
             {submitting ? '처리 중...' : '탈퇴 처리'}
           </Button>
         </DialogFooter>

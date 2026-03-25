@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { HOMEPAGE_DOC_TYPES_ORDERED, type HomepageDocType } from '@/constants/homepageDoc'
 import { listHomepageDocs, putHomepageDoc, type HomepageDocPayload } from '@/services/homepageDoc'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
@@ -8,29 +9,42 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
-import { Loader2, Building2, Scale, Shield, Copyright, Save, RefreshCw } from 'lucide-react'
+import { Loader2, Building2, Scale, Shield, Copyright, Save, RefreshCw, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+/** adminLayoutPlan.md §16.2.1 */
+const adminActionBtn = {
+  blue: 'bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-200',
+  green: 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-200',
+} as const
+
+/** adminLayoutPlan.md §17.2.2 — URL query `tab` 값 */
+const TAB_VALUES = ['company', 'terms', 'privacy', 'copyright', 'recommended'] as const
+type TabValue = (typeof TAB_VALUES)[number]
+
+function isTabValue(v: string | null): v is TabValue {
+  return v !== null && (TAB_VALUES as readonly string[]).includes(v)
+}
 
 type SingleTabKey = 'company_intro' | 'terms_of_service' | 'privacy_policy'
 
 const TAB_SINGLE: {
+  tab: TabValue
   key: SingleTabKey
   label: string
   path: string
   Icon: typeof Building2
 }[] = [
-  { key: 'company_intro', label: '회사소개', path: '/about/companyInfo', Icon: Building2 },
-  { key: 'terms_of_service', label: '이용약관', path: '/terms', Icon: Scale },
-  { key: 'privacy_policy', label: '개인정보취급방침', path: '/privacy', Icon: Shield },
+  { tab: 'company', key: 'company_intro', label: '회사소개', path: '/about/companyInfo', Icon: Building2 },
+  { tab: 'terms', key: 'terms_of_service', label: '이용약관', path: '/terms', Icon: Scale },
+  { tab: 'privacy', key: 'privacy_policy', label: '개인정보취급방침', path: '/privacy', Icon: Shield },
 ]
 
-const COPYRIGHT_TYPES: HomepageDocType[] = [
-  'article_copyright',
-  'video_copyright',
-  'seminar_copyright',
-]
+const COPYRIGHT_TYPES: HomepageDocType[] = ['article_copyright', 'video_copyright', 'seminar_copyright']
+
+const RECOMMENDED_SEARCH_DOC: HomepageDocType = 'recommended_search'
 
 const COPYRIGHT_LABELS: Record<string, string> = {
   article_copyright: '아티클 저작권',
@@ -45,6 +59,7 @@ const DOC_LABEL: Record<string, string> = {
   article_copyright: '아티클 저작권',
   video_copyright: '비디오 저작권',
   seminar_copyright: '세미나 저작권',
+  recommended_search: '추천검색어',
 }
 
 type FormState = { title: string; bodyHtml: string; isPublished: boolean }
@@ -61,25 +76,103 @@ function payloadToForm(d: HomepageDocPayload): FormState {
   }
 }
 
+function copyrightHtmlToPlain(html: string): string {
+  const raw = html ?? ''
+  if (!raw.trim()) return ''
+  if (typeof document === 'undefined') {
+    return raw
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>\s*<p[^>]*>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+  }
+  const shell = document.createElement('div')
+  shell.innerHTML = raw
+  shell.querySelectorAll('br').forEach((br) => {
+    br.replaceWith(document.createTextNode('\n'))
+  })
+  return (shell.textContent ?? '').replace(/\u00a0/g, ' ')
+}
+
+function copyrightPlainToHtml(text: string): string {
+  const esc = (s: string) =>
+    s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+  if (!text) return ''
+  return esc(text.replace(/\r\n/g, '\n')).replace(/\n/g, '<br />')
+}
+
+/** 저작권 3종·추천검색어 — textarea ↔ API는 `<br />` 래핑 (wwwDocEtc.md §5.3·§5.4) */
+function isPlainTextBodyDocType(dt: HomepageDocType): boolean {
+  return COPYRIGHT_TYPES.includes(dt) || dt === RECOMMENDED_SEARCH_DOC
+}
+
+/** adminLayoutPlan.md §17.3 TabsTrigger */
+const tabsTriggerClass =
+  'inline-flex items-center gap-1.5 border-b-2 border-transparent px-4 py-2 text-sm font-medium text-gray-500 transition-colors hover:text-black data-[state=active]:border-black data-[state=active]:font-semibold data-[state=active]:text-black rounded-none bg-transparent shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+
 export default function HomepageDocsAdminPage() {
   const { toast } = useToast()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const tabParam = searchParams.get('tab')
+  const tab: TabValue = isTabValue(tabParam) ? tabParam : 'company'
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<SingleTabKey | 'copyright'>('company_intro')
   const [forms, setForms] = useState<Record<string, FormState>>(() => {
     const init: Record<string, FormState> = {}
     for (const dt of HOMEPAGE_DOC_TYPES_ORDERED) {
-      init[dt] = emptyForm()
+      init[dt] = dt === RECOMMENDED_SEARCH_DOC ? { ...emptyForm(), title: 'search' } : emptyForm()
     }
     return init
   })
+
+  useEffect(() => {
+    if (!isTabValue(tabParam)) {
+      const q = new URLSearchParams(searchParams.toString())
+      q.set('tab', 'company')
+      router.replace(`${pathname}?${q.toString()}`, { scroll: false })
+    }
+  }, [tabParam, pathname, router, searchParams])
+
+  const setTab = useCallback(
+    (v: string) => {
+      if (!isTabValue(v)) return
+      const q = new URLSearchParams(searchParams.toString())
+      q.set('tab', v)
+      router.replace(`${pathname}?${q.toString()}`, { scroll: false })
+    },
+    [pathname, router, searchParams]
+  )
 
   const mergeFromServer = useCallback((docs: HomepageDocPayload[]) => {
     setForms((prev) => {
       const next = { ...prev }
       for (const dt of HOMEPAGE_DOC_TYPES_ORDERED) {
         const row = docs.find((d) => d.docType === dt)
-        next[dt] = row ? payloadToForm(row) : next[dt] ?? emptyForm()
+        if (row) {
+          const base = payloadToForm(row)
+          let merged = isPlainTextBodyDocType(dt)
+            ? { ...base, bodyHtml: copyrightHtmlToPlain(row.bodyHtml ?? '') }
+            : base
+          if (dt === RECOMMENDED_SEARCH_DOC) {
+            merged = { ...merged, title: 'search' }
+          }
+          next[dt] = merged
+        } else {
+          next[dt] =
+            next[dt] ??
+            (dt === RECOMMENDED_SEARCH_DOC ? { ...emptyForm(), title: 'search' } : emptyForm())
+        }
       }
       return next
     })
@@ -117,12 +210,21 @@ export default function HomepageDocsAdminPage() {
     if (!f) return
     try {
       setSaving(docType)
+      const bodyForApi = isPlainTextBodyDocType(docType) ? copyrightPlainToHtml(f.bodyHtml) : f.bodyHtml
+      const titleForApi =
+        docType === RECOMMENDED_SEARCH_DOC ? 'search' : f.title.trim() ? f.title.trim() : null
       const updated = await putHomepageDoc(docType, {
-        title: f.title.trim() ? f.title.trim() : null,
-        bodyHtml: f.bodyHtml,
+        title: titleForApi,
+        bodyHtml: bodyForApi,
         isPublished: f.isPublished,
       })
-      updateForm(docType, payloadToForm(updated))
+      let nextForm = isPlainTextBodyDocType(docType)
+        ? { ...payloadToForm(updated), bodyHtml: copyrightHtmlToPlain(updated.bodyHtml ?? '') }
+        : payloadToForm(updated)
+      if (docType === RECOMMENDED_SEARCH_DOC) {
+        nextForm = { ...nextForm, title: 'search' }
+      }
+      updateForm(docType, nextForm)
       toast({
         title: '저장 완료',
         description: `「${DOC_LABEL[docType] ?? docType}」이(가) 저장되었습니다.`,
@@ -138,21 +240,13 @@ export default function HomepageDocsAdminPage() {
     }
   }
 
-  const activeLabel =
-    activeTab === 'copyright'
-      ? '콘텐츠 저작권 (3건)'
-      : TAB_SINGLE.find((t) => t.key === activeTab)?.label ?? ''
-
-  const activePath =
-    activeTab === 'copyright' ? null : TAB_SINGLE.find((t) => t.key === activeTab)?.path ?? null
-
-  const renderSingleTab = (docType: HomepageDocType) => {
+  const renderSingleDocBody = (docType: HomepageDocType) => {
     const f = forms[docType] ?? emptyForm()
     const meta = TAB_SINGLE.find((t) => t.key === docType)!
     return (
       <div className="space-y-6 max-w-4xl">
         <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-          <meta.Icon className="h-4 w-4 text-gray-400 shrink-0" aria-hidden />
+          <meta.Icon className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
           <span className="font-mono text-xs sm:text-sm">{meta.path}</span>
           <span className="text-gray-300">|</span>
           <span>{f.isPublished ? '공개 중' : '비공개'}</span>
@@ -169,6 +263,10 @@ export default function HomepageDocsAdminPage() {
           />
         </div>
 
+        <div className="space-y-2" aria-label={`${DOC_LABEL[docType] ?? docType} 페이지 편집`}>
+          <RichTextEditor value={f.bodyHtml} onChange={(html) => updateForm(docType, { bodyHtml: html })} />
+        </div>
+
         <div className="flex flex-wrap items-center gap-3 rounded-md border border-gray-200 bg-gray-50/80 px-4 py-3">
           <Switch
             id={`pub-${docType}`}
@@ -179,25 +277,8 @@ export default function HomepageDocsAdminPage() {
             <Label htmlFor={`pub-${docType}`} className="cursor-pointer">
               www에 공개
             </Label>
-            <p className="text-xs text-gray-500 mt-0.5">끄면 방문자에게 페이지가 보이지 않습니다.</p>
+            <p className="mt-0.5 text-xs text-gray-500">끄면 방문자에게 페이지가 보이지 않습니다.</p>
           </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label>본문</Label>
-          <p className="text-xs text-gray-500">이미지는 저장 시 서버에서 S3로 처리됩니다.</p>
-          <RichTextEditor value={f.bodyHtml} onChange={(html) => updateForm(docType, { bodyHtml: html })} />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-6">
-          <Button type="button" onClick={() => handleSave(docType)} disabled={!!saving}>
-            {saving === docType ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden />
-            ) : (
-              <Save className="h-4 w-4 mr-2" aria-hidden />
-            )}
-            저장
-          </Button>
         </div>
       </div>
     )
@@ -208,11 +289,31 @@ export default function HomepageDocsAdminPage() {
     return (
       <div
         key={docType}
-        className="rounded-lg border border-gray-200 bg-white p-4 sm:p-5 space-y-4"
+        className="flex h-full min-w-0 flex-col space-y-4 rounded-lg border border-gray-200 bg-white p-4 sm:p-5"
       >
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3">
-          <h3 className="text-base font-semibold text-gray-900">{COPYRIGHT_LABELS[docType]}</h3>
-          <span className="text-xs text-gray-500">{f.isPublished ? '공개' : '비공개'}</span>
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 pb-3">
+          <div className="min-w-0">
+            <h3 id={`copyright-h-${docType}`} className="text-base font-semibold text-gray-900">
+              {COPYRIGHT_LABELS[docType]}
+            </h3>
+            <p className="mt-0.5 text-xs text-gray-500">{f.isPublished ? '공개' : '비공개'}</p>
+          </div>
+          <div className="flex shrink-0 items-center justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              className={cn(adminActionBtn.green, 'gap-1')}
+              onClick={() => handleSave(docType)}
+              disabled={!!saving}
+            >
+              {saving === docType ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+              ) : (
+                <Save className="h-4 w-4 shrink-0" aria-hidden />
+              )}
+              저장
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -221,8 +322,21 @@ export default function HomepageDocsAdminPage() {
             id={`title-${docType}`}
             value={f.title}
             onChange={(e) => updateForm(docType, { title: e.target.value })}
-            className="max-w-xl"
+            className="w-full min-w-0"
             placeholder="비우면 www 기본 제목"
+          />
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col space-y-2">
+          <textarea
+            id={`body-${docType}`}
+            rows={5}
+            aria-labelledby={`copyright-h-${docType}`}
+            value={f.bodyHtml}
+            onChange={(e) => updateForm(docType, { bodyHtml: e.target.value })}
+            className={cn(
+              'min-h-[6rem] w-full min-w-0 flex-1 resize-y rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'
+            )}
           />
         </div>
 
@@ -233,111 +347,186 @@ export default function HomepageDocsAdminPage() {
             onCheckedChange={(c) => updateForm(docType, { isPublished: c })}
           />
           <Label htmlFor={`pub-${docType}`} className="cursor-pointer">
-            www API로 공개
+            공개여부
           </Label>
-        </div>
-
-        <RichTextEditor value={f.bodyHtml} onChange={(html) => updateForm(docType, { bodyHtml: html })} />
-
-        <div className="border-t border-gray-100 pt-4">
-          <Button type="button" variant="outline" size="sm" onClick={() => handleSave(docType)} disabled={!!saving}>
-            {saving === docType ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden />
-            ) : (
-              <Save className="h-4 w-4 mr-2" aria-hidden />
-            )}
-            이 영역만 저장
-          </Button>
         </div>
       </div>
     )
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">홈페이지 관리</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            회사소개·약관·개인정보 및 콘텐츠 저작권 문구를 편집합니다. 저작권은 유형별로 각각 저장합니다.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
-            <RefreshCw className={cn('h-4 w-4 mr-2', loading && 'animate-spin')} />
-            새로고침
-          </Button>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader className="space-y-4">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-            <div>
-              <CardTitle className="text-lg">문서 편집</CardTitle>
-              <CardDescription className="mt-1">
-                {activeLabel}
-                {activePath ? (
-                  <>
-                    {' '}
-                    · <span className="font-mono text-xs">{activePath}</span>
-                  </>
-                ) : null}
-              </CardDescription>
-            </div>
+  const renderRecommendedSearchBlock = () => {
+    const docType = RECOMMENDED_SEARCH_DOC
+    const f = forms[docType] ?? emptyForm()
+    return (
+      <div className="flex h-full w-full min-w-0 flex-col space-y-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 pb-3">
+          <div className="min-w-0">
+            <h3 id="recommended-h" className="text-base font-semibold text-gray-900">
+              추천검색어
+            </h3>
+            <p className="mt-0.5 text-xs text-gray-500">
+              쉼표로 구분해 입력합니다. www 검색 UI에 검색어가 없을 때 하단에 노출될 문구를 입력합니다.
+            </p>
+            <p className="mt-1 text-xs text-gray-500">{f.isPublished ? '공개' : '비공개'}</p>
           </div>
-
-          <div className="flex flex-wrap gap-2" role="tablist" aria-label="문서 종류">
-            {TAB_SINGLE.map((t) => {
-              const active = activeTab === t.key
-              return (
-                <Button
-                  key={t.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  variant={active ? 'secondary' : 'outline'}
-                  size="sm"
-                  onClick={() => setActiveTab(t.key)}
-                  className="gap-1.5"
-                >
-                  <t.Icon className="h-4 w-4 text-gray-500" aria-hidden />
-                  {t.label}
-                </Button>
-              )
-            })}
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             <Button
               type="button"
-              role="tab"
-              aria-selected={activeTab === 'copyright'}
-              variant={activeTab === 'copyright' ? 'secondary' : 'outline'}
               size="sm"
-              onClick={() => setActiveTab('copyright')}
-              className="gap-1.5"
+              className={cn(adminActionBtn.blue, 'gap-1')}
+              onClick={() => void load()}
+              disabled={loading}
             >
-              <Copyright className="h-4 w-4 text-gray-500" aria-hidden />
-              콘텐츠 저작권
+              <RefreshCw className={cn('h-4 w-4 shrink-0', loading && 'animate-spin')} aria-hidden />
+              새로고침
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className={cn(adminActionBtn.green, 'gap-1')}
+              onClick={() => handleSave(docType)}
+              disabled={!!saving || loading}
+            >
+              {saving === docType ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+              ) : (
+                <Save className="h-4 w-4 shrink-0" aria-hidden />
+              )}
+              저장
             </Button>
           </div>
-        </CardHeader>
+        </div>
 
-        <CardContent>
-          {loading ? (
-            <p className="text-sm text-gray-500 py-8 text-center">불러오는 중…</p>
-          ) : activeTab === 'copyright' ? (
-            <div className="space-y-6">
-              <p className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-md px-4 py-3">
-                아티클·비디오·세미나 저작권은{' '}
-                <strong className="font-medium text-gray-800">각각 저장 버튼</strong>으로 반영됩니다. 한 번에 합쳐 저장되지
-                않습니다.
-              </p>
-              <div className="space-y-4">{COPYRIGHT_TYPES.map((dt) => renderCopyrightBlock(dt))}</div>
+        <div className="flex min-h-0 w-full flex-1 flex-col">
+          <textarea
+            id={`body-${docType}`}
+            rows={8}
+            aria-labelledby="recommended-h"
+            value={f.bodyHtml}
+            onChange={(e) => updateForm(docType, { bodyHtml: e.target.value })}
+            placeholder="예: 인공지능, 클라우드, 보안"
+            className={cn(
+              'min-h-[8rem] w-full min-w-0 flex-1 resize-y rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'
+            )}
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 rounded-md border border-gray-200 bg-gray-50/80 px-4 py-3">
+          <Switch
+            id={`pub-${docType}`}
+            checked={f.isPublished}
+            onCheckedChange={(c) => updateForm(docType, { isPublished: c })}
+          />
+          <Label htmlFor={`pub-${docType}`} className="cursor-pointer">
+            공개여부
+          </Label>
+        </div>
+      </div>
+    )
+  }
+
+  const refreshButton = (
+    <Button
+      type="button"
+      size="sm"
+      className={cn(adminActionBtn.blue, 'gap-1')}
+      onClick={() => void load()}
+      disabled={loading}
+    >
+      <RefreshCw className={cn('h-4 w-4 shrink-0', loading && 'animate-spin')} aria-hidden />
+      새로고침
+    </Button>
+  )
+
+  const loadingBlock = (
+    <p className="py-8 text-center text-sm text-gray-500">불러오는 중…</p>
+  )
+
+  return (
+    <div className="space-y-6">
+      <div className="mb-6">
+        <h1 className="text-lg font-semibold text-gray-900">홈페이지 관리</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          회사소개·약관·개인정보·콘텐츠 저작권·추천검색어를 편집합니다. 저작권은 유형별로 각각 저장하고, 추천검색어는 한 블록만
+          저장합니다.
+        </p>
+      </div>
+
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
+        <TabsList
+          className="mb-4 flex h-auto w-full flex-wrap items-center justify-start gap-0 rounded-none border-0 border-b border-gray-200 bg-transparent p-0"
+          aria-label="문서 종류"
+        >
+          {TAB_SINGLE.map((t) => (
+            <TabsTrigger key={t.tab} value={t.tab} className={tabsTriggerClass}>
+              <t.Icon className="h-4 w-4 text-gray-500" aria-hidden />
+              {t.label}
+            </TabsTrigger>
+          ))}
+          <TabsTrigger value="copyright" className={tabsTriggerClass}>
+            <Copyright className="h-4 w-4 text-gray-500" aria-hidden />
+            콘텐츠 저작권
+          </TabsTrigger>
+          <TabsTrigger value="recommended" className={tabsTriggerClass}>
+            <Search className="h-4 w-4 text-gray-500" aria-hidden />
+            추천검색어
+          </TabsTrigger>
+        </TabsList>
+
+        {TAB_SINGLE.map((t) => (
+          <TabsContent key={t.tab} value={t.tab} className="mt-0">
+            <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+              <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 text-sm text-gray-600">
+                  <span className="font-medium text-gray-800">{t.label}</span>
+                  <span className="mx-2 text-gray-300">·</span>
+                  <span className="font-mono text-xs text-gray-500">{t.path}</span>
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                  {refreshButton}
+                  <Button
+                    type="button"
+                    size="sm"
+                    className={cn(adminActionBtn.green, 'gap-1')}
+                    onClick={() => handleSave(t.key)}
+                    disabled={!!saving || loading}
+                  >
+                    {saving === t.key ? (
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                    ) : (
+                      <Save className="h-4 w-4 shrink-0" aria-hidden />
+                    )}
+                    저장
+                  </Button>
+                </div>
+              </div>
+              <div className="p-4 sm:p-6">
+                {loading ? loadingBlock : renderSingleDocBody(t.key)}
+              </div>
             </div>
-          ) : (
-            renderSingleTab(activeTab)
-          )}
-        </CardContent>
-      </Card>
+          </TabsContent>
+        ))}
+
+        <TabsContent value="copyright" className="mt-0">
+          <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div className="p-4 sm:p-6">
+              {loading ? (
+                loadingBlock
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:items-stretch">
+                    {COPYRIGHT_TYPES.map((dt) => renderCopyrightBlock(dt))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="recommended" className="mt-0 w-full">
+          {loading ? loadingBlock : renderRecommendedSearchBlock()}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

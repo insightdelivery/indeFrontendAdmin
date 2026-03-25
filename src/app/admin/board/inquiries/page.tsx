@@ -83,9 +83,9 @@ export default function InquiryListPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">1:1 문의 관리</h1>
-        <p className="text-gray-600 text-sm">회원 문의 목록을 보고 답변할 수 있습니다.</p>
+      <div className="mb-6">
+        <h1 className="text-lg font-semibold text-gray-900">1:1 문의 관리</h1>
+        <p className="text-gray-600 text-sm mt-1">회원 문의 목록을 보고 답변할 수 있습니다.</p>
       </div>
 
       <Card>
@@ -240,7 +240,7 @@ export default function InquiryListPage() {
           <DialogFooter>
             {detail && (
               <Link href={`/admin/board/inquiries/detail?id=${detail.id}`}>
-                <Button className="bg-neon-yellow hover:bg-neon-yellow/90 text-black">답변하기</Button>
+                <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800">답변하기</Button>
               </Link>
             )}
             <Button variant="outline" onClick={() => setDetailModalOpen(false)}>

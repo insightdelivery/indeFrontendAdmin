@@ -163,13 +163,13 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">회원 관리</h1>
-          <p className="text-gray-600 text-sm">공개 회원(PublicMemberShip) 목록을 조회·수정·삭제할 수 있습니다.</p>
+          <h1 className="text-lg font-semibold text-gray-900">회원 관리</h1>
+          <p className="text-gray-600 text-sm mt-1">공개 회원(PublicMemberShip) 목록을 조회·수정·삭제할 수 있습니다.</p>
         </div>
         <Link href="/admin/users/new">
-          <Button className="bg-neon-yellow hover:bg-neon-yellow/90 text-black">
+          <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800">
             <Plus className="h-4 w-4 mr-2" />
             새 회원
           </Button>
@@ -199,8 +199,8 @@ export default function UsersPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={() => load(1)}>
-              검색
+            <Button type="button" variant="outline" size="sm" onClick={() => load(1)}>
+              조회
             </Button>
           </div>
         </CardHeader>
@@ -325,11 +325,11 @@ export default function UsersPage() {
             <DialogTitle>회원 삭제</DialogTitle>
             <DialogDescription>이 회원을 삭제하시겠습니까? 복구할 수 없습니다.</DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteModalOpen(false)}>
+          <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setDeleteModalOpen(false)}>
               취소
             </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm}>
+            <Button type="button" size="sm" className="bg-red-500 text-white hover:bg-red-600" onClick={handleDeleteConfirm}>
               삭제
             </Button>
           </DialogFooter>

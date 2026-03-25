@@ -34,7 +34,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, Search, Edit, Trash2, RefreshCw } from 'lucide-react'
+import { Plus, Edit, Trash2, RefreshCw } from 'lucide-react'
 
 const CONTENT_TYPE_LABELS: Record<ContentTypeOption, string> = {
   ARTICLE: '아티클',
@@ -129,20 +129,22 @@ export default function ContentAuthorListPage() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
   return (
-    <div className="h-full space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">작성자 관리</h1>
-          <p className="text-gray-600">
+          <h1 className="text-lg font-semibold text-gray-900">작성자 관리</h1>
+          <p className="text-sm text-gray-600 mt-1">
             콘텐츠 저자(에디터/디렉터)를 등록·수정·삭제합니다.
           </p>
         </div>
-        <Link href="/admin/contentAuthor/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            등록
-          </Button>
-        </Link>
+        <div className="flex items-center justify-end gap-2">
+          <Link href="/admin/contentAuthor/new">
+            <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800">
+              <Plus className="mr-2 h-4 w-4" />
+              등록
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Card>
@@ -178,10 +180,10 @@ export default function ContentAuthorListPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="icon" onClick={handleSearch} title="검색">
-              <Search className="h-4 w-4" />
+            <Button type="button" variant="outline" size="sm" onClick={handleSearch}>
+              조회
             </Button>
-            <Button variant="outline" size="icon" onClick={loadAuthors} title="새로고침">
+            <Button type="button" variant="outline" size="sm" onClick={loadAuthors} title="새로고침">
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
@@ -288,9 +290,9 @@ export default function ContentAuthorListPage() {
               {deleteTarget?.name}(ID: {deleteTarget?.author_id}) 저자를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteModalOpen(false)}>취소</Button>
-            <Button variant="destructive" onClick={confirmDelete}>삭제</Button>
+          <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setDeleteModalOpen(false)}>취소</Button>
+            <Button type="button" size="sm" className="bg-red-500 text-white hover:bg-red-600" onClick={confirmDelete}>삭제</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -175,22 +175,20 @@ export default function ArticleTrashPage() {
   }
 
   return (
-    <div className="h-full space-y-6">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-lg font-semibold text-gray-900">휴지통</h1>
+        <div className="flex items-center justify-end gap-2">
           <Link href="/admin/articles">
-            <Button variant="ghost" size="sm">
+            <Button type="button" variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               목록으로
             </Button>
           </Link>
-          <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">휴지통</h1>
-            <p className="text-gray-600">삭제된 아티클을 관리하고 복구할 수 있습니다.</p>
-          </div>
         </div>
       </div>
+
+      <p className="text-sm text-gray-600 mb-4">삭제된 아티클을 관리하고 복구할 수 있습니다.</p>
 
       {/* 경고 메시지 */}
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
@@ -207,7 +205,7 @@ export default function ArticleTrashPage() {
 
       {/* 일괄 관리 액션 바 */}
       {selectedIds.length > 0 && (
-        <div className="bg-neon-yellow rounded-lg border border-gray-200 p-4 flex items-center justify-between">
+        <div className="bg-gray-100 rounded-lg border border-gray-200 p-4 flex items-center justify-between">
           <span className="font-medium text-black">
             {selectedIds.length}개 항목 선택됨
           </span>
@@ -221,8 +219,9 @@ export default function ArticleTrashPage() {
               선택 복구
             </Button>
             <Button
-              variant="destructive"
+              type="button"
               size="sm"
+              className="bg-red-500 text-white hover:bg-red-600"
               onClick={() => handleHardDelete()}
             >
               <Trash2 className="h-4 w-4 mr-2" />
@@ -248,7 +247,7 @@ export default function ArticleTrashPage() {
 
         {loading ? (
           <div className="p-12 text-center text-gray-500">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neon-yellow mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
             로딩 중...
           </div>
         ) : articles.length === 0 ? (
@@ -410,11 +409,13 @@ export default function ArticleTrashPage() {
                 : `선택한 ${targetIds.length}개의 아티클을 복구하시겠습니까? 복구된 아티클은 유저 서비스에 즉시 재노출됩니다.`}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRestoreModalOpen(false)}>
+          <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setRestoreModalOpen(false)}>
               취소
             </Button>
-            <Button onClick={confirmRestore}>복구</Button>
+            <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800" onClick={confirmRestore}>
+              복구
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -430,11 +431,11 @@ export default function ArticleTrashPage() {
                 : `선택한 ${targetIds.length}개의 아티클을 영구 삭제하시겠습니까? 이 작업은 되돌릴 수 없으며, 모든 데이터가 완전히 제거됩니다.`}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteModalOpen(false)}>
+          <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setDeleteModalOpen(false)}>
               취소
             </Button>
-            <Button variant="destructive" onClick={confirmHardDelete}>
+            <Button type="button" size="sm" className="bg-red-500 text-white hover:bg-red-600" onClick={confirmHardDelete}>
               영구 삭제
             </Button>
           </DialogFooter>

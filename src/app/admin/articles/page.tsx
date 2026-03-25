@@ -42,7 +42,6 @@ import { ListPagination } from '@/components/admin/ListPagination'
 import { formatDateTime } from '@/lib/utils'
 import {
   Plus,
-  Search,
   Edit,
   Trash2,
   Eye,
@@ -343,24 +342,23 @@ export default function ArticleListPage() {
   }
 
   return (
-    <div className="h-full space-y-6">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">아티클 관리</h1>
-          <p className="text-gray-600">아티클을 검색, 필터링하고 관리할 수 있습니다.</p>
+          <h1 className="text-lg font-semibold text-gray-900">아티클 관리</h1>
+          <p className="text-sm text-gray-600 mt-1">아티클을 검색·필터링하고 관리할 수 있습니다.</p>
         </div>
-        <div className="flex gap-2">
-          <Link href="/admin/articles/new">
-            <Button className="bg-neon-yellow hover:bg-neon-yellow/90 text-black">
-              <Plus className="h-4 w-4 mr-2" />
-              새 아티클
-            </Button>
-          </Link>
+        <div className="flex flex-shrink-0 items-center justify-end gap-2">
           <Link href="/admin/articles/trash">
-            <Button variant="outline">
+            <Button type="button" variant="outline" size="sm">
               <Trash2 className="h-4 w-4 mr-2" />
               휴지통
+            </Button>
+          </Link>
+          <Link href="/admin/articles/new">
+            <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800">
+              <Plus className="h-4 w-4 mr-2" />
+              새 아티클
             </Button>
           </Link>
         </div>
@@ -461,8 +459,8 @@ export default function ArticleListPage() {
                   }
                 }}
               />
-              <Button onClick={loadArticles}>
-                <Search className="h-4 w-4" />
+              <Button type="button" variant="outline" size="sm" onClick={() => void loadArticles()}>
+                조회
               </Button>
             </div>
           </div>
@@ -471,7 +469,7 @@ export default function ArticleListPage() {
 
       {/* 일괄 관리 액션 바 */}
       {selectedIds.length > 0 && (
-        <div className="bg-neon-yellow rounded-lg border border-gray-200 p-4 flex items-center justify-between">
+        <div className="bg-gray-100 rounded-lg border border-gray-200 p-4 flex items-center justify-between">
           <span className="font-medium text-black">
             {selectedIds.length}개 항목 선택됨
           </span>
@@ -493,8 +491,9 @@ export default function ArticleListPage() {
               비공개로 변경
             </Button>
             <Button
-              variant="destructive"
+              type="button"
               size="sm"
+              className="bg-red-500 text-white hover:bg-red-600"
               onClick={handleBatchDelete}
             >
               <Trash2 className="h-4 w-4 mr-2" />
@@ -524,7 +523,7 @@ export default function ArticleListPage() {
 
         {loading ? (
           <div className="p-12 text-center text-gray-500">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neon-yellow mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
             로딩 중...
           </div>
         ) : articles.length === 0 ? (
@@ -769,11 +768,11 @@ export default function ArticleListPage() {
                 : '이 아티클을 휴지통으로 이동하시겠습니까? 삭제된 콘텐츠는 유저 페이지에서 즉시 노출 중단됩니다.'}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteModalOpen(false)}>
+          <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setDeleteModalOpen(false)}>
               취소
             </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
+            <Button type="button" size="sm" className="bg-red-500 text-white hover:bg-red-600" onClick={confirmDelete}>
               삭제
             </Button>
           </DialogFooter>
@@ -795,11 +794,13 @@ export default function ArticleListPage() {
               로 변경하시겠습니까?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setStatusChangeModalOpen(false)}>
+          <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setStatusChangeModalOpen(false)}>
               취소
             </Button>
-            <Button onClick={confirmStatusChange}>변경</Button>
+            <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800" onClick={confirmStatusChange}>
+              변경
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1015,17 +1016,17 @@ export default function ArticleListPage() {
           {/* 푸터 */}
           <div className="px-6 py-4 border-t bg-gray-50">
             <div className="flex items-center justify-end gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setDetailModalOpen(false)}>
+                닫기
+              </Button>
               {selectedArticle && (
                 <Link href={`/admin/articles/edit?id=${selectedArticle.id}`}>
-                  <Button variant="default">
+                  <Button type="button" variant="outline" size="sm">
                     <Edit className="h-4 w-4 mr-2" />
                     수정
                   </Button>
                 </Link>
               )}
-              <Button variant="outline" onClick={() => setDetailModalOpen(false)}>
-                닫기
-              </Button>
             </div>
           </div>
         </DialogContent>

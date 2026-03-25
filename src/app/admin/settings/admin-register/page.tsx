@@ -213,13 +213,15 @@ export default function AdminRegisterPage() {
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">관리자 등록</h1>
-          <p className="text-gray-600 mt-1">관리자 목록을 조회하고 관리할 수 있습니다.</p>
+          <h1 className="text-lg font-semibold text-gray-900">관리자 등록</h1>
+          <p className="text-sm text-gray-600 mt-1">관리자 목록을 조회하고 관리할 수 있습니다.</p>
         </div>
         <Button 
-          className="bg-neon-yellow text-black hover:bg-opacity-90"
+          type="button"
+          size="sm"
+          className="bg-black text-white hover:bg-gray-800"
           onClick={handleOpenCreateModal}
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -237,7 +239,7 @@ export default function AdminRegisterPage() {
               placeholder="관리자 ID, 이름, 이메일로 검색..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neon-yellow focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
             />
           </div>
           <div className="flex items-center space-x-2">
@@ -246,7 +248,7 @@ export default function AdminRegisterPage() {
               id="showInactive"
               checked={showInactive}
               onChange={(e) => setShowInactive(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-neon-yellow focus:ring-neon-yellow"
+              className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-400"
             />
             <label htmlFor="showInactive" className="text-sm text-gray-700 cursor-pointer">
               비활성화된 관리자 표시
@@ -259,7 +261,7 @@ export default function AdminRegisterPage() {
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         {loading ? (
           <div className="p-12 text-center text-gray-500">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neon-yellow mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
             로딩 중...
           </div>
         ) : filteredAdmins.length === 0 ? (
@@ -325,7 +327,7 @@ export default function AdminRegisterPage() {
                       <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2">
                           {admin.is_admin ? (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-neon-yellow text-black">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-black">
                               <Shield className="h-3 w-3 mr-1" />
                               관리자
                             </span>

@@ -268,7 +268,7 @@ export function AdminFormModal({
                   type="checkbox"
                   id="is_active"
                   {...register('is_active')}
-                  className="h-4 w-4 rounded border-gray-300 text-neon-yellow focus:ring-neon-yellow"
+                  className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-400"
                 />
                 <Label htmlFor="is_active" className="cursor-pointer">
                   활성화 (비활성화된 관리자를 다시 활성화할 수 있습니다)
@@ -277,10 +277,11 @@ export function AdminFormModal({
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
             >
@@ -288,7 +289,8 @@ export function AdminFormModal({
             </Button>
             <Button
               type="submit"
-              className="bg-neon-yellow text-black hover:bg-opacity-90"
+              size="sm"
+              className="bg-black text-white hover:bg-gray-800"
               disabled={isSubmitting}
             >
               {isSubmitting ? '처리 중...' : isEditMode ? '수정' : '등록'}

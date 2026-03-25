@@ -130,7 +130,7 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="flex h-screen  overflow-hidden bg-white">
+    <div className="flex h-screen overflow-hidden bg-white">
       {/* 사이드바 */}
       <aside
         className={`${
@@ -170,7 +170,7 @@ export default function AdminLayout({
                       href={item.href}
                       className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                         isActive
-                          ? 'bg-neon-yellow text-black font-semibold'
+                          ? 'bg-gray-200 text-black font-semibold'
                           : 'text-gray-700 hover:bg-gray-200'
                       }`}
                     >
@@ -187,7 +187,7 @@ export default function AdminLayout({
                   onClick={() => setBoardOpen(!boardOpen)}
                   className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-colors ${
                     pathname?.startsWith('/admin/board')
-                      ? 'bg-neon-yellow text-black font-semibold'
+                      ? 'bg-gray-200 text-black font-semibold'
                       : 'text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -212,7 +212,7 @@ export default function AdminLayout({
                             href={subItem.href}
                             className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
                               isSubActive
-                                ? 'bg-neon-yellow text-black font-semibold'
+                                ? 'bg-gray-200 text-black font-semibold'
                                 : 'text-gray-600 hover:bg-gray-200'
                             }`}
                           >
@@ -232,7 +232,7 @@ export default function AdminLayout({
                   onClick={() => setSettingsOpen(!settingsOpen)}
                   className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-colors ${
                     pathname?.startsWith('/admin/settings')
-                      ? 'bg-neon-yellow text-black font-semibold'
+                      ? 'bg-gray-200 text-black font-semibold'
                       : 'text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -259,7 +259,7 @@ export default function AdminLayout({
                             href={subItem.href}
                             className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
                               isSubActive
-                                ? 'bg-neon-yellow text-black font-semibold'
+                                ? 'bg-gray-200 text-black font-semibold'
                                 : 'text-gray-600 hover:bg-gray-200'
                             }`}
                           >
@@ -292,17 +292,21 @@ export default function AdminLayout({
         {/* 상단 헤더 */}
         <header className="h-16 border-b bg-white shadow-sm flex items-center justify-between px-6">
           <div className="flex items-center gap-4">
-            {!sidebarOpen && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSidebarOpen(true)}
-                className="h-8 w-8"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            )}
-            <span className="text-sm text-gray-600">InDe Administrator</span>
+            {!sidebarOpen ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSidebarOpen(true)}
+                  className="h-8 w-8"
+                  type="button"
+                  aria-label="메뉴 열기"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+                <span className="text-sm font-medium text-gray-900">InDe Administrator</span>
+              </>
+            ) : null}
           </div>
           <div className="flex items-center gap-4">
             {userInfo && (
@@ -312,7 +316,9 @@ export default function AdminLayout({
               </div>
             )}
             <Button
+              type="button"
               variant="outline"
+              size="sm"
               onClick={handleLogout}
               className="border-gray-300 hover:bg-gray-50"
             >

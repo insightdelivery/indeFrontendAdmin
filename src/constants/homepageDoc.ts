@@ -6,6 +6,7 @@ export const HOMEPAGE_DOC_TYPES_ORDERED = [
   'article_copyright',
   'video_copyright',
   'seminar_copyright',
+  'recommended_search',
 ] as const
 
 export type HomepageDocType = (typeof HOMEPAGE_DOC_TYPES_ORDERED)[number]

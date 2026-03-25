@@ -341,9 +341,8 @@ export default function ContentAuthorEditPage() {
                   </div>
                   <Button
                     type="button"
-                    variant="destructive"
                     size="icon"
-                    className="absolute -right-2 -top-2 h-8 w-8 rounded-full shadow-md"
+                    className="absolute -right-2 -top-2 h-8 w-8 rounded-full shadow-md bg-red-500 text-white hover:bg-red-600"
                     onClick={clearProfileImage}
                   >
                     <X className="h-4 w-4" />

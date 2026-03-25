@@ -44,7 +44,6 @@ import Cookies from 'js-cookie'
 import { ADMIN_ACCESS_TOKEN_KEY, ADMIN_REFRESH_TOKEN_KEY, ADMIN_USER_INFO_KEY } from '@/lib/adminAuthKeys'
 import {
   Plus,
-  Search,
   Edit,
   Trash2,
   Eye,
@@ -281,15 +280,15 @@ export default function SeminarListPage() {
   }
 
   return (
-    <div className="h-full space-y-6 relative">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 relative">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">세미나 관리</h1>
-          <p className="text-gray-600">세미나 콘텐츠를 검색, 필터링하고 관리할 수 있습니다.</p>
+          <h1 className="text-lg font-semibold text-gray-900">세미나 관리</h1>
+          <p className="text-sm text-gray-600 mt-1">세미나 콘텐츠를 검색·필터링하고 관리할 수 있습니다.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-shrink-0 items-center justify-end gap-2">
           <Link href="/admin/seminar/new">
-            <Button className="bg-neon-yellow hover:bg-neon-yellow/90 text-black">
+            <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800">
               <Plus className="h-4 w-4 mr-2" />
               새 콘텐츠
             </Button>
@@ -335,8 +334,8 @@ export default function SeminarListPage() {
                 }}
                 className="flex-1"
               />
-              <Button onClick={loadVideos}>
-                <Search className="h-4 w-4" />
+              <Button type="button" variant="outline" size="sm" onClick={() => void loadVideos()}>
+                조회
               </Button>
             </div>
           </div>
@@ -404,7 +403,7 @@ export default function SeminarListPage() {
       </div>
 
       {selectedIds.length > 0 && (
-        <div className="bg-neon-yellow rounded-lg border border-gray-200 p-4 flex items-center justify-between">
+        <div className="bg-gray-100 rounded-lg border border-gray-200 p-4 flex items-center justify-between">
           <span className="font-medium text-black">
             {selectedIds.length}개 항목 선택됨
           </span>
@@ -418,8 +417,9 @@ export default function SeminarListPage() {
               비공개 전환
             </Button>
             <Button
-              variant="destructive"
+              type="button"
               size="sm"
+              className="bg-red-500 text-white hover:bg-red-600"
               onClick={handleBatchDelete}
             >
               <Trash2 className="h-4 w-4 mr-2" />
@@ -444,7 +444,7 @@ export default function SeminarListPage() {
 
         {loading ? (
           <div className="p-12 text-center text-gray-500">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neon-yellow mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
             로딩 중...
           </div>
         ) : videos.length === 0 ? (
@@ -646,11 +646,11 @@ export default function SeminarListPage() {
                 : '이 세미나를 삭제하시겠습니까? 삭제 시 사용자의 북마크 및 관련 라이브러리에서 접근이 제한됩니다.'}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteModalOpen(false)}>
+          <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setDeleteModalOpen(false)}>
               취소
             </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
+            <Button type="button" size="sm" className="bg-red-500 text-white hover:bg-red-600" onClick={confirmDelete}>
               삭제
             </Button>
           </DialogFooter>
@@ -671,11 +671,13 @@ export default function SeminarListPage() {
               로 변경하시겠습니까?
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setStatusChangeModalOpen(false)}>
+          <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setStatusChangeModalOpen(false)}>
               취소
             </Button>
-            <Button onClick={confirmStatusChange}>변경</Button>
+            <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800" onClick={confirmStatusChange}>
+              변경
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -721,7 +723,7 @@ export default function SeminarListPage() {
       {deleting && (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">
           <div className="bg-white rounded-full p-6 shadow-lg">
-            <div className="animate-spin rounded-full h-10 w-10 border-4 border-neon-yellow border-t-transparent" />
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-900 border-t-transparent" />
           </div>
         </div>
       )}
