@@ -28,6 +28,7 @@ import {
   HelpCircle,
   Mail,
   Images,
+  Globe,
 } from 'lucide-react'
 
 export default function AdminLayout({
@@ -97,6 +98,7 @@ export default function AdminLayout({
     { href: '/admin/seminar', label: '세미나 관리', icon: GraduationCap },
     { href: '/admin/contentAuthor', label: '작성자 관리', icon: UserCircle },
     { href: '/admin/display-events', label: '이벤트 베너 관리', icon: Images },
+    { href: '/admin/homepage-docs', label: '홈페이지 관리', icon: Globe },
     { href: '/admin/users', label: '회원관리', icon: Users },
     { href: '/admin/orders', label: '결제관리', icon: ShoppingCart },
   ]
