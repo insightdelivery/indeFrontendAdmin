@@ -2,7 +2,7 @@
 
 /**
  * 작성자 등록
- * - 프로필 이미지: 직접 업로드 → S3 (3MB 이하, 정사각형 500px 이하)
+ * - 프로필 이미지: 선택 → 크롭 모달 → 500px 정사각 JPEG → S3 (3MB 이하)
  * - 연결 관리자: 관리자 목록 SelectBox에서 1명 선택 또는 미연결
  */
 import { useState, useEffect, useRef } from 'react'
@@ -15,12 +15,13 @@ import * as z from 'zod'
 import {
   createAuthor,
   uploadProfileImage,
-  validateProfileImageFile,
+  validateProfileImageFileRaw,
   type ContentAuthorCreateRequest,
   type AuthorRole,
   type AuthorStatus,
   type ContentTypeOption,
 } from '@/features/contentAuthor'
+import { ProfileImageCropDialog } from '@/components/contentAuthor/ProfileImageCropDialog'
 import { getAdminList, type AdminMember } from '@/services/admin'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -72,6 +73,8 @@ export default function ContentAuthorNewPage() {
   const [adminList, setAdminList] = useState<AdminMember[]>([])
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null)
   const [profilePreviewUrl, setProfilePreviewUrl] = useState<string | null>(null)
+  const [cropOpen, setCropOpen] = useState(false)
+  const [cropSourceFile, setCropSourceFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const {
@@ -106,19 +109,31 @@ export default function ContentAuthorNewPage() {
     setValue('content_types', next)
   }
 
-  const onProfileFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onProfileFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const result = await validateProfileImageFile(file)
+    const result = validateProfileImageFileRaw(file)
     if (!result.valid) {
       toast({ title: '프로필 이미지', description: result.error, variant: 'destructive' })
       e.target.value = ''
       return
     }
+    setCropSourceFile(file)
+    setCropOpen(true)
+    e.target.value = ''
+  }
+
+  const handleCropComplete = (file: File) => {
     if (profilePreviewUrl) URL.revokeObjectURL(profilePreviewUrl)
     setProfileImageFile(file)
     setProfilePreviewUrl(URL.createObjectURL(file))
     setValue('profile_image', '')
+    setCropSourceFile(null)
+  }
+
+  const handleCropCancel = () => {
+    setCropSourceFile(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const clearProfileImage = () => {
@@ -162,6 +177,13 @@ export default function ContentAuthorNewPage() {
 
   return (
     <div className="min-h-full space-y-8 pb-10">
+      <ProfileImageCropDialog
+        open={cropOpen}
+        onOpenChange={setCropOpen}
+        sourceFile={cropSourceFile}
+        onComplete={handleCropComplete}
+        onCancel={handleCropCancel}
+      />
       {/* 페이지 헤더 */}
       <header className="flex flex-col gap-1">
         <div className="flex items-center gap-3">
@@ -276,7 +298,7 @@ export default function ContentAuthorNewPage() {
               프로필 이미지
             </CardTitle>
             <CardDescription>
-              정사각형 이미지, 한 변 500px 이하, 3MB 이하 (JPEG, PNG, GIF, WebP)
+              이미지를 선택하면 크롭 화면이 열립니다. 확정 시 500px 정사각 JPEG로 변환되어 업로드됩니다 (최대 3MB).
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -290,7 +312,7 @@ export default function ContentAuthorNewPage() {
             {profilePreviewUrl ? (
               <div className="flex flex-wrap items-start gap-6">
                 <div className="relative shrink-0">
-                  <div className="overflow-hidden rounded-lg border-2 border-border bg-muted/30 shadow-sm ring-1 ring-black/5">
+                  <div className="overflow-hidden rounded-full border-2 border-border bg-muted/30 shadow-sm ring-1 ring-black/5">
                     <Image
                       src={profilePreviewUrl}
                       alt="프로필 미리보기"
@@ -328,7 +350,7 @@ export default function ContentAuthorNewPage() {
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-medium text-foreground">클릭하여 이미지 선택</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">3MB 이하 · 정사각형 · 500px 이하</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">JPEG·PNG 등 · 원본 15MB 이하 → 크롭 후 500px·3MB 이하</p>
                 </div>
               </button>
             )}

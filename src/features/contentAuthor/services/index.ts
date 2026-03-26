@@ -2,17 +2,40 @@
  * Content Author API 서비스
  */
 import apiClient from '@/lib/axios'
+import type {
+  ContentAuthor,
+  ContentAuthorListParams,
+  ContentAuthorListResponse,
+  ContentAuthorDetailResponse,
+  ContentAuthorCreateRequest,
+  ContentAuthorUpdateRequest,
+  ContentTypeOption,
+} from '../types'
 
 const PROFILE_IMAGE_MAX_BYTES = 3 * 1024 * 1024 // 3MB
 const PROFILE_IMAGE_MAX_PX = 500
+/** 크롭 전 원본 선택 허용 용량 (크롭 후 3MB 이하로 맞춤) */
+const PROFILE_IMAGE_RAW_MAX_BYTES = 15 * 1024 * 1024
+
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] as const
+
+/** 크롭 모달에 넣기 전 검증: 형식·용량만 (비율·해상도 무관) */
+export function validateProfileImageFileRaw(file: File): { valid: true } | { valid: false; error: string } {
+  if (file.size > PROFILE_IMAGE_RAW_MAX_BYTES) {
+    return { valid: false, error: '원본 이미지는 15MB 이하여야 합니다.' }
+  }
+  if (!ACCEPTED_IMAGE_TYPES.includes(file.type as (typeof ACCEPTED_IMAGE_TYPES)[number])) {
+    return { valid: false, error: '이미지 파일만 업로드 가능합니다. (JPEG, PNG, GIF, WebP)' }
+  }
+  return { valid: true }
+}
 
 /** 프로필 이미지 파일 검증: 3MB 이하, 정사각형, 500px 이하 */
 export function validateProfileImageFile(file: File): Promise<{ valid: true; width: number; height: number } | { valid: false; error: string }> {
   if (file.size > PROFILE_IMAGE_MAX_BYTES) {
     return Promise.resolve({ valid: false, error: '이미지 용량은 3MB 이하여야 합니다.' })
   }
-  const accepted = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-  if (!accepted.includes(file.type)) {
+  if (!ACCEPTED_IMAGE_TYPES.includes(file.type as (typeof ACCEPTED_IMAGE_TYPES)[number])) {
     return Promise.resolve({ valid: false, error: '이미지 파일만 업로드 가능합니다. (JPEG, PNG, GIF, WebP)' })
   }
   return new Promise((resolve) => {
@@ -60,15 +83,6 @@ export async function uploadProfileImage(file: File): Promise<string> {
   }
   return api.Result.url
 }
-import type {
-  ContentAuthor,
-  ContentAuthorListParams,
-  ContentAuthorListResponse,
-  ContentAuthorDetailResponse,
-  ContentAuthorCreateRequest,
-  ContentAuthorUpdateRequest,
-  ContentTypeOption,
-} from '../types'
 
 const unwrap = <T>(response: { data: { IndeAPIResponse?: { ErrorCode: string; Message: string; Result: T } } }): T => {
   const api = response.data.IndeAPIResponse
