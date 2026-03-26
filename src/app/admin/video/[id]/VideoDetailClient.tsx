@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, Edit, Trash2, Video as VideoIcon } from 'lucide-react'
-import { getVideo, deleteVideo, type Video } from '@/features/video'
+import { getVideo, deleteVideo, type Video, VIDEO_CATEGORY_PARENT } from '@/features/video'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -100,7 +100,7 @@ export default function VideoDetailClient() {
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div><span className="text-gray-500">분류</span><div>{video.contentType}</div></div>
           <div><span className="text-gray-500">카테고리</span><div>{(() => {
-            const codes = getSysCodeFromCache('SYS26209B002')
+            const codes = getSysCodeFromCache(VIDEO_CATEGORY_PARENT)
             return codes ? getSysCodeName(codes, video.category) : null
           })() || video.category}</div></div>
           <div><span className="text-gray-500">상태</span><div>{video.status}</div></div>

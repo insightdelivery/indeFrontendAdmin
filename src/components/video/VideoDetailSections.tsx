@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import type { Video } from '@/features/video'
+import { type Video, VIDEO_CATEGORY_PARENT, SEMINAR_CATEGORY_PARENT } from '@/features/video'
 import VideoPlayer from '@/components/video/VideoPlayer'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getSysCodeFromCache, getSysCodeName } from '@/lib/syscode'
@@ -66,7 +66,8 @@ export default function VideoDetailSections({
 }: VideoDetailSectionsProps) {
   const categoryName =
     (() => {
-      const codes = getSysCodeFromCache('SYS26209B002')
+      const parent = seminarSourceOnly ? SEMINAR_CATEGORY_PARENT : VIDEO_CATEGORY_PARENT
+      const codes = getSysCodeFromCache(parent)
       return codes ? getSysCodeName(codes, video.category) : null
     })() || video.category
 

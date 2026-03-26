@@ -16,6 +16,7 @@ import {
   VIDEO_STATUS,
   VISIBILITY_OPTIONS,
   CONTENT_TYPE,
+  SEMINAR_CATEGORY_PARENT,
 } from '@/features/video'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -276,7 +277,7 @@ export default function SeminarEditClient() {
             <div className="space-y-2">
               <Label>카테고리</Label>
               <SysCodeSelect
-                sysCodeGubn="SYS26209B002"
+                sysCodeGubn={SEMINAR_CATEGORY_PARENT}
                 value={watch('category')}
                 onValueChange={(value) => setValue('category', value)}
                 placeholder="카테고리 선택"

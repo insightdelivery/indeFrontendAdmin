@@ -12,6 +12,7 @@ import {
   VIDEO_STATUS,
   VISIBILITY_OPTIONS,
   VIDEO_SOURCE_TYPE,
+  VIDEO_CATEGORY_PARENT,
 } from '@/features/video'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -456,7 +457,7 @@ export default function VideoCreatePage() {
               <div className="space-y-2">
                 <Label htmlFor="category">카테고리 *</Label>
                 <SysCodeSelect
-                  sysCodeGubn="SYS26209B002"
+                  sysCodeGubn={VIDEO_CATEGORY_PARENT}
                   value={watch('category')}
                   onValueChange={(value) => setValue('category', value)}
                   placeholder="카테고리 선택"

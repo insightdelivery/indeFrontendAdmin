@@ -46,7 +46,9 @@ function LoginForm() {
       
       // 로그인 성공 시 시스템 코드 하위 레벨을 localStorage에 저장
       try {
-        await loadSysCodeOnLogin('SYS26209B002')  // 아티클 카태고리
+        await loadSysCodeOnLogin('SYS26209B002')  // 아티클 카테고리
+        await loadSysCodeOnLogin('SYS26325B002')  // 비디오 카테고리 (videoPlan.md)
+        await loadSysCodeOnLogin('SYS26325B003')  // 세미나 카테고리 (seminarPlan.md)
         await loadSysCodeOnLogin('SYS26127B017')  //회원가입 지역
         await loadSysCodeOnLogin('SYS26127B018')  // 회원 가입 지역 국내 
         await loadSysCodeOnLogin('SYS26127B006')  // 직분 코드

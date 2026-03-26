@@ -2,6 +2,12 @@
  * Video 관련 상수 정의
  */
 
+/** 비디오 콘텐츠 카테고리 — 시스템 코드 부모 SID (`videoPlan.md` §2.1.1) */
+export const VIDEO_CATEGORY_PARENT = 'SYS26325B002'
+
+/** 세미나 콘텐츠 카테고리 — 시스템 코드 부모 SID (`seminarPlan.md`) */
+export const SEMINAR_CATEGORY_PARENT = 'SYS26325B003'
+
 // 콘텐츠 타입
 export const CONTENT_TYPE = {
   VIDEO: 'video',

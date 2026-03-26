@@ -14,6 +14,7 @@ import {
   VIDEO_STATUS,
   SEARCH_TYPE,
   SORT_OPTIONS,
+  VIDEO_CATEGORY_PARENT,
 } from '@/features/video'
 import { useToast } from '@/hooks/use-toast'
 import { SysCodeSelect } from '@/components/admin/SysCodeSelect'
@@ -337,7 +338,7 @@ export default function VideoListPage() {
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">카테고리</label>
             <SysCodeSelect
-              sysCodeGubn="SYS26209B002"
+              sysCodeGubn={VIDEO_CATEGORY_PARENT}
               value={category}
               onValueChange={setCategory}
               placeholder="전체"
@@ -528,7 +529,7 @@ export default function VideoListPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                         {(() => {
-                          const codes = getSysCodeFromCache('SYS26209B002')
+                          const codes = getSysCodeFromCache(VIDEO_CATEGORY_PARENT)
                           return codes ? getSysCodeName(codes, video.category) : null
                         })() || video.category}
                       </span>
