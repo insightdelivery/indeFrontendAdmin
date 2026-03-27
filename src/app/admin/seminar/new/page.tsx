@@ -65,7 +65,6 @@ const videoSchema = z.object({
   allowRating: z.boolean().default(true),
   allowComment: z.boolean().default(true),
   tags: z.array(z.string()).optional(),
-  questions: z.array(z.string()).optional(),
   scheduledAt: z.string().optional(),
 })
 
@@ -84,7 +83,6 @@ export default function SeminarCreatePage() {
   const [thumbnail, setThumbnail] = useState<string>('')
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
   const [tagInput, setTagInput] = useState('')
-  const [questions, setQuestions] = useState<string[]>(['', ''])
   const [attachments, setAttachments] = useState<AttachmentFile[]>([])
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [videoStreamId, setVideoStreamId] = useState<string>('')
@@ -113,7 +111,6 @@ export default function SeminarCreatePage() {
       allowRating: true,
       allowComment: true,
       tags: [],
-      questions: ['', ''],
     },
   })
 
@@ -153,12 +150,6 @@ export default function SeminarCreatePage() {
   const handleRemoveTag = (index: number) => {
     const currentTags = getValues('tags') || []
     setValue('tags', currentTags.filter((_, i) => i !== index))
-  }
-
-  const handleQuestionChange = (index: number, value: string) => {
-    const newQuestions = [...questions]
-    newQuestions[index] = value
-    setQuestions(newQuestions)
   }
 
   const handleAttachmentUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -335,7 +326,6 @@ export default function SeminarCreatePage() {
         sourceType: 'FILE_UPLOAD',
         videoStreamId: finalVideoStreamId || undefined,
         videoUrl: null,
-        questions: questions.filter((q) => q.trim() !== ''),
         tags: data.tags?.filter((tag) => tag.trim() !== ''),
         attachments: uploadedAttachments,
         scheduledAt: scheduledAtISO,
@@ -743,20 +733,12 @@ export default function SeminarCreatePage() {
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">상호작용 설정</h2>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>적용 질문 (Q1, Q2)</Label>
-              <p className="text-xs text-gray-500 mb-2">
-                사용자의 인사이트 도출을 위한 질문을 입력하세요 (최대 2개)
+            <div className="space-y-2 rounded-md border border-dashed border-gray-200 bg-gray-50/80 p-4">
+              <Label>적용 질문 (Q&A)</Label>
+              <p className="text-sm text-gray-600">
+                세미나 저장 후 <strong>수정</strong> 화면에서 <code className="rounded bg-white px-1 text-xs">content_question</code> API로
+                적용 질문을 등록·수정할 수 있습니다. (아티클과 동일)
               </p>
-              {questions.map((question, index) => (
-                <div key={index} className="flex gap-2 mb-2">
-                  <Input
-                    value={question}
-                    onChange={(e) => handleQuestionChange(index, e.target.value)}
-                    placeholder={`Q${index + 1}: 적용 질문 입력`}
-                  />
-                </div>
-              ))}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

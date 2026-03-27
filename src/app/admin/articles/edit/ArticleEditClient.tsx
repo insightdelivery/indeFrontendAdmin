@@ -13,13 +13,6 @@ import {
   PUBLISH_STATUS,
 } from '@/features/articles'
 import { getAuthorsByContentType } from '@/features/contentAuthor'
-import {
-  getContentQuestions,
-  createContentQuestion,
-  updateContentQuestion,
-  deleteContentQuestion,
-  type ContentQuestion,
-} from '@/features/contentQuestion'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,11 +31,11 @@ import {
   Eye,
   ArrowLeft,
   X,
-  Plus,
   Trash2,
 } from 'lucide-react'
 import Link from 'next/link'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
+import ContentQuestionsEditor from '@/components/admin/ContentQuestionsEditor'
 import { SysCodeSelect } from '@/components/admin/SysCodeSelect'
 import { SysCodeRadioGroup } from '@/components/admin/SysCodeRadioGroup'
 import {
@@ -99,13 +92,6 @@ export default function ArticleEditClient() {
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
   /** 아티클 담당 에디터 목록(콘텐츠 유형 ARTICLE, 역할 EDITOR) */
   const [editorOptions, setEditorOptions] = useState<{ author_id: number; name: string }[]>([])
-  /** 적용 질문 목록 (content_question API) */
-  const [contentQuestions, setContentQuestions] = useState<ContentQuestion[]>([])
-  const [questionsLoading, setQuestionsLoading] = useState(false)
-  const [newQuestionText, setNewQuestionText] = useState('')
-  const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null)
-  const [editingQuestionText, setEditingQuestionText] = useState('')
-
   const {
     register,
     handleSubmit,
@@ -164,18 +150,6 @@ export default function ArticleEditClient() {
     return () => clearInterval(interval)
   }, [autoSaveEnabled, getValues, thumbnail, articleId, article])
 
-  const loadContentQuestions = async (contentId: number) => {
-    setQuestionsLoading(true)
-    try {
-      const list = await getContentQuestions('ARTICLE', contentId)
-      setContentQuestions(list)
-    } catch {
-      setContentQuestions([])
-    } finally {
-      setQuestionsLoading(false)
-    }
-  }
-
   const loadArticle = async () => {
     try {
       setLoading(true)
@@ -200,8 +174,6 @@ export default function ArticleEditClient() {
         previewLength: data.previewLength || 50,
         scheduledAt: data.scheduledAt ? new Date(data.scheduledAt).toISOString().slice(0, 16) : '',
       })
-      // 적용 질문 목록 로드 (content_question API)
-      loadContentQuestions(articleId)
     } catch (error: any) {
       toast({
         title: '오류',
@@ -238,56 +210,6 @@ export default function ArticleEditClient() {
   const handleRemoveTag = (index: number) => {
     const currentTags = getValues('tags') || []
     setValue('tags', currentTags.filter((_, i) => i !== index))
-  }
-
-  const handleAddContentQuestion = async () => {
-    if (!newQuestionText.trim()) {
-      toast({ title: '알림', description: '질문 내용을 입력해주세요.', variant: 'destructive' })
-      return
-    }
-    try {
-      await createContentQuestion({
-        content_type: 'ARTICLE',
-        content_id: articleId,
-        question_text: newQuestionText.trim(),
-        sort_order: contentQuestions.length,
-        is_required: true,
-      })
-      setNewQuestionText('')
-      loadContentQuestions(articleId)
-      toast({ title: '성공', description: '질문이 등록되었습니다.' })
-    } catch (e: any) {
-      toast({ title: '오류', description: e?.message || '질문 등록에 실패했습니다.', variant: 'destructive' })
-    }
-  }
-
-  const handleUpdateContentQuestion = async (q: ContentQuestion) => {
-    if (q.is_locked) return
-    const text = editingQuestionText.trim()
-    if (!text) return
-    try {
-      await updateContentQuestion(q.question_id, { question_text: text })
-      setEditingQuestionId(null)
-      setEditingQuestionText('')
-      loadContentQuestions(articleId)
-      toast({ title: '성공', description: '질문이 수정되었습니다.' })
-    } catch (e: any) {
-      toast({ title: '오류', description: e?.message || '질문 수정에 실패했습니다.', variant: 'destructive' })
-    }
-  }
-
-  const handleDeleteContentQuestion = async (q: ContentQuestion) => {
-    if (q.is_locked) {
-      toast({ title: '알림', description: '답변이 등록된 질문은 삭제할 수 없습니다.', variant: 'destructive' })
-      return
-    }
-    try {
-      await deleteContentQuestion(q.question_id)
-      loadContentQuestions(articleId)
-      toast({ title: '성공', description: '질문이 삭제되었습니다.' })
-    } catch (e: any) {
-      toast({ title: '오류', description: e?.message || '질문 삭제에 실패했습니다.', variant: 'destructive' })
-    }
   }
 
   // 본문 내용에서 모든 base64 이미지의 총 크기 계산
@@ -701,60 +623,7 @@ export default function ArticleEditClient() {
           </div>
         </Card>
 
-        {/* 적용 질문 (Q&A) - content_question API */}
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">적용 질문 (Q&A)</h2>
-          <p className="text-xs text-gray-500 mb-4">
-            유저의 인사이트 도출을 위한 질문을 등록하세요. 답변이 하나라도 등록된 질문은 수정·삭제할 수 없습니다.
-          </p>
-          {questionsLoading ? (
-            <p className="text-sm text-gray-500">질문 목록 로딩 중...</p>
-          ) : (
-            <>
-              <ul className="space-y-2 mb-4">
-                {contentQuestions.map((q) => (
-                  <li key={q.question_id} className="flex items-center gap-2 border rounded p-2">
-                    {editingQuestionId === q.question_id ? (
-                      <>
-                        <Input
-                          value={editingQuestionText}
-                          onChange={(e) => setEditingQuestionText(e.target.value)}
-                          placeholder="질문 내용"
-                          className="flex-1"
-                        />
-                        <Button type="button" size="sm" onClick={() => handleUpdateContentQuestion(q)}>저장</Button>
-                        <Button type="button" size="sm" variant="ghost" onClick={() => { setEditingQuestionId(null); setEditingQuestionText('') }}>취소</Button>
-                      </>
-                    ) : (
-                      <>
-                        <span className="flex-1 text-sm">{q.question_text}</span>
-                        {q.is_locked && <span className="text-xs text-amber-600">(답변 등록됨)</span>}
-                        {!q.is_locked && (
-                          <>
-                            <Button type="button" variant="ghost" size="sm" onClick={() => { setEditingQuestionId(q.question_id); setEditingQuestionText(q.question_text) }}>수정</Button>
-                            <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteContentQuestion(q)}><Trash2 className="h-4 w-4" /></Button>
-                          </>
-                        )}
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              <div className="flex gap-2">
-                <Input
-                  value={newQuestionText}
-                  onChange={(e) => setNewQuestionText(e.target.value)}
-                  placeholder="새 질문 입력 후 추가 버튼 클릭"
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddContentQuestion()}
-                />
-                <Button type="button" variant="outline" onClick={handleAddContentQuestion}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  질문 추가
-                </Button>
-              </div>
-            </>
-          )}
-        </Card>
+        <ContentQuestionsEditor contentType="ARTICLE" contentId={articleId} />
 
         {/* 발행 및 시스템 정보 */}
         <Card className="p-6">

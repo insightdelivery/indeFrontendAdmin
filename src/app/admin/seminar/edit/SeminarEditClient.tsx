@@ -29,6 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SysCodeSelect } from '@/components/admin/SysCodeSelect'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
 import { ArrowLeft, Trash2, Video as VideoIcon, GraduationCap } from 'lucide-react'
+import ContentQuestionsEditor from '@/components/admin/ContentQuestionsEditor'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 const schema = z.object({
@@ -387,6 +388,8 @@ export default function SeminarEditClient() {
             </div>
           </div>
         </Card>
+
+        <ContentQuestionsEditor contentType="SEMINAR" contentId={video.id} />
       </form>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
