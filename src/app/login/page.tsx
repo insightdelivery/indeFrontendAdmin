@@ -8,7 +8,7 @@ import * as z from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { login, saveTokens } from '@/services/auth'
+import { login, saveSessionAfterLogin } from '@/services/auth'
 import { useToast } from '@/hooks/use-toast'
 import { loadSysCodeOnLogin } from '@/lib/syscode'
 
@@ -42,7 +42,7 @@ function LoginForm() {
       console.log('로그인 성공 응답:', response)
       
       // 토큰 및 사용자 정보 저장
-      saveTokens(response.access_token, response.refresh_token, response.user)
+      saveSessionAfterLogin(response.access_token, response.user)
       
       // 로그인 성공 시 시스템 코드 하위 레벨을 localStorage에 저장
       try {

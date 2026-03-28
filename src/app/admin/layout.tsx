@@ -3,7 +3,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { logout, isAuthenticated, getUserInfo } from '@/services/auth'
+import { logout, getUserInfo } from '@/services/auth'
+import { getAdminAccessToken } from '@/lib/adminAccessMemory'
+import { refreshAdminAccessToken } from '@/lib/adminTokenRefresh'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { 
@@ -40,34 +42,58 @@ export default function AdminLayout({
   const pathname = usePathname()
   const { toast } = useToast()
   const [mounted, setMounted] = useState(false)
+  const [sessionReady, setSessionReady] = useState(false)
   const [userInfo, setUserInfo] = useState(getUserInfo())
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [boardOpen, setBoardOpen] = useState(false)
 
-  // 마운트 시 한 번만 실행 (의존성 없음 → 메뉴 클릭 시 재실행/플리커 방지)
+  /** 액세스 만료·리프레시만 남은 경우 무음 갱신 후 대시보드 유지 (규칙: access 없을 때만 refresh) */
   useEffect(() => {
-    setMounted(true)
-    if (!isAuthenticated()) {
-      router.push('/login')
-      return
-    }
-    setUserInfo(getUserInfo())
+    let cancelled = false
 
-    const metaRobots = document.createElement('meta')
-    metaRobots.name = 'robots'
-    metaRobots.content = 'noindex, nofollow, noarchive, nosnippet, noimageindex'
-    if (!document.querySelector('meta[name="robots"]')) {
-      document.head.appendChild(metaRobots)
+    const applyMeta = () => {
+      const metaRobots = document.createElement('meta')
+      metaRobots.name = 'robots'
+      metaRobots.content = 'noindex, nofollow, noarchive, nosnippet, noimageindex'
+      if (!document.querySelector('meta[name="robots"]')) {
+        document.head.appendChild(metaRobots)
+      }
+      const metaGooglebot = document.createElement('meta')
+      metaGooglebot.name = 'googlebot'
+      metaGooglebot.content = 'noindex, nofollow, noarchive, nosnippet, noimageindex'
+      if (!document.querySelector('meta[name="googlebot"]')) {
+        document.head.appendChild(metaGooglebot)
+      }
     }
-    const metaGooglebot = document.createElement('meta')
-    metaGooglebot.name = 'googlebot'
-    metaGooglebot.content = 'noindex, nofollow, noarchive, nosnippet, noimageindex'
-    if (!document.querySelector('meta[name="googlebot"]')) {
-      document.head.appendChild(metaGooglebot)
+
+    setMounted(true)
+
+    if (getAdminAccessToken()) {
+      setUserInfo(getUserInfo())
+      setSessionReady(true)
+      applyMeta()
+      return () => {
+        cancelled = true
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: auth check + meta, router is stable
-  }, [])
+
+    ;(async () => {
+      try {
+        await refreshAdminAccessToken({ maxRetries: 1 })
+        if (cancelled) return
+        setUserInfo(getUserInfo())
+        setSessionReady(true)
+        applyMeta()
+      } catch {
+        if (!cancelled) router.push('/login')
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [router])
 
   const handleLogout = useCallback(async () => {
     try {
@@ -125,8 +151,12 @@ export default function AdminLayout({
     if (pathname?.startsWith('/admin/board')) setBoardOpen(true)
   }, [pathname])
 
-  if (!mounted) {
-    return null
+  if (!mounted || !sessionReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <p className="text-gray-600">세션 확인 중...</p>
+      </div>
+    )
   }
 
   return (
