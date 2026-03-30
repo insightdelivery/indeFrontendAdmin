@@ -24,6 +24,9 @@ export const DISPLAY_EVENT_TYPE_PARENT = 'SYS26320B003'
 /** Display Event — contentTypeCode */
 export const DISPLAY_CONTENT_TYPE_PARENT = 'SYS26320B009'
 
+/** 1:1 문의 유형 부모 코드 (inquiry_inquiry.inquiry_type = 하위 sysCodeSid) */
+export const INQUIRY_TYPE_PARENT = 'SYS26330B001'
+
 // syscode 데이터를 localStorage에서 가져오기
 export const getSysCodeFromCache = (sysCodeGubn: string): SysCodeItem[] | null => {
   try {
@@ -124,31 +127,14 @@ export const fetchSysCodeFromAPI = async (sysCodeGubn: string): Promise<SysCodeI
   }
 }
 
-// syscode 데이터 가져오기 (캐시 우선, 없으면 API 호출)
+// syscode 데이터 가져오기 (캐시 우선, 없으면 API 호출). 빈 배열도 캐시 히트로 본다.
 export const getSysCode = async (sysCodeGubn: string): Promise<SysCodeItem[]> => {
-  console.log(`🚀 getSysCode 함수 호출됨 - sysCodeGubn: ${sysCodeGubn}`)
-  
-  // 1. 캐시에서 먼저 확인
   const cachedData = getSysCodeFromCache(sysCodeGubn)
-  if (cachedData) {
-    console.log(`✅ syscode 캐시에서 데이터 로드: ${sysCodeGubn}`, cachedData)
+  if (cachedData !== null) {
     return cachedData
   }
-  
-  console.log(`🔄 캐시에 없음, API 호출 시작: ${sysCodeGubn}`)
-  
-  // 2. 캐시에 없으면 API에서 가져오기
   const apiData = await fetchSysCodeFromAPI(sysCodeGubn)
-  console.log(`📥 API 응답 데이터:`, apiData)
-  
-  // 3. API 데이터를 캐시에 저장
-  if (apiData.length > 0) {
-    setSysCodeToCache(sysCodeGubn, apiData)
-    console.log(`💾 syscode 데이터 캐시 저장: ${sysCodeGubn}`, apiData)
-  } else {
-    console.log(`⚠️ API에서 빈 데이터 반환: ${sysCodeGubn}`)
-  }
-  
+  setSysCodeToCache(sysCodeGubn, apiData)
   return apiData
 }
 

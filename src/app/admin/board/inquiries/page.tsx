@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { getInquiryList, getInquiry } from '@/services/board'
 import type { InquiryListItem, InquiryDetail } from '@/types/board'
+import { getSysCode, getSysCodeName, INQUIRY_TYPE_PARENT, type SysCodeItem } from '@/lib/syscode'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import {
@@ -39,6 +40,17 @@ export default function InquiryListPage() {
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [detail, setDetail] = useState<InquiryDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [typeSysCodes, setTypeSysCodes] = useState<SysCodeItem[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    void getSysCode(INQUIRY_TYPE_PARENT).then((rows) => {
+      if (!cancelled) setTypeSysCodes(rows)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const load = useCallback(async () => {
     try {
@@ -101,6 +113,7 @@ export default function InquiryListPage() {
                   <tr>
                     <th className="text-center p-3 font-medium w-16">번호</th>
                     <th className="text-left p-3 font-medium">제목</th>
+                    <th className="text-left p-3 font-medium w-28">유형</th>
                     <th className="text-left p-3 font-medium w-40">문의자</th>
                     <th className="text-center p-3 font-medium w-24">상태</th>
                     <th className="text-right p-3 font-medium w-[140px] min-w-[140px] whitespace-nowrap">등록일</th>
@@ -122,6 +135,9 @@ export default function InquiryListPage() {
                         >
                           {row.title}
                         </button>
+                      </td>
+                      <td className="p-3 text-gray-600 text-xs">
+                        {getSysCodeName(typeSysCodes, row.inquiry_type)}
                       </td>
                       <td className="p-3 text-gray-600">
                         {row.member
@@ -216,9 +232,30 @@ export default function InquiryListPage() {
                 <p className="font-medium">{detail.title}</p>
               </div>
               <div>
+                <span className="text-sm text-gray-500">문의 유형</span>
+                <p className="text-sm text-gray-800">
+                  {getSysCodeName(typeSysCodes, detail.inquiry_type)}
+                </p>
+              </div>
+              <div>
                 <span className="text-sm text-gray-500">등록일</span>
                 <p className="text-sm text-gray-600">{formatDate(detail.created_at)}</p>
               </div>
+              {detail.attachment ? (
+                <div>
+                  <span className="text-sm text-gray-500">첨부</span>
+                  <p>
+                    <a
+                      href={detail.attachment}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 underline"
+                    >
+                      파일 열기
+                    </a>
+                  </p>
+                </div>
+              ) : null}
               <div>
                 <span className="text-sm text-gray-500">문의 내용</span>
                 <div className="mt-1 rounded border bg-gray-50 p-4 text-sm whitespace-pre-wrap max-h-40 overflow-y-auto">

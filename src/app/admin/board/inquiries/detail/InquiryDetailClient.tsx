@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { getInquiry, answerInquiry } from '@/services/board'
 import type { InquiryDetail } from '@/types/board'
+import { getSysCode, getSysCodeName, INQUIRY_TYPE_PARENT, type SysCodeItem } from '@/lib/syscode'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -26,6 +27,17 @@ export default function InquiryDetailClient({ id }: { id: string }) {
   const [answer, setAnswer] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [typeSysCodes, setTypeSysCodes] = useState<SysCodeItem[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    void getSysCode(INQUIRY_TYPE_PARENT).then((rows) => {
+      if (!cancelled) setTypeSysCodes(rows)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (Number.isNaN(idNum)) return
@@ -113,6 +125,12 @@ export default function InquiryDetailClient({ id }: { id: string }) {
             </span>
           </div>
           <p className="text-sm text-gray-500">등록일: {formatDate(detail.created_at)}</p>
+          <p className="text-sm text-gray-600">
+            문의 유형:{' '}
+            <span className="font-medium text-gray-900">
+              {getSysCodeName(typeSysCodes, detail.inquiry_type)}
+            </span>
+          </p>
         </CardHeader>
         <CardContent className="space-y-6">
           {detail.member && (
@@ -130,6 +148,19 @@ export default function InquiryDetailClient({ id }: { id: string }) {
               </div>
             </div>
           )}
+          {detail.attachment ? (
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">첨부 파일</h3>
+              <a
+                href={detail.attachment}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-600 underline hover:text-blue-800"
+              >
+                첨부 열기 (새 창)
+              </a>
+            </div>
+          ) : null}
           <div>
             <h3 className="text-sm font-medium text-gray-700 mb-2">문의 내용</h3>
             <div className="rounded border bg-gray-50 p-4 text-sm whitespace-pre-wrap">{detail.content}</div>

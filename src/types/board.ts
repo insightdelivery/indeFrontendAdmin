@@ -42,6 +42,9 @@ export interface FAQListResponse {
 /** 1:1 문의 상태 */
 export type InquiryStatus = 'waiting' | 'answered'
 
+/** 문의 유형 — API·DB 값은 sysCodeSid (부모 SYS26330B001 하위) */
+export type InquiryTypeCode = string
+
 /** 문의 회원 정보 (목록: 아이디·이름, 상세: + 이메일·전화번호) */
 export interface InquiryMember {
   member_sid: number
@@ -54,6 +57,7 @@ export interface InquiryMember {
 export interface InquiryListItem {
   id: number
   title: string
+  inquiry_type: InquiryTypeCode
   status: InquiryStatus
   created_at: string
   member?: InquiryMember | null
@@ -62,6 +66,7 @@ export interface InquiryListItem {
 /** 1:1 문의 상세 */
 export interface InquiryDetail extends InquiryListItem {
   content: string
+  attachment: string | null
   answer: string | null
 }
 
