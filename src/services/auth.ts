@@ -10,6 +10,17 @@ export interface LoginRequest {
   password: string
 }
 
+/** 로그인 응답 menu_permissions — 백엔드 build_admin_user_payload */
+export interface MenuPermissionsPayload {
+  super_admin: boolean
+  items: Array<{
+    menu_code: string
+    can_read: boolean
+    can_write: boolean
+    can_delete: boolean
+  }>
+}
+
 export interface UserInfo {
   memberShipSid: string
   memberShipId: string
@@ -18,6 +29,8 @@ export interface UserInfo {
   memberShipPhone?: string
   memberShipLevel: number
   is_admin: boolean
+  admin_role?: string
+  menu_permissions?: MenuPermissionsPayload
   last_login?: string
   login_count?: number
 }

@@ -56,11 +56,8 @@ apiClient.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    if (
-      (errorStatus === 401 || errorStatus === 403) &&
-      originalRequest &&
-      !originalRequest._retry
-    ) {
+    // 403 Forbidden(권한 없음)은 토큰 갱신으로 해결되지 않음 — 재시도하지 않음
+    if (errorStatus === 401 && originalRequest && !originalRequest._retry) {
       if (isTokenRefreshRequest(requestUrl)) {
         redirectToLogin()
         return Promise.reject(error)

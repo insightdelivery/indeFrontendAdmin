@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { logout, getUserInfo } from '@/services/auth'
@@ -9,6 +9,12 @@ import { refreshAdminAccessToken } from '@/lib/adminTokenRefresh'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import {
+  canShowAdminPath,
+  canShowBoardNav,
+  canShowSettingsNav,
+} from '@/lib/adminMenuCodes'
+import { AdminMenuCatalogProvider } from '@/contexts/AdminMenuCatalogContext'
 import { 
   LayoutDashboard, 
   Users,
@@ -32,6 +38,30 @@ import {
   Images,
   Globe,
 } from 'lucide-react'
+
+const SIDEBAR_MENU_ITEMS = [
+  { href: '/admin', label: '대시보드', icon: LayoutDashboard },
+  { href: '/admin/articles', label: '아티클 관리', icon: FileText },
+  { href: '/admin/video', label: '비디오 관리', icon: Video },
+  { href: '/admin/seminar', label: '세미나 관리', icon: GraduationCap },
+  { href: '/admin/contentAuthor', label: '작성자 관리', icon: UserCircle },
+  { href: '/admin/display-events', label: '이벤트 베너 관리', icon: Images },
+  { href: '/admin/homepage-docs', label: '홈페이지 관리', icon: Globe },
+  { href: '/admin/users', label: '회원관리', icon: Users },
+  { href: '/admin/orders', label: '결제관리', icon: ShoppingCart },
+] as const
+
+const SETTINGS_SUB_MENUS = [
+  { href: '/admin/settings/code', label: '코드관리', icon: Code },
+  { href: '/admin/settings/menu-permission', label: '메뉴권한', icon: Shield },
+  { href: '/admin/settings/admin-register', label: '관리자 등록', icon: UserPlus },
+] as const
+
+const BOARD_SUB_MENUS = [
+  { href: '/admin/board/notices', label: '공지사항', icon: ClipboardList },
+  { href: '/admin/board/faqs', label: 'FAQ', icon: HelpCircle },
+  { href: '/admin/board/inquiries', label: '1:1 문의', icon: Mail },
+] as const
 
 export default function AdminLayout({
   children,
@@ -116,33 +146,6 @@ export default function AdminLayout({
     }
   }, [router, toast])
 
-  // 메뉴 항목 정의
-  const menuItems = [
-    { href: '/admin', label: '대시보드', icon: LayoutDashboard },
-    { href: '/admin/articles', label: '아티클 관리', icon: FileText },
-    { href: '/admin/video', label: '비디오 관리', icon: Video },
-    { href: '/admin/seminar', label: '세미나 관리', icon: GraduationCap },
-    { href: '/admin/contentAuthor', label: '작성자 관리', icon: UserCircle },
-    { href: '/admin/display-events', label: '이벤트 베너 관리', icon: Images },
-    { href: '/admin/homepage-docs', label: '홈페이지 관리', icon: Globe },
-    { href: '/admin/users', label: '회원관리', icon: Users },
-    { href: '/admin/orders', label: '결제관리', icon: ShoppingCart },
-  ]
-
-  // 설정 하위 메뉴 정의
-  const settingsSubMenus = [
-    { href: '/admin/settings/code', label: '코드관리', icon: Code },
-    { href: '/admin/settings/menu-permission', label: '메뉴권한', icon: Shield },
-    { href: '/admin/settings/admin-register', label: '관리자 등록', icon: UserPlus },
-  ]
-
-  // 게시판 관리 하위 메뉴 정의
-  const boardSubMenus = [
-    { href: '/admin/board/notices', label: '공지사항', icon: ClipboardList },
-    { href: '/admin/board/faqs', label: 'FAQ', icon: HelpCircle },
-    { href: '/admin/board/inquiries', label: '1:1 문의', icon: Mail },
-  ]
-
   // 경로에 따라 아코디언 열기 (설정/게시판). pathname 변경 시에만 실행
   useEffect(() => {
     if (pathname?.startsWith('/admin/settings')) setSettingsOpen(true)
@@ -150,6 +153,27 @@ export default function AdminLayout({
   useEffect(() => {
     if (pathname?.startsWith('/admin/board')) setBoardOpen(true)
   }, [pathname])
+
+  /** early return보다 앞에 두어야 함 (Rules of Hooks) */
+  const visibleMenuItems = useMemo(
+    () => SIDEBAR_MENU_ITEMS.filter((item) => canShowAdminPath(userInfo, item.href)),
+    [userInfo]
+  )
+  const visibleBoardSubMenus = useMemo(
+    () => [...BOARD_SUB_MENUS].filter((item) => canShowAdminPath(userInfo, item.href)),
+    [userInfo]
+  )
+  const visibleSettingsSubMenus = useMemo(
+    () => [...SETTINGS_SUB_MENUS].filter((item) => canShowAdminPath(userInfo, item.href)),
+    [userInfo]
+  )
+  const showBoardSection = canShowBoardNav(userInfo) && visibleBoardSubMenus.length > 0
+  const showSettingsSection = canShowSettingsNav(userInfo) && visibleSettingsSubMenus.length > 0
+
+  const userInitials =
+    userInfo?.memberShipName?.trim().slice(0, 2) ||
+    userInfo?.memberShipId?.slice(0, 2) ||
+    '—'
 
   if (!mounted || !sessionReady) {
     return (
@@ -163,12 +187,8 @@ export default function AdminLayout({
     )
   }
 
-  const userInitials =
-    userInfo?.memberShipName?.trim().slice(0, 2) ||
-    userInfo?.memberShipId?.slice(0, 2) ||
-    '—'
-
   return (
+    <AdminMenuCatalogProvider>
     <div className="flex h-screen overflow-hidden bg-muted/40">
       {/* 사이드바 */}
       <aside
@@ -205,7 +225,7 @@ export default function AdminLayout({
         {sidebarOpen && (
           <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-3">
             <ul className="space-y-1">
-              {menuItems.map((item) => {
+              {visibleMenuItems.map((item) => {
                 const Icon = item.icon
                 const isActive =
                   pathname === item.href ||
@@ -229,6 +249,7 @@ export default function AdminLayout({
               })}
 
               {/* 게시판 관리 메뉴 (하위 메뉴 포함) */}
+              {showBoardSection ? (
               <li>
                 <button
                   type="button"
@@ -253,7 +274,7 @@ export default function AdminLayout({
                 </button>
                 {boardOpen && (
                   <ul className="ml-2 mt-1 space-y-0.5 border-l border-border pl-3">
-                    {boardSubMenus.map((subItem) => {
+                    {visibleBoardSubMenus.map((subItem) => {
                       const SubIcon = subItem.icon
                       const isSubActive =
                         pathname === subItem.href ||
@@ -279,8 +300,10 @@ export default function AdminLayout({
                   </ul>
                 )}
               </li>
+              ) : null}
 
               {/* 설정 메뉴 (하위 메뉴 포함) */}
+              {showSettingsSection ? (
               <li>
                 <button
                   type="button"
@@ -306,7 +329,7 @@ export default function AdminLayout({
 
                 {settingsOpen && (
                   <ul className="ml-2 mt-1 space-y-0.5 border-l border-border pl-3">
-                    {settingsSubMenus.map((subItem) => {
+                    {visibleSettingsSubMenus.map((subItem) => {
                       const SubIcon = subItem.icon
                       const isSubActive = pathname === subItem.href
                       return (
@@ -329,6 +352,7 @@ export default function AdminLayout({
                   </ul>
                 )}
               </li>
+              ) : null}
             </ul>
           </nav>
         )}
@@ -404,5 +428,6 @@ export default function AdminLayout({
         </main>
       </div>
     </div>
+    </AdminMenuCatalogProvider>
   )
 }
