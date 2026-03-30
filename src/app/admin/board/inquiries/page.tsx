@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog'
 import { Card, CardContent } from '@/components/ui/card'
 import { ChevronRight } from 'lucide-react'
+import { InquiryAttachmentBlock } from './_components/InquiryAttachmentBlock'
 
 function formatDate(s: string) {
   return new Date(s).toLocaleString('ko-KR', {
@@ -29,6 +30,27 @@ function formatDate(s: string) {
 
 function statusLabel(status: string) {
   return status === 'answered' ? '답변완료' : '접수'
+}
+
+/** 메일 발송/열람 시각 — 짧게 표시 */
+function shortMailAt(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  try {
+    return new Date(iso).toLocaleString('ko-KR', {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return '—'
+  }
+}
+
+function mailOpenedCell(sent: string | null | undefined, opened: string | null | undefined) {
+  if (!sent) return <span className="text-gray-400">—</span>
+  if (opened) return <span className="text-gray-700">{shortMailAt(opened)}</span>
+  return <span className="text-amber-700">미열람</span>
 }
 
 export default function InquiryListPage() {
@@ -107,8 +129,8 @@ export default function InquiryListPage() {
           ) : (items?.length ?? 0) === 0 ? (
             <p className="text-gray-500 py-8 text-center">등록된 문의가 없습니다.</p>
           ) : (
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="border rounded-lg overflow-x-auto">
+              <table className="w-full text-sm min-w-[900px]">
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     <th className="text-center p-3 font-medium w-16">번호</th>
@@ -116,6 +138,8 @@ export default function InquiryListPage() {
                     <th className="text-left p-3 font-medium w-28">유형</th>
                     <th className="text-left p-3 font-medium w-40">문의자</th>
                     <th className="text-center p-3 font-medium w-24">상태</th>
+                    <th className="text-center p-3 font-medium w-[100px] whitespace-nowrap">메일 발송</th>
+                    <th className="text-center p-3 font-medium w-[100px] whitespace-nowrap">메일 열람</th>
                     <th className="text-right p-3 font-medium w-[140px] min-w-[140px] whitespace-nowrap">등록일</th>
                     <th className="text-right p-3 font-medium w-16"></th>
                   </tr>
@@ -154,6 +178,12 @@ export default function InquiryListPage() {
                         >
                           {statusLabel(row.status)}
                         </span>
+                      </td>
+                      <td className="p-3 text-center text-xs text-gray-700 whitespace-nowrap">
+                        {shortMailAt(row.answer_email_sent_at)}
+                      </td>
+                      <td className="p-3 text-center text-xs whitespace-nowrap">
+                        {mailOpenedCell(row.answer_email_sent_at, row.answer_email_opened_at)}
                       </td>
                       <td className="p-3 text-right text-gray-600 whitespace-nowrap w-[140px] min-w-[140px]">{formatDate(row.created_at)}</td>
                       <td className="p-3 text-right">
@@ -241,21 +271,7 @@ export default function InquiryListPage() {
                 <span className="text-sm text-gray-500">등록일</span>
                 <p className="text-sm text-gray-600">{formatDate(detail.created_at)}</p>
               </div>
-              {detail.attachment ? (
-                <div>
-                  <span className="text-sm text-gray-500">첨부</span>
-                  <p>
-                    <a
-                      href={detail.attachment}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-600 underline"
-                    >
-                      파일 열기
-                    </a>
-                  </p>
-                </div>
-              ) : null}
+              {detail.attachment ? <InquiryAttachmentBlock url={detail.attachment} /> : null}
               <div>
                 <span className="text-sm text-gray-500">문의 내용</span>
                 <div className="mt-1 rounded border bg-gray-50 p-4 text-sm whitespace-pre-wrap max-h-40 overflow-y-auto">

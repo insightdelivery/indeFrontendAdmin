@@ -8,7 +8,10 @@ import { getSysCode, getSysCodeName, INQUIRY_TYPE_PARENT, type SysCodeItem } fro
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import { ArrowLeft } from 'lucide-react'
+import { InquiryAttachmentBlock } from '../_components/InquiryAttachmentBlock'
 
 function formatDate(s: string) {
   return new Date(s).toLocaleString('ko-KR', {
@@ -27,6 +30,7 @@ export default function InquiryDetailClient({ id }: { id: string }) {
   const [answer, setAnswer] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [sendEmail, setSendEmail] = useState(true)
   const [typeSysCodes, setTypeSysCodes] = useState<SysCodeItem[]>([])
 
   useEffect(() => {
@@ -62,7 +66,7 @@ export default function InquiryDetailClient({ id }: { id: string }) {
     if (Number.isNaN(idNum)) return
     try {
       setSubmitting(true)
-      const updated = await answerInquiry(idNum, answer.trim())
+      const updated = await answerInquiry(idNum, answer.trim(), sendEmail)
       setDetail(updated)
       toast({ title: '답변 저장', description: '답변이 저장되었습니다.', duration: 3000 })
     } catch (e: any) {
@@ -148,36 +152,46 @@ export default function InquiryDetailClient({ id }: { id: string }) {
               </div>
             </div>
           )}
-          {detail.attachment ? (
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">첨부 파일</h3>
-              <a
-                href={detail.attachment}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-600 underline hover:text-blue-800"
-              >
-                첨부 열기 (새 창)
-              </a>
-            </div>
-          ) : null}
+          {detail.attachment ? <InquiryAttachmentBlock url={detail.attachment} /> : null}
           <div>
             <h3 className="text-sm font-medium text-gray-700 mb-2">문의 내용</h3>
             <div className="rounded border bg-gray-50 p-4 text-sm whitespace-pre-wrap">{detail.content}</div>
           </div>
 
-          <form onSubmit={handleSubmitAnswer} className="space-y-4">
-            <div>
+          <form onSubmit={handleSubmitAnswer} className="w-full min-w-0 space-y-4">
+            <div className="w-full min-w-0">
               <h3 className="text-sm font-medium text-gray-700 mb-2">관리자 답변</h3>
               <textarea
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
                 placeholder="답변을 입력하세요."
-                rows={8}
-                className="w-full max-w-2xl border rounded-md p-3 text-sm"
+                rows={10}
+                className="w-full min-w-0 max-w-full box-border border rounded-md p-3 text-sm"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="inquiry-send-email"
+                  checked={sendEmail}
+                  onCheckedChange={(v) => setSendEmail(v === true)}
+                />
+                <Label htmlFor="inquiry-send-email" className="text-sm font-normal text-gray-700 cursor-pointer">
+                  답변 안내 이메일 보내기
+                </Label>
+              </div>
+              {(detail.answer_email_sent_at || detail.answer_email_opened_at) && (
+                <p className="text-xs text-gray-500 pl-6">
+                  {detail.answer_email_sent_at ? <>발송: {formatDate(detail.answer_email_sent_at)}</> : null}
+                  {detail.answer_email_opened_at ? (
+                    <> · 열람: {formatDate(detail.answer_email_opened_at)}</>
+                  ) : detail.answer_email_sent_at ? (
+                    <> · 열람 대기(메일 클라이언트에 따라 추적 안 될 수 있음)</>
+                  ) : null}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
               <Button type="submit" disabled={submitting} size="sm" className="bg-black text-white hover:bg-gray-800">
                 {submitting ? '저장 중...' : '답변 저장'}
               </Button>

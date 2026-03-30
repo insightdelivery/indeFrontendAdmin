@@ -61,6 +61,10 @@ export interface InquiryListItem {
   status: InquiryStatus
   created_at: string
   member?: InquiryMember | null
+  /** 답변 안내 메일 발송 시각 (없으면 미발송) */
+  answer_email_sent_at?: string | null
+  /** 메일 열람(추적 픽셀) 시각 — 일부 클라이언트는 미지원 */
+  answer_email_opened_at?: string | null
 }
 
 /** 1:1 문의 상세 */

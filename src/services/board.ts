@@ -108,8 +108,15 @@ export async function getInquiry(id: number): Promise<InquiryDetail> {
   return unwrapResult<InquiryDetail>(data)
 }
 
-/** 1:1 문의 답변 저장 */
-export async function answerInquiry(id: number, answer: string): Promise<InquiryDetail> {
-  const { data } = await apiClient.patch(`${BASE}/inquiries/${id}`, { answer })
+/** 1:1 문의 답변 저장 (send_email: 답변 안내 메일 발송 여부, 기본 true) */
+export async function answerInquiry(
+  id: number,
+  answer: string,
+  sendEmail = true
+): Promise<InquiryDetail> {
+  const { data } = await apiClient.patch(`${BASE}/inquiries/${id}`, {
+    answer,
+    send_email: sendEmail,
+  })
   return unwrapResult<InquiryDetail>(data)
 }
