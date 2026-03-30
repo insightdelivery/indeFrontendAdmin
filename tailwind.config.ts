@@ -19,7 +19,7 @@ const config = {
     },
     extend: {
       colors: {
-        // 룩엔필 브랜드 컬러
+        // 룩엔필 브랜드 컬러 (CTA·브랜드 강조용 — shadcn primary는 HSL 토큰)
         'neon-yellow': '#E1F800',
         'brand-yellow': '#FFDF38',
         'brand-purple': '#EA90FF',
@@ -33,8 +33,25 @@ const config = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#E1F800", // 네온 옐로우를 primary로
-          foreground: "#000000",
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        chart: {
+          "1": "hsl(var(--chart-1))",
+          "2": "hsl(var(--chart-2))",
+          "3": "hsl(var(--chart-3))",
+          "4": "hsl(var(--chart-4))",
+          "5": "hsl(var(--chart-5))",
+        },
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar-background))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          primary: "hsl(var(--sidebar-primary))",
+          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
+          accent: "hsl(var(--sidebar-accent))",
+          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+          border: "hsl(var(--sidebar-border))",
+          ring: "hsl(var(--sidebar-ring))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",

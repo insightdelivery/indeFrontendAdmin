@@ -8,6 +8,7 @@ import * as z from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { login, saveSessionAfterLogin } from '@/services/auth'
 import { useToast } from '@/hooks/use-toast'
 import { loadSysCodeOnLogin } from '@/lib/syscode'
@@ -96,63 +97,67 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-brand-grey">
-      <div className="w-full max-w-md space-y-8 rounded-lg bg-white p-8 shadow-lg">
-        <div>
-          <h2 className="mt-6 text-center text-5xl font-bold tracking-tight text-neon-yellow mb-2">
-            인디 INDE          
-          </h2>
-          <h3 className="text-center text-2xl font-semibold text-gray-900 mb-2">
-            관리자 로그인
-          </h3>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            관리자 계정으로 로그인하세요
-          </p>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-white via-zinc-50/80 to-zinc-100/90 px-4 py-12">
+      <div className="w-full max-w-md space-y-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 md:text-3xl">
+            인디 <span className="text-neon-yellow [text-shadow:0_0_1px_rgba(0,0,0,0.15)]">InDe</span>
+          </h1>
+          <p className="mt-2 text-sm text-zinc-500">관리자 콘솔</p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="memberShipId">회원 ID</Label>
-              <Input
-                id="memberShipId"
-                type="text"
-                autoComplete="username"
-                {...register('memberShipId')}
-                className="mt-1"
-              />
-              {errors.memberShipId && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.memberShipId.message}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="password">비밀번호</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                {...register('password')}
-                className="mt-1"
-              />
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-600">
-                  {errors.password.message}
-                </p>
-              )}
-            </div>
-          </div>
 
-          <div>
-            <Button
-              type="submit"
-              className="w-full bg-neon-yellow text-black hover:bg-opacity-90 font-semibold"
-              disabled={isLoading}
-            >
-              {isLoading ? '로그인 중...' : '로그인'}
-            </Button>
-          </div>
-        </form>
+        <Card className="border-zinc-200/80 bg-white shadow-xl shadow-zinc-200/60 ring-1 ring-zinc-100">
+          <CardHeader className="space-y-1 pb-4">
+            <CardTitle className="text-xl text-zinc-900">관리자 로그인</CardTitle>
+            <CardDescription className="text-zinc-500">
+              관리자 계정으로 로그인하세요
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="memberShipId" className="text-zinc-700">
+                    회원 ID
+                  </Label>
+                  <Input
+                    id="memberShipId"
+                    type="text"
+                    autoComplete="username"
+                    {...register('memberShipId')}
+                    className="border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus-visible:border-zinc-300 focus-visible:ring-neon-yellow/35"
+                  />
+                  {errors.memberShipId && (
+                    <p className="text-sm text-red-600">{errors.memberShipId.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-zinc-700">
+                    비밀번호
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    autoComplete="current-password"
+                    {...register('password')}
+                    className="border-zinc-200 bg-white text-zinc-900 placeholder:text-zinc-400 focus-visible:border-zinc-300 focus-visible:ring-neon-yellow/35"
+                  />
+                  {errors.password && (
+                    <p className="text-sm text-red-600">{errors.password.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full bg-neon-yellow font-semibold text-black shadow-md shadow-zinc-300/80 hover:bg-neon-yellow/90"
+                disabled={isLoading}
+              >
+                {isLoading ? '로그인 중...' : '로그인'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
@@ -160,16 +165,17 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center bg-brand-grey">
-        <div className="w-full max-w-md space-y-8 rounded-lg bg-white p-8 shadow-lg">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neon-yellow mx-auto mb-4"></div>
-            <p className="text-gray-600">로딩 중...</p>
-          </div>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-zinc-50">
+          <div
+            className="h-9 w-9 animate-spin rounded-full border-2 border-zinc-200 border-t-neon-yellow"
+            aria-hidden
+          />
+          <p className="text-sm text-zinc-500">로딩 중...</p>
         </div>
-      </div>
-    }>
+      }
+    >
       <LoginForm />
     </Suspense>
   )

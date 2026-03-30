@@ -49,14 +49,14 @@ export function ListPagination({
   return (
     <div
       className={cn(
-        'flex items-center justify-between gap-4 px-6 py-4 border-t bg-gray-50/50',
+        'flex items-center justify-between gap-4 border-t border-border bg-muted/30 px-4 py-4 md:px-6',
         className
       )}
     >
-      <p className="text-sm text-gray-600">
+      <p className="text-sm text-muted-foreground">
         {total != null && (
           <>
-            총 <span className="font-medium">{total.toLocaleString()}</span>건
+            총 <span className="font-medium text-foreground">{total.toLocaleString()}</span>건
             {totalPages > 0 && (
               <>
                 {' '}

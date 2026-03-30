@@ -8,6 +8,7 @@ import { getAdminAccessToken } from '@/lib/adminAccessMemory'
 import { refreshAdminAccessToken } from '@/lib/adminTokenRefresh'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
+import { cn } from '@/lib/utils'
 import { 
   LayoutDashboard, 
   Users,
@@ -20,7 +21,6 @@ import {
   Code,
   Shield,
   UserPlus,
-  ChevronDown,
   ChevronRight,
   FileText,
   Video,
@@ -153,33 +153,47 @@ export default function AdminLayout({
 
   if (!mounted || !sessionReady) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <p className="text-gray-600">세션 확인 중...</p>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-muted/40">
+        <div
+          className="h-9 w-9 animate-spin rounded-full border-2 border-muted border-t-primary"
+          aria-hidden
+        />
+        <p className="text-sm text-muted-foreground">세션 확인 중...</p>
       </div>
     )
   }
 
+  const userInitials =
+    userInfo?.memberShipName?.trim().slice(0, 2) ||
+    userInfo?.memberShipId?.slice(0, 2) ||
+    '—'
+
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
+    <div className="flex h-screen overflow-hidden bg-muted/40">
       {/* 사이드바 */}
       <aside
-        className={`${
+        className={cn(
+          'flex flex-col overflow-hidden border-r border-border bg-background transition-all duration-300 ease-in-out',
           sidebarOpen ? 'w-64' : 'w-0'
-        } transition-all duration-300 bg-gray-100 border-r border-gray-300 flex flex-col overflow-hidden`}
+        )}
       >
         {/* 사이드바 헤더 */}
-        <div className="h-16 border-b border-gray-300 flex items-center justify-between px-4">
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-4">
           {sidebarOpen && (
             <>
-              <h1 className="text-xl font-bold">
-                <span className="text-black">InDe</span>
-                <span className="text-brand-orange text-xs font-semibold ml-1">admin</span>
-              </h1>
+              <Link href="/admin" className="flex flex-col gap-0.5">
+                <span className="text-lg font-bold tracking-tight text-foreground">
+                  InDe
+                  <span className="ml-1 text-xs font-semibold text-neon-yellow">admin</span>
+                </span>
+              </Link>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setSidebarOpen(false)}
-                className="h-8 w-8"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                type="button"
+                aria-label="사이드바 닫기"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -189,22 +203,25 @@ export default function AdminLayout({
 
         {/* 사이드바 메뉴 */}
         {sidebarOpen && (
-          <nav className="flex-1 overflow-y-auto p-4">
-            <ul className="space-y-2">
+          <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-3">
+            <ul className="space-y-1">
               {menuItems.map((item) => {
                 const Icon = item.icon
-                const isActive = pathname === item.href || (item.href !== '/admin' && pathname?.startsWith(item.href))
+                const isActive =
+                  pathname === item.href ||
+                  (item.href !== '/admin' && pathname?.startsWith(item.href))
                 return (
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                      className={cn(
+                        'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
                         isActive
-                          ? 'bg-gray-200 text-black font-semibold'
-                          : 'text-gray-700 hover:bg-gray-200'
-                      }`}
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      )}
                     >
-                      <Icon className="h-5 w-5" />
+                      <Icon className="h-4 w-4 shrink-0 opacity-90" />
                       <span>{item.label}</span>
                     </Link>
                   </li>
@@ -214,40 +231,47 @@ export default function AdminLayout({
               {/* 게시판 관리 메뉴 (하위 메뉴 포함) */}
               <li>
                 <button
+                  type="button"
                   onClick={() => setBoardOpen(!boardOpen)}
-                  className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  className={cn(
+                    'flex w-full items-center justify-between gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
                     pathname?.startsWith('/admin/board')
-                      ? 'bg-gray-200 text-black font-semibold'
-                      : 'text-gray-700 hover:bg-gray-200'
-                  }`}
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  )}
                 >
                   <div className="flex items-center gap-3">
-                    <MessageSquare className="h-5 w-5" />
+                    <MessageSquare className="h-4 w-4 shrink-0 opacity-90" />
                     <span>게시판 관리</span>
                   </div>
-                  {boardOpen ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
+                  <ChevronRight
+                    className={cn(
+                      'h-4 w-4 shrink-0 transition-transform duration-200',
+                      boardOpen && 'rotate-90'
+                    )}
+                  />
                 </button>
                 {boardOpen && (
-                  <ul className="mt-2 ml-4 space-y-1">
+                  <ul className="ml-2 mt-1 space-y-0.5 border-l border-border pl-3">
                     {boardSubMenus.map((subItem) => {
                       const SubIcon = subItem.icon
-                      const isSubActive = pathname === subItem.href || (subItem.href !== '/admin/board/notices' && pathname?.startsWith(subItem.href))
+                      const isSubActive =
+                        pathname === subItem.href ||
+                        (subItem.href !== '/admin/board/notices' &&
+                          pathname?.startsWith(subItem.href))
                       return (
                         <li key={subItem.href}>
                           <Link
                             href={subItem.href}
-                            className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                            className={cn(
+                              'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
                               isSubActive
-                                ? 'bg-gray-200 text-black font-semibold'
-                                : 'text-gray-600 hover:bg-gray-200'
-                            }`}
+                                ? 'bg-primary/10 font-medium text-primary'
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            )}
                           >
-                            <SubIcon className="h-4 w-4" />
-                            <span className="text-sm">{subItem.label}</span>
+                            <SubIcon className="h-3.5 w-3.5 shrink-0 opacity-90" />
+                            <span>{subItem.label}</span>
                           </Link>
                         </li>
                       )
@@ -255,31 +279,33 @@ export default function AdminLayout({
                   </ul>
                 )}
               </li>
-              
+
               {/* 설정 메뉴 (하위 메뉴 포함) */}
               <li>
                 <button
+                  type="button"
                   onClick={() => setSettingsOpen(!settingsOpen)}
-                  className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  className={cn(
+                    'flex w-full items-center justify-between gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
                     pathname?.startsWith('/admin/settings')
-                      ? 'bg-gray-200 text-black font-semibold'
-                      : 'text-gray-700 hover:bg-gray-200'
-                  }`}
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  )}
                 >
                   <div className="flex items-center gap-3">
-                    <Settings className="h-5 w-5" />
+                    <Settings className="h-4 w-4 shrink-0 opacity-90" />
                     <span>설정</span>
                   </div>
-                  {settingsOpen ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" />
-                  )}
+                  <ChevronRight
+                    className={cn(
+                      'h-4 w-4 shrink-0 transition-transform duration-200',
+                      settingsOpen && 'rotate-90'
+                    )}
+                  />
                 </button>
-                
-                {/* 설정 하위 메뉴 */}
+
                 {settingsOpen && (
-                  <ul className="mt-2 ml-4 space-y-1">
+                  <ul className="ml-2 mt-1 space-y-0.5 border-l border-border pl-3">
                     {settingsSubMenus.map((subItem) => {
                       const SubIcon = subItem.icon
                       const isSubActive = pathname === subItem.href
@@ -287,14 +313,15 @@ export default function AdminLayout({
                         <li key={subItem.href}>
                           <Link
                             href={subItem.href}
-                            className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
+                            className={cn(
+                              'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
                               isSubActive
-                                ? 'bg-gray-200 text-black font-semibold'
-                                : 'text-gray-600 hover:bg-gray-200'
-                            }`}
+                                ? 'bg-primary/10 font-medium text-primary'
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            )}
                           >
-                            <SubIcon className="h-4 w-4" />
-                            <span className="text-sm">{subItem.label}</span>
+                            <SubIcon className="h-3.5 w-3.5 shrink-0 opacity-90" />
+                            <span>{subItem.label}</span>
                           </Link>
                         </li>
                       )
@@ -308,41 +335,54 @@ export default function AdminLayout({
 
         {/* 사이드바 푸터 */}
         {sidebarOpen && userInfo && (
-          <div className="border-t border-gray-300 p-4">
-            <div className="text-sm text-gray-600 mb-2">
-              <div className="font-medium">{userInfo.memberShipName}</div>
-              <div className="text-xs text-gray-400">{userInfo.memberShipId}</div>
+          <div className="shrink-0 border-t border-border p-4">
+            <div className="flex items-center gap-3">
+              <div
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary"
+                aria-hidden
+              >
+                {userInitials}
+              </div>
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <p className="truncate text-sm font-medium text-foreground">
+                  {userInfo.memberShipName}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">{userInfo.memberShipId}</p>
+              </div>
             </div>
           </div>
         )}
       </aside>
 
       {/* 메인 콘텐츠 영역 - min-h-0으로 flex 자식이 뷰포트를 넘지 않게 해 스크롤 1개만 유지 */}
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* 상단 헤더 */}
-        <header className="h-16 border-b bg-white shadow-sm flex items-center justify-between px-6">
-          <div className="flex items-center gap-4">
+        <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:px-6">
+          <div className="flex min-w-0 items-center gap-3">
             {!sidebarOpen ? (
               <>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => setSidebarOpen(true)}
-                  className="h-8 w-8"
+                  className="h-9 w-9 shrink-0"
                   type="button"
                   aria-label="메뉴 열기"
                 >
                   <Menu className="h-5 w-5" />
                 </Button>
-                <span className="text-sm font-medium text-gray-900">InDe Administrator</span>
+                <span className="truncate text-sm font-medium text-foreground">
+                  InDe Administrator
+                </span>
               </>
             ) : null}
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex shrink-0 items-center gap-3 md:gap-4">
             {userInfo && (
-              <div className="text-sm text-gray-600">
-                <span className="font-medium">{userInfo.memberShipName}</span>
-                <span className="mx-2 text-gray-400">({userInfo.memberShipId})</span>
+              <div className="hidden text-sm text-muted-foreground sm:block">
+                <span className="font-medium text-foreground">{userInfo.memberShipName}</span>
+                <span className="mx-1.5 text-border">|</span>
+                <span>{userInfo.memberShipId}</span>
               </div>
             )}
             <Button
@@ -350,19 +390,17 @@ export default function AdminLayout({
               variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="border-gray-300 hover:bg-gray-50"
+              className="border-border bg-background hover:bg-muted"
             >
-              <LogOut className="h-4 w-4 mr-2" />
+              <LogOut className="mr-2 h-4 w-4" />
               로그아웃
             </Button>
           </div>
         </header>
 
         {/* 메인 콘텐츠 - 여기만 스크롤 */}
-        <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-white">
-          <div className="min-h-full p-6">
-            {children}
-          </div>
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="min-h-full p-4 md:p-6">{children}</div>
         </main>
       </div>
     </div>
