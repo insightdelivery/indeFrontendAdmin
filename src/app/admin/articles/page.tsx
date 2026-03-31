@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast'
 import { SysCodeSelect } from '@/components/admin/SysCodeSelect'
 import { getSysCodeName, getSysCodeFromCache } from '@/lib/syscode'
 import { Button } from '@/components/ui/button'
+import { CommentsModal } from '@/components/comments/CommentsModal'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -75,6 +76,19 @@ function contentWithLineBreaks(html: string): string {
     .replace(/<\/p>\s*<p>/gi, '</p><br /><p>')
 }
 
+function formatListDateTime(value: string): string {
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return '-'
+  return d.toLocaleString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
 export default function ArticleListPage() {
   const router = useRouter()
   const { toast } = useToast()
@@ -88,6 +102,8 @@ export default function ArticleListPage() {
   const [newStatus, setNewStatus] = useState<string>('')
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
+  const [commentsModalOpen, setCommentsModalOpen] = useState(false)
+  const [commentsContentId, setCommentsContentId] = useState<number | null>(null)
 
   // 필터 상태 (페이지당 30개, listPageRules.md)
   const [filters, setFilters] = useState<ArticleListParams>({
@@ -556,10 +572,10 @@ export default function ArticleListPage() {
                     작성자
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    공개 범위
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    상태
+                    <div className="leading-4">
+                      <div>공개범위</div>
+                      <div>상태</div>
+                    </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     추천
@@ -574,10 +590,10 @@ export default function ArticleListPage() {
                     질문
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    등록일
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    최종 수정일
+                    <div className="leading-4">
+                      <div>등록일</div>
+                      <div>최종수정일</div>
+                    </div>
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     작업
@@ -649,11 +665,11 @@ export default function ArticleListPage() {
                         <div className="text-xs text-gray-500">{article.authorAffiliation}</div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getVisibilityBadge(article.visibility)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(article.status)}
+                    <td className="px-6 py-4">
+                      <div className="space-y-2">
+                        <div>{getVisibilityBadge(article.visibility)}</div>
+                        <div>{getStatusBadge(article.status)}</div>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       {article.isEditorPick ? (
@@ -670,32 +686,28 @@ export default function ArticleListPage() {
                         {article.rating && (
                           <span>⭐ {article.rating.toFixed(1)}</span>
                         )}
-                        <span>💬 {article.commentCount}</span>
+                        <button
+                          type="button"
+                          className="flex items-center gap-1 text-left underline underline-offset-2 hover:no-underline"
+                          onClick={() => {
+                            setCommentsContentId(article.id)
+                            setCommentsModalOpen(true)
+                          }}
+                        >
+                          <MessageSquare className="h-3 w-3" />
+                          {article.commentCount}
+                        </button>
                         <span>🔖 {article.highlightCount}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {article.questionCount || 0}개
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {new Date(article.createdAt).toLocaleString('ko-KR', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {article.updatedAt
-                        ? new Date(article.updatedAt).toLocaleString('ko-KR', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
-                        : '-'}
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      <div className="space-y-2">
+                        <p>{formatListDateTime(article.createdAt)}</p>
+                        <p>{article.updatedAt ? formatListDateTime(article.updatedAt) : '-'}</p>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-2">
@@ -1031,6 +1043,15 @@ export default function ArticleListPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {commentsContentId != null ? (
+        <CommentsModal
+          open={commentsModalOpen}
+          onOpenChange={setCommentsModalOpen}
+          contentType="ARTICLE"
+          contentId={commentsContentId}
+        />
+      ) : null}
     </div>
   )
 }

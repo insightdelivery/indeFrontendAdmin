@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast'
 import { SysCodeSelect } from '@/components/admin/SysCodeSelect'
 import { getSysCodeName, getSysCodeFromCache } from '@/lib/syscode'
 import { Button } from '@/components/ui/button'
+import { CommentsModal } from '@/components/comments/CommentsModal'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -59,6 +60,19 @@ import {
 } from 'lucide-react'
 import Image from 'next/image'
 
+function formatListDateTime(value: string): string {
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return '-'
+  return d.toLocaleString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
 export default function VideoListPage() {
   const router = useRouter()
   const { toast } = useToast()
@@ -73,6 +87,8 @@ export default function VideoListPage() {
   const [deleting, setDeleting] = useState(false)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
+  const [commentsModalOpen, setCommentsModalOpen] = useState(false)
+  const [commentsContentId, setCommentsContentId] = useState<number | null>(null)
 
   // 필터 상태
   const [filters, setFilters] = useState<VideoListParams>({
@@ -253,6 +269,31 @@ export default function VideoListPage() {
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusInfo.className}`}>
         {statusInfo.label}
+      </span>
+    )
+  }
+
+  const getVisibilityBadge = (visibility: string) => {
+    const visibilityCodes = getSysCodeFromCache('SYS26209B015')
+    if (visibilityCodes) {
+      const visibilityName = getSysCodeName(visibilityCodes, visibility)
+      if (visibilityName !== visibility) {
+        return (
+          <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+            {visibilityName}
+          </span>
+        )
+      }
+    }
+    const visibilityMap: Record<string, string> = {
+      all: '전체',
+      free: '무료',
+      paid: '유료',
+      purchased: '구매자',
+    }
+    return (
+      <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+        {visibilityMap[visibility] || visibility}
       </span>
     )
   }
@@ -477,10 +518,10 @@ export default function VideoListPage() {
                     작성자
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    등록일
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    최종 수정일
+                    <div className="leading-4">
+                      <div>등록일</div>
+                      <div>최종수정일</div>
+                    </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     조회수
@@ -489,7 +530,10 @@ export default function VideoListPage() {
                     별점/댓글
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    상태
+                    <div className="leading-4">
+                      <div>공개범위</div>
+                      <div>상태</div>
+                    </div>
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     관리
@@ -564,25 +608,11 @@ export default function VideoListPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {video.editor || video.director || '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {new Date(video.createdAt).toLocaleString('ko-KR', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {video.updatedAt
-                        ? new Date(video.updatedAt).toLocaleString('ko-KR', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
-                        : '-'}
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      <div className="space-y-2">
+                        <p>{formatListDateTime(video.createdAt)}</p>
+                        <p>{video.updatedAt ? formatListDateTime(video.updatedAt) : '-'}</p>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {video.viewCount.toLocaleString()}
@@ -595,14 +625,24 @@ export default function VideoListPage() {
                             {video.rating.toFixed(1)}
                           </span>
                         )}
-                        <span className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          className="flex items-center gap-1 text-left underline underline-offset-2 hover:no-underline"
+                          onClick={() => {
+                            setCommentsContentId(video.id)
+                            setCommentsModalOpen(true)
+                          }}
+                        >
                           <MessageSquare className="h-3 w-3" />
                           {video.commentCount}
-                        </span>
+                        </button>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(video.status)}
+                    <td className="px-6 py-4">
+                      <div className="space-y-2">
+                        <div>{getVisibilityBadge(video.visibility)}</div>
+                        <div>{getStatusBadge(video.status)}</div>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-2">
@@ -714,6 +754,15 @@ export default function VideoListPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {commentsContentId != null ? (
+        <CommentsModal
+          open={commentsModalOpen}
+          onOpenChange={setCommentsModalOpen}
+          contentType="VIDEO"
+          contentId={commentsContentId}
+        />
+      ) : null}
 
       {deleting && (
         <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center">

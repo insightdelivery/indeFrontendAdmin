@@ -16,6 +16,7 @@ import { getAuthorsByContentType } from '@/features/contentAuthor'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Card } from '@/components/ui/card'
@@ -51,6 +52,7 @@ const articleSchema = z
     title: z.string().min(1, '제목을 입력해주세요.'),
     subtitle: z.string().optional(),
     content: z.string().min(1, '본문 내용을 입력해주세요.'),
+    sermonHighlight: z.string().optional(),
     category: z.string().min(1, '카테고리를 선택해주세요.'),
     author: z.string().optional(),
     author_id: z.union([z.number(), z.string()]).optional(),
@@ -58,6 +60,7 @@ const articleSchema = z
     visibility: z.string().min(1, '공개 범위를 선택해주세요.'),
     status: z.string().min(1, '발행 상태를 선택해주세요.'),
     isEditorPick: z.boolean().default(false),
+    allowComment: z.boolean().default(true),
     tags: z.array(z.string()).optional(),
     previewLength: z.number().min(0).max(100).optional(),
     scheduledAt: z.string().optional(),
@@ -163,6 +166,7 @@ export default function ArticleEditClient() {
         title: data.title,
         subtitle: data.subtitle || '',
         content: data.content,
+        sermonHighlight: data.sermonHighlight || '',
         category: data.category,
         author: data.author,
         author_id: data.author_id ?? undefined,
@@ -170,6 +174,7 @@ export default function ArticleEditClient() {
         visibility: data.visibility,
         status: data.status,
         isEditorPick: data.isEditorPick || false,
+        allowComment: !!data.allowComment,
         tags: data.tags || [],
         previewLength: data.previewLength || 50,
         scheduledAt: data.scheduledAt ? new Date(data.scheduledAt).toISOString().slice(0, 16) : '',
@@ -529,6 +534,16 @@ export default function ArticleEditClient() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="sermonHighlight">말씀 돋보기</Label>
+              <Textarea
+                id="sermonHighlight"
+                {...register('sermonHighlight')}
+                placeholder="본문 하단에 노출할 말씀 돋보기 내용을 입력하세요"
+                rows={5}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="previewLength">미리보기 분량 설정 (%)</Label>
               <Input
                 id="previewLength"
@@ -617,6 +632,19 @@ export default function ArticleEditClient() {
                 />
                 <Label className="text-sm">
                   체크 시 메인 페이지 '에디터 추천' 섹션에 노출
+                </Label>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>댓글 기능 추가</Label>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={watch('allowComment')}
+                  onCheckedChange={(checked) => setValue('allowComment', checked)}
+                />
+                <Label className="text-sm">
+                  OFF 시 홈페이지에서 댓글이 보이지 않고 작성할 수 없습니다.
                 </Label>
               </div>
             </div>

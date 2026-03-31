@@ -7,6 +7,7 @@ export interface Article {
   title: string
   subtitle?: string
   content: string
+  sermonHighlight?: string
   thumbnail?: string
   category: string
   author: string
@@ -18,6 +19,7 @@ export interface Article {
   isEditorPick: boolean
   viewCount: number
   rating?: number
+  allowComment: boolean
   commentCount: number
   highlightCount: number
   questionCount: number
@@ -66,6 +68,7 @@ export interface ArticleCreateRequest {
   title: string
   subtitle?: string
   content: string
+  sermonHighlight?: string
   thumbnail?: string
   category: string
   author: string
@@ -75,6 +78,7 @@ export interface ArticleCreateRequest {
   visibility: 'all' | 'free' | 'paid' | 'purchased' | string
   status: 'draft' | 'published' | 'private' | 'scheduled' | string
   isEditorPick?: boolean
+  allowComment?: boolean
   tags?: string[]
   previewLength?: number
   scheduledAt?: string
