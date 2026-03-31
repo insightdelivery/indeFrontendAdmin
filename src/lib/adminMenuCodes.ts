@@ -18,6 +18,8 @@ export const MenuCodes = {
   DISPLAY_EVENTS: 'SYS26330B025',
   HOMEPAGE_DOC: 'SYS26330B026',
   PUBLIC_MEMBERS: 'SYS26330B027',
+  /** 결제/주문 — 백엔드 MenuCodes.PAYMENT, DB sysCode 동일 sid */
+  PAYMENT: 'SYS26330B028',
   /** 백엔드 menu_codes.FILES_COMMON 과 동일 */
   FILES_COMMON: 'SYS26330B029',
 } as const
@@ -32,6 +34,7 @@ export const MENU_CODE_BY_ADMIN_PATH: Record<string, string> = {
   '/admin/display-events': MenuCodes.DISPLAY_EVENTS,
   '/admin/homepage-docs': MenuCodes.HOMEPAGE_DOC,
   '/admin/users': MenuCodes.PUBLIC_MEMBERS,
+  '/admin/orders': MenuCodes.PAYMENT,
   '/admin/settings/code': MenuCodes.CODE_MANAGE,
   '/admin/settings/menu-permission': MenuCodes.MENU_PERMISSION,
   '/admin/settings/admin-register': MenuCodes.ADMIN_REGISTER,

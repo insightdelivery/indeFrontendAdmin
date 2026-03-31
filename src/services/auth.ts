@@ -91,8 +91,16 @@ export const login = async (data: LoginRequest): Promise<LoginResponse> => {
 
     return apiResponse.Result
   } catch (error: any) {
+    const api = error.response?.data?.IndeAPIResponse as
+      | { ErrorCode?: string; Message?: string }
+      | undefined
+    if (api?.Message) {
+      throw new Error(api.Message)
+    }
     console.error('로그인 API 오류:', error)
-    console.error('오류 응답:', error.response?.data)
+    if (error.response?.data) {
+      console.error('오류 응답:', error.response.data)
+    }
     throw error
   }
 }

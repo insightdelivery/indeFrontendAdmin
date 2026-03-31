@@ -13,6 +13,8 @@ export interface MenuPermissionTargetUser {
   memberShipId: string
   memberShipName: string
   memberShipLevel: number
+  /** 없으면 활성으로 간주(구 API 호환) */
+  is_active?: boolean
 }
 
 interface IndeRoot<T> {
@@ -53,6 +55,8 @@ export interface AdminMenuCatalogItem {
   menu_code: string
   label: string
   sort: number | null
+  /** SYS26330B006 루트 또는 상위 메뉴 sysCodeSid */
+  parent_sid?: string
 }
 
 /** SYS26330B006 하위 sysCodeManager 메뉴 (표시명·권한 부여 가능 코드) */
@@ -102,7 +106,7 @@ export async function deleteUserMenuPermission(id: number): Promise<void> {
 
 export interface ReapplyTemplateResult {
   memberShipLevel: number
-  mode: 'super_admin' | 'template'
+  mode: 'super_admin' | 'template' | 'inactive_clear'
   admin_role: string
   rows_created: number
   rows_cleared: number | null

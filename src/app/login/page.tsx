@@ -1,5 +1,6 @@
 'use client'
 
+import { isAxiosError } from 'axios'
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -70,18 +71,22 @@ function LoginForm() {
       const redirect = searchParams.get('redirect') || '/admin'
       router.push(redirect)
     } catch (error: any) {
-      console.error('로그인 오류:', error)
-      console.error('오류 응답:', error.response?.data)
-      
-      // 에러 메시지 추출
+      // 잘못된 ID/비밀번호 등은 auth.ts 가 일반 Error 로 던짐 — 토스트만 쓰고 콘솔 error 는 내지 않음
+      if (isAxiosError(error)) {
+        console.error('로그인 오류:', error.message || error)
+        if (error.response?.data) {
+          console.error('오류 응답:', error.response.data)
+        }
+      }
+
+      // 에러 메시지 추출 (auth.ts 가 API 메시지를 Error.message 로 넘기는 경우 포함)
       let errorMessage = '로그인에 실패했습니다.'
-      
-      if (error.response?.data?.IndeAPIResponse?.Message) {
+      if (error.message) {
+        errorMessage = error.message
+      } else if (error.response?.data?.IndeAPIResponse?.Message) {
         errorMessage = error.response.data.IndeAPIResponse.Message
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error
-      } else if (error.message) {
-        errorMessage = error.message
       }
       
       // Toast로 오류 메시지 표시 (우측 상단, 3초)
