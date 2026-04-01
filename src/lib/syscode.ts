@@ -11,11 +11,6 @@ export interface SysCodeItem {
   sysCodeUseFlag: string
 }
 
-interface SysCodeCache {
-  data: SysCodeItem[]
-  timestamp: number
-}
-
 const CACHE_DURATION = 24 * 60 * 60 * 1000 // 24시간 (밀리초)
 const CACHE_KEY = 'sysCodeData' // 단일 캐시 키 사용
 
@@ -26,6 +21,21 @@ export const DISPLAY_CONTENT_TYPE_PARENT = 'SYS26320B009'
 
 /** 1:1 문의 유형 부모 코드 (inquiry_inquiry.inquiry_type = 하위 sysCodeSid) */
 export const INQUIRY_TYPE_PARENT = 'SYS26330B001'
+
+/** 로그인 직후 선로드할 parent_id 목록 (1회 bulk 호출 대상) */
+export const SYSCODE_LOGIN_PARENT_IDS = [
+  'SYS26209B002', // 아티클 카테고리
+  'SYS26325B002', // 비디오 카테고리
+  'SYS26325B003', // 세미나 카테고리
+  'SYS26127B017', // 회원가입 지역(해외)
+  'SYS26127B018', // 회원가입 지역(국내)
+  'SYS26127B006', // 직분 코드
+  'SYS26209B020', // 아티클 발행정보
+  'SYS26209B015', // 아티클 공개범위
+  DISPLAY_EVENT_TYPE_PARENT, // 전시 이벤트 타입
+  DISPLAY_CONTENT_TYPE_PARENT, // 전시 콘텐츠 타입
+  INQUIRY_TYPE_PARENT, // 1:1 문의 유형
+] as const
 
 // syscode 데이터를 localStorage에서 가져오기
 export const getSysCodeFromCache = (sysCodeGubn: string): SysCodeItem[] | null => {
@@ -79,6 +89,44 @@ export const setSysCodeToCache = (sysCodeGubn: string, data: SysCodeItem[]): voi
   }
 }
 
+const toSysCodeItems = (rows: any[]): SysCodeItem[] => {
+  return rows.map((item: any) => ({
+    sysCodeSid: item.sysCodeSid,
+    sysCodeName: item.sysCodeName,
+    sysCodeValue: item.sysCodeVal || item.sysCodeValue || item.sysCodeSid,
+    sysCodeSort: item.sysCodeSort || 0,
+    sysCodeUseFlag: item.sysCodeUse || item.sysCodeUseFlag || 'Y'
+  }))
+}
+
+const getValidCacheSeed = (): Record<string, any> => {
+  const now = Date.now()
+  const cached = localStorage.getItem(CACHE_KEY)
+  if (!cached) return { timestamp: now }
+  try {
+    const parsed = JSON.parse(cached)
+    if (now - parsed.timestamp <= CACHE_DURATION) {
+      return { ...parsed, timestamp: now }
+    }
+  } catch {
+    // 무시하고 신규 캐시 생성
+  }
+  return { timestamp: now }
+}
+
+/** 여러 parent_id의 syscode를 한 번에 localStorage에 저장 */
+const setSysCodeBulkToCache = (payload: Record<string, SysCodeItem[]>): void => {
+  try {
+    const nextCache = getValidCacheSeed()
+    Object.entries(payload).forEach(([parentId, rows]) => {
+      nextCache[parentId] = rows
+    })
+    localStorage.setItem(CACHE_KEY, JSON.stringify(nextCache))
+  } catch (error) {
+    console.error('syscode bulk 캐시 저장 오류:', error)
+  }
+}
+
 // syscode 데이터를 API에서 가져오기
 export const fetchSysCodeFromAPI = async (sysCodeGubn: string): Promise<SysCodeItem[]> => {
   try {
@@ -114,13 +162,7 @@ export const fetchSysCodeFromAPI = async (sysCodeGubn: string): Promise<SysCodeI
       throw new Error('알 수 없는 응답 형식입니다.')
     }
     
-    return syscodeList.map((item: any) => ({
-      sysCodeSid: item.sysCodeSid,
-      sysCodeName: item.sysCodeName,
-      sysCodeValue: item.sysCodeVal || item.sysCodeValue || item.sysCodeSid,
-      sysCodeSort: item.sysCodeSort || 0,
-      sysCodeUseFlag: item.sysCodeUse || item.sysCodeUseFlag || 'Y'
-    }))
+    return toSysCodeItems(syscodeList)
   } catch (error) {
     console.error(`syscode API 호출 오류 (${sysCodeGubn}):`, error)
     return []
@@ -199,13 +241,7 @@ export const fetchSysCodeByParent = async (parentId: string): Promise<SysCodeIte
       return []
     }
     
-    const mappedData = syscodeList.map((item: any) => ({
-      sysCodeSid: item.sysCodeSid,
-      sysCodeName: item.sysCodeName,
-      sysCodeValue: item.sysCodeVal || item.sysCodeValue || item.sysCodeSid,
-      sysCodeSort: item.sysCodeSort || 0,
-      sysCodeUseFlag: item.sysCodeUse || item.sysCodeUseFlag || 'Y'
-    }))
+    const mappedData = toSysCodeItems(syscodeList)
     
     console.log(`✅ 시스템 코드 하위 레벨 파싱 완료: ${mappedData.length}개 항목`)
     return mappedData
@@ -216,25 +252,54 @@ export const fetchSysCodeByParent = async (parentId: string): Promise<SysCodeIte
 }
 
 /**
- * 로그인 시 특정 부모 코드의 하위 레벨을 가져와서 localStorage에 저장
- * @param parentId 부모 코드 ID (기본값: 'SYS26209B002')
+ * 여러 부모 코드의 하위 레벨을 1회 bulk로 조회
+ * @param parentIds 부모 코드 ID 목록
  */
-export const loadSysCodeOnLogin = async (parentId: string = 'SYS26209B002'): Promise<void> => {
+export const fetchSysCodeBulkByParents = async (
+  parentIds: readonly string[]
+): Promise<Record<string, SysCodeItem[]>> => {
   try {
-    console.log(`🚀 로그인 시 시스템 코드 로드 시작: ${parentId}`)
-    
-    // API에서 데이터 가져오기
-    const sysCodeData = await fetchSysCodeByParent(parentId)
-    
-    if (sysCodeData.length > 0) {
-      // localStorage에 저장
-      setSysCodeToCache(parentId, sysCodeData)
-      console.log(`✅ 로그인 시 시스템 코드 저장 완료: ${parentId} (${sysCodeData.length}개 항목)`)
+    const uniqueParentIds = Array.from(
+      new Set(parentIds.map((id) => id.trim()).filter(Boolean))
+    )
+    if (!uniqueParentIds.length) return {}
+
+    const response = await apiClient.get('/systemmanage/syscode/bulk', {
+      params: {
+        parent_ids: uniqueParentIds.join(',')
+      }
+    })
+
+    const raw = response.data?.IndeAPIResponse?.Result ?? response.data ?? {}
+    const result: Record<string, SysCodeItem[]> = {}
+    uniqueParentIds.forEach((parentId) => {
+      const rows = Array.isArray(raw?.[parentId]) ? raw[parentId] : []
+      result[parentId] = toSysCodeItems(rows)
+    })
+    return result
+  } catch (error) {
+    console.error('❌ 시스템 코드 bulk 조회 실패:', error)
+    return {}
+  }
+}
+
+/**
+ * 로그인 시 필요한 시스템 코드를 1회 bulk 호출로 localStorage에 저장
+ */
+export const loadSysCodeOnLogin = async (
+  parentIds: readonly string[] = SYSCODE_LOGIN_PARENT_IDS
+): Promise<void> => {
+  try {
+    const bulkData = await fetchSysCodeBulkByParents(parentIds)
+    const hasData = Object.keys(bulkData).length > 0
+    if (hasData) {
+      setSysCodeBulkToCache(bulkData)
+      console.log(`✅ 로그인 시 시스템 코드 bulk 저장 완료: ${Object.keys(bulkData).length}개 parent`)
     } else {
-      console.warn(`⚠️ 로그인 시 시스템 코드 데이터가 비어있음: ${parentId}`)
+      console.warn('⚠️ 로그인 시 시스템 코드 bulk 데이터가 비어있음')
     }
   } catch (error) {
-    console.error(`❌ 로그인 시 시스템 코드 로드 실패 (${parentId}):`, error)
+    console.error('❌ 로그인 시 시스템 코드 로드 실패:', error)
   }
 }
 

@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
-import { Loader2, Building2, Scale, Shield, Copyright, Save, RefreshCw, Search } from 'lucide-react'
+import { Loader2, Building2, Scale, Shield, Copyright, Save, RefreshCw, Search, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /** adminLayoutPlan.md §16.2.1 */
@@ -21,7 +21,7 @@ const adminActionBtn = {
 } as const
 
 /** adminLayoutPlan.md §17.2.2 — URL query `tab` 값 */
-const TAB_VALUES = ['company', 'terms', 'privacy', 'copyright', 'recommended'] as const
+const TAB_VALUES = ['company', 'terms', 'privacy', 'copyright', 'recommended', 'external'] as const
 type TabValue = (typeof TAB_VALUES)[number]
 
 function isTabValue(v: string | null): v is TabValue {
@@ -45,6 +45,7 @@ const TAB_SINGLE: {
 const COPYRIGHT_TYPES: HomepageDocType[] = ['article_copyright', 'video_copyright', 'seminar_copyright']
 
 const RECOMMENDED_SEARCH_DOC: HomepageDocType = 'recommended_search'
+const EXTERNAL_LINKS_DOC: HomepageDocType = 'external_links'
 
 const COPYRIGHT_LABELS: Record<string, string> = {
   article_copyright: '아티클 저작권',
@@ -60,6 +61,7 @@ const DOC_LABEL: Record<string, string> = {
   video_copyright: '비디오 저작권',
   seminar_copyright: '세미나 저작권',
   recommended_search: '추천검색어',
+  external_links: '외부링크',
 }
 
 type FormState = { title: string; bodyHtml: string; isPublished: boolean }
@@ -74,6 +76,32 @@ function payloadToForm(d: HomepageDocPayload): FormState {
     bodyHtml: d.bodyHtml ?? '',
     isPublished: d.isPublished,
   }
+}
+
+type ExternalLinksForm = {
+  recruitUrl: string
+  partnershipUrl: string
+}
+
+function parseExternalLinksBody(body: string | null | undefined): ExternalLinksForm {
+  const fallback: ExternalLinksForm = { recruitUrl: '', partnershipUrl: '' }
+  if (!body || !body.trim()) return fallback
+  try {
+    const parsed = JSON.parse(body) as Partial<ExternalLinksForm>
+    return {
+      recruitUrl: typeof parsed.recruitUrl === 'string' ? parsed.recruitUrl : '',
+      partnershipUrl: typeof parsed.partnershipUrl === 'string' ? parsed.partnershipUrl : '',
+    }
+  } catch {
+    return fallback
+  }
+}
+
+function stringifyExternalLinksBody(value: ExternalLinksForm): string {
+  return JSON.stringify({
+    recruitUrl: value.recruitUrl.trim(),
+    partnershipUrl: value.partnershipUrl.trim(),
+  })
 }
 
 function copyrightHtmlToPlain(html: string): string {
@@ -131,7 +159,12 @@ export default function HomepageDocsAdminPage() {
   const [forms, setForms] = useState<Record<string, FormState>>(() => {
     const init: Record<string, FormState> = {}
     for (const dt of HOMEPAGE_DOC_TYPES_ORDERED) {
-      init[dt] = dt === RECOMMENDED_SEARCH_DOC ? { ...emptyForm(), title: 'search' } : emptyForm()
+      init[dt] =
+        dt === RECOMMENDED_SEARCH_DOC
+          ? { ...emptyForm(), title: 'search' }
+          : dt === EXTERNAL_LINKS_DOC
+          ? { ...emptyForm(), title: 'external_links', bodyHtml: stringifyExternalLinksBody({ recruitUrl: '', partnershipUrl: '' }) }
+          : emptyForm()
     }
     return init
   })
@@ -167,11 +200,18 @@ export default function HomepageDocsAdminPage() {
           if (dt === RECOMMENDED_SEARCH_DOC) {
             merged = { ...merged, title: 'search' }
           }
+          if (dt === EXTERNAL_LINKS_DOC && !merged.title.trim()) {
+            merged = { ...merged, title: 'external_links' }
+          }
           next[dt] = merged
         } else {
           next[dt] =
             next[dt] ??
-            (dt === RECOMMENDED_SEARCH_DOC ? { ...emptyForm(), title: 'search' } : emptyForm())
+            (dt === RECOMMENDED_SEARCH_DOC
+              ? { ...emptyForm(), title: 'search' }
+              : dt === EXTERNAL_LINKS_DOC
+              ? { ...emptyForm(), title: 'external_links', bodyHtml: stringifyExternalLinksBody({ recruitUrl: '', partnershipUrl: '' }) }
+              : emptyForm())
         }
       }
       return next
@@ -212,7 +252,13 @@ export default function HomepageDocsAdminPage() {
       setSaving(docType)
       const bodyForApi = isPlainTextBodyDocType(docType) ? copyrightPlainToHtml(f.bodyHtml) : f.bodyHtml
       const titleForApi =
-        docType === RECOMMENDED_SEARCH_DOC ? 'search' : f.title.trim() ? f.title.trim() : null
+        docType === RECOMMENDED_SEARCH_DOC
+          ? 'search'
+          : docType === EXTERNAL_LINKS_DOC
+          ? 'external_links'
+          : f.title.trim()
+          ? f.title.trim()
+          : null
       const updated = await putHomepageDoc(docType, {
         title: titleForApi,
         bodyHtml: bodyForApi,
@@ -223,6 +269,9 @@ export default function HomepageDocsAdminPage() {
         : payloadToForm(updated)
       if (docType === RECOMMENDED_SEARCH_DOC) {
         nextForm = { ...nextForm, title: 'search' }
+      }
+      if (docType === EXTERNAL_LINKS_DOC) {
+        nextForm = { ...nextForm, title: 'external_links' }
       }
       updateForm(docType, nextForm)
       toast({
@@ -425,6 +474,79 @@ export default function HomepageDocsAdminPage() {
     )
   }
 
+  const renderExternalLinksBlock = () => {
+    const docType = EXTERNAL_LINKS_DOC
+    const f = forms[docType] ?? { ...emptyForm(), title: 'external_links', bodyHtml: stringifyExternalLinksBody({ recruitUrl: '', partnershipUrl: '' }) }
+    const links = parseExternalLinksBody(f.bodyHtml)
+
+    const setLinks = (next: ExternalLinksForm) => {
+      updateForm(docType, { bodyHtml: stringifyExternalLinksBody(next) })
+    }
+
+    return (
+      <div className="flex h-full w-full min-w-0 flex-col space-y-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 pb-3">
+          <div className="min-w-0">
+            <h3 id="external-links-h" className="text-base font-semibold text-gray-900">
+              외부링크
+            </h3>
+            <p className="mt-0.5 text-xs text-gray-500">풋터 소개 영역에서 인재채용/광고 및 협업 문의 클릭 시 새 탭으로 이동합니다.</p>
+            <p className="mt-1 text-xs text-gray-500">{f.isPublished ? '공개' : '비공개'}</p>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              className={cn(adminActionBtn.green, 'gap-1')}
+              onClick={() => handleSave(docType)}
+              disabled={!!saving || loading}
+            >
+              {saving === docType ? (
+                <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+              ) : (
+                <Save className="h-4 w-4 shrink-0" aria-hidden />
+              )}
+              저장
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="external-recruit-url">인재채용 URL</Label>
+          <Input
+            id="external-recruit-url"
+            type="url"
+            value={links.recruitUrl}
+            onChange={(e) => setLinks({ ...links, recruitUrl: e.target.value })}
+            placeholder="https://example.com/recruit"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="external-partnership-url">광고 및 협업 문의 URL</Label>
+          <Input
+            id="external-partnership-url"
+            type="url"
+            value={links.partnershipUrl}
+            onChange={(e) => setLinks({ ...links, partnershipUrl: e.target.value })}
+            placeholder="https://example.com/partnership"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 rounded-md border border-gray-200 bg-gray-50/80 px-4 py-3">
+          <Switch
+            id={`pub-${docType}`}
+            checked={f.isPublished}
+            onCheckedChange={(c) => updateForm(docType, { isPublished: c })}
+          />
+          <Label htmlFor={`pub-${docType}`} className="cursor-pointer">
+            공개여부
+          </Label>
+        </div>
+      </div>
+    )
+  }
+
   const refreshButton = (
     <Button
       type="button"
@@ -447,8 +569,7 @@ export default function HomepageDocsAdminPage() {
       <div className="mb-6">
         <h1 className="text-lg font-semibold text-gray-900">홈페이지 관리</h1>
         <p className="mt-1 text-sm text-gray-500">
-          회사소개·약관·개인정보·콘텐츠 저작권·추천검색어를 편집합니다. 저작권은 유형별로 각각 저장하고, 추천검색어는 한 블록만
-          저장합니다.
+          회사소개·약관·개인정보·콘텐츠 저작권·추천검색어·외부링크를 편집합니다. 저작권은 유형별로 각각 저장합니다.
         </p>
       </div>
 
@@ -470,6 +591,10 @@ export default function HomepageDocsAdminPage() {
           <TabsTrigger value="recommended" className={tabsTriggerClass}>
             <Search className="h-4 w-4 text-gray-500" aria-hidden />
             추천검색어
+          </TabsTrigger>
+          <TabsTrigger value="external" className={tabsTriggerClass}>
+            <ExternalLink className="h-4 w-4 text-gray-500" aria-hidden />
+            외부링크
           </TabsTrigger>
         </TabsList>
 
@@ -525,6 +650,10 @@ export default function HomepageDocsAdminPage() {
 
         <TabsContent value="recommended" className="mt-0 w-full">
           {loading ? loadingBlock : renderRecommendedSearchBlock()}
+        </TabsContent>
+
+        <TabsContent value="external" className="mt-0 w-full">
+          {loading ? loadingBlock : renderExternalLinksBlock()}
         </TabsContent>
       </Tabs>
     </div>
