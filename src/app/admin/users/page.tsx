@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { getPublicMemberList, getPublicMember, deletePublicMember, withdrawPublicMember } from '@/services/publicMembers'
-import type { PublicMemberListItem, PublicMemberDetail } from '@/types/publicMember'
+import { getPublicMemberList, deletePublicMember, withdrawPublicMember } from '@/services/publicMembers'
+import type { PublicMemberListItem } from '@/types/publicMember'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,7 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { MemberDetailModal } from '@/components/admin/users/MemberDetailModal'
 import { WithdrawModal } from '@/components/admin/users/WithdrawModal'
 import { Plus, Search, Edit, Trash2, UserX } from 'lucide-react'
 
@@ -65,9 +64,6 @@ export default function UsersPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false)
   const [withdrawingMember, setWithdrawingMember] = useState<PublicMemberListItem | null>(null)
-  const [detailModalOpen, setDetailModalOpen] = useState(false)
-  const [detail, setDetail] = useState<PublicMemberDetail | null>(null)
-  const [detailLoading, setDetailLoading] = useState(false)
 
   const load = useCallback(async (overridePage?: number) => {
     const p = overridePage ?? page
@@ -123,8 +119,7 @@ export default function UsersPage() {
     }
   }
 
-  const handleWithdrawClick = (e: React.MouseEvent, row: PublicMemberListItem) => {
-    e.stopPropagation()
+  const handleWithdrawClick = (row: PublicMemberListItem) => {
     if (row.status === 'WITHDRAWN') return
     setWithdrawingMember(row)
     setWithdrawModalOpen(true)
@@ -138,27 +133,6 @@ export default function UsersPage() {
     toast({ title: '탈퇴 처리 완료', description: '회원이 탈퇴 처리되었습니다.', duration: 3000 })
     setWithdrawingMember(null)
     load()
-    setDetailModalOpen(false)
-    if (detail?.member_sid === memberSid) setDetail(null)
-  }
-
-  const handleRowClick = async (memberSid: number) => {
-    setDetailModalOpen(true)
-    setDetail(null)
-    setDetailLoading(true)
-    try {
-      const data = await getPublicMember(memberSid)
-      setDetail(data)
-    } catch (e: any) {
-      toast({
-        title: '오류',
-        description: e.message || '회원 상세를 불러오는데 실패했습니다.',
-        variant: 'destructive',
-        duration: 3000,
-      })
-    } finally {
-      setDetailLoading(false)
-    }
   }
 
   return (
@@ -231,11 +205,17 @@ export default function UsersPage() {
                   {items.map((row) => (
                     <tr
                       key={row.member_sid}
-                      className="border-b last:border-0 hover:bg-gray-50 cursor-pointer"
-                      onClick={() => handleRowClick(row.member_sid)}
+                      className="border-b last:border-0 hover:bg-gray-50"
                     >
                       <td className="p-3 text-gray-600">{row.member_sid}</td>
-                      <td className="p-3 font-medium">{row.email}</td>
+                      <td className="p-3 font-medium">
+                        <Link
+                          href={`/admin/users/edit?id=${row.member_sid}&tab=user-info`}
+                          className="text-blue-700 hover:underline"
+                        >
+                          {row.email}
+                        </Link>
+                      </td>
                       <td className="p-3">{row.name}</td>
                       <td className="p-3">{row.nickname}</td>
                       <td className="p-3">{row.phone}</td>
@@ -264,7 +244,7 @@ export default function UsersPage() {
                       <td className="p-3 text-right text-gray-600 whitespace-nowrap text-xs">
                         {formatDate(row.withdraw_completed_at ?? null)}
                       </td>
-                      <td className="p-3 text-right align-middle" onClick={(e) => e.stopPropagation()}>
+                      <td className="p-3 text-right align-middle">
                         <div className="flex items-center justify-end gap-0.5 whitespace-nowrap">
                           <Link href={`/admin/users/edit?id=${row.member_sid}`}>
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0">
@@ -276,7 +256,7 @@ export default function UsersPage() {
                               variant="ghost"
                               size="sm"
                               className="h-8 w-8 p-0 shrink-0 text-amber-600 hover:text-amber-700"
-                              onClick={(e) => handleWithdrawClick(e, row)}
+                              onClick={() => handleWithdrawClick(row)}
                               title="탈퇴 처리"
                             >
                               <UserX className="h-4 w-4" />
@@ -344,13 +324,6 @@ export default function UsersPage() {
         }}
         member={withdrawingMember}
         onConfirm={handleWithdrawConfirm}
-      />
-
-      <MemberDetailModal
-        open={detailModalOpen}
-        onOpenChange={setDetailModalOpen}
-        detail={detail}
-        loading={detailLoading}
       />
     </div>
   )

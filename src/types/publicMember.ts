@@ -72,3 +72,64 @@ export interface PublicMemberCreateUpdateRequest {
   withdraw_reason?: string | null
   withdraw_detail_reason?: string | null
 }
+
+export type PublicContentType = 'ARTICLE' | 'VIDEO' | 'SEMINAR'
+
+export interface PublicMemberActivityQuery {
+  page?: number
+  page_size?: number
+  sort?: string
+}
+
+export interface PublicMemberActivityItem {
+  contentType: PublicContentType
+  contentCode: string
+  title: string | null
+  subtitle?: string | null
+  thumbnail?: string | null
+  category?: string | null
+  ratingValue?: number | null
+  regDateTime?: string | null
+  contentMissing?: boolean
+}
+
+export interface PublicMemberHighlightItem {
+  highlightGroupId: number
+  articleId: number
+  highlightText: string
+  articleTitle?: string | null
+  thumbnail?: string | null
+  createdAt?: string | null
+}
+
+export interface PublicMemberAppliedQuestionItem {
+  contentType: PublicContentType
+  contentTypeLabel?: string | null
+  contentId: number
+  categoryName?: string | null
+  title: string
+  subtitle?: string | null
+  thumbnailUrl?: string | null
+  lastAnsweredAt?: string | null
+  answerCount?: number
+  qaList?: Array<{
+    questionId: number
+    questionText: string
+    answerId: number
+    answerText: string
+    createdAt?: string | null
+  }>
+}
+
+export interface PublicMemberRatingSummary {
+  avgRating: number
+  totalCount: number
+  distribution: Record<string, number>
+}
+
+export interface PublicMemberListPayload<T> {
+  list: T[]
+  total: number
+  page: number
+  page_size: number
+}
