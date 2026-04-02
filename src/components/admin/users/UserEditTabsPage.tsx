@@ -637,7 +637,7 @@ export function UserEditTabsPage() {
                   <label className="flex items-center gap-2"><Checkbox checked={isStaff} onCheckedChange={(v) => setIsStaff(!!v)} /><span className="text-sm">관리자</span></label>
                   <label className="flex items-center gap-2"><Checkbox checked={emailVerified} onCheckedChange={(v) => setEmailVerified(!!v)} /><span className="text-sm">이메일 인증 완료</span></label>
                   <label className="flex items-center gap-2"><Checkbox checked={profileCompleted} onCheckedChange={(v) => setProfileCompleted(!!v)} /><span className="text-sm">프로필 완료</span></label>
-                  <label className="flex items-center gap-2"><Checkbox checked={newsletterAgree} onCheckedChange={(v) => setNewsletterAgree(!!v)} /><span className="text-sm">뉴스레터 수신 동의</span></label>
+                  <label className="flex items-center gap-2"><Checkbox checked={newsletterAgree} onCheckedChange={(v) => setNewsletterAgree(!!v)} /><span className="text-sm">뉴스레터 및 이벤트/혜택 정보 수신동의</span></label>
                 </div>
 
               </form>

@@ -22,6 +22,14 @@ export const MenuCodes = {
   PAYMENT: 'SYS26330B028',
   /** 백엔드 menu_codes.FILES_COMMON 과 동일 */
   FILES_COMMON: 'SYS26330B029',
+  SMS_EMAIL: 'SYS26401B001',
+  SMS_KAKAO_SEND: 'SYS26401B002',
+  SMS_KAKAO_HISTORY: 'SYS26401B003',
+  SMS_SENDER_NUMBERS: 'SYS26401B004',
+  EMAIL_SEND: 'SYS26401B005',
+  EMAIL_HISTORY: 'SYS26401B006',
+  /** 발신 이메일 관리 — adminUserPermissionsPlan §2.1 id 110 */
+  EMAIL_SENDER_MANAGE: 'SYS26402B001',
 } as const
 
 /** 사이드바 경로 → menu_code (단일 메뉴) — 라벨은 AdminMenuCatalog(DB)에서 조회 */
@@ -41,6 +49,13 @@ export const MENU_CODE_BY_ADMIN_PATH: Record<string, string> = {
   '/admin/board/notices': MenuCodes.NOTICE,
   '/admin/board/faqs': MenuCodes.FAQ,
   '/admin/board/inquiries': MenuCodes.INQUIRY,
+  '/admin/messages': MenuCodes.SMS_EMAIL,
+  '/admin/messages/sms/send': MenuCodes.SMS_KAKAO_SEND,
+  '/admin/messages/sms/history': MenuCodes.SMS_KAKAO_HISTORY,
+  '/admin/messages/sms/sender-numbers': MenuCodes.SMS_SENDER_NUMBERS,
+  '/admin/messages/email/send': MenuCodes.EMAIL_SEND,
+  '/admin/messages/email/history': MenuCodes.EMAIL_HISTORY,
+  '/admin/messages/email/sender-emails': MenuCodes.EMAIL_SENDER_MANAGE,
 }
 
 export function canReadMenuCode(user: UserInfo | null, menuCode: string): boolean {
@@ -74,5 +89,17 @@ export function canShowSettingsNav(user: UserInfo | null): boolean {
     canReadMenuCode(user, MenuCodes.CODE_MANAGE) ||
     canReadMenuCode(user, MenuCodes.MENU_PERMISSION) ||
     canReadMenuCode(user, MenuCodes.ADMIN_REGISTER)
+  )
+}
+
+export function canShowSmsEmailNav(user: UserInfo | null): boolean {
+  return (
+    canReadMenuCode(user, MenuCodes.SMS_EMAIL) ||
+    canReadMenuCode(user, MenuCodes.SMS_KAKAO_SEND) ||
+    canReadMenuCode(user, MenuCodes.SMS_KAKAO_HISTORY) ||
+    canReadMenuCode(user, MenuCodes.SMS_SENDER_NUMBERS) ||
+    canReadMenuCode(user, MenuCodes.EMAIL_SEND) ||
+    canReadMenuCode(user, MenuCodes.EMAIL_HISTORY) ||
+    canReadMenuCode(user, MenuCodes.EMAIL_SENDER_MANAGE)
   )
 }

@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import {
   canShowAdminPath,
   canShowBoardNav,
+  canShowSmsEmailNav,
   canShowSettingsNav,
 } from '@/lib/adminMenuCodes'
 import { AdminMenuCatalogProvider } from '@/contexts/AdminMenuCatalogContext'
@@ -35,6 +36,9 @@ import {
   ClipboardList,
   HelpCircle,
   Mail,
+  Send,
+  History,
+  Phone,
   Images,
   Globe,
 } from 'lucide-react'
@@ -63,6 +67,15 @@ const BOARD_SUB_MENUS = [
   { href: '/admin/board/inquiries', label: '1:1 문의', icon: Mail },
 ] as const
 
+const SMS_EMAIL_SUB_MENUS = [
+  { href: '/admin/messages/sms/send', label: '문자 / 카카오 전송', icon: Send, section: 'sms' },
+  { href: '/admin/messages/sms/history', label: '문자 카카오 전송 내역', icon: History, section: 'sms' },
+  { href: '/admin/messages/sms/sender-numbers', label: '문자 발신번호 관리', icon: Phone, section: 'sms' },
+  { href: '/admin/messages/email/send', label: '이메일 전송', icon: Send, section: 'email' },
+  { href: '/admin/messages/email/history', label: '이메일 전송 내역', icon: History, section: 'email' },
+  { href: '/admin/messages/email/sender-emails', label: '발신이메일 관리', icon: Mail, section: 'email' },
+] as const
+
 export default function AdminLayout({
   children,
 }: {
@@ -77,6 +90,7 @@ export default function AdminLayout({
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [boardOpen, setBoardOpen] = useState(false)
+  const [smsEmailOpen, setSmsEmailOpen] = useState(false)
 
   /** 액세스 만료·리프레시만 남은 경우 무음 갱신 후 대시보드 유지 (규칙: access 없을 때만 refresh) */
   useEffect(() => {
@@ -153,6 +167,9 @@ export default function AdminLayout({
   useEffect(() => {
     if (pathname?.startsWith('/admin/board')) setBoardOpen(true)
   }, [pathname])
+  useEffect(() => {
+    if (pathname?.startsWith('/admin/messages')) setSmsEmailOpen(true)
+  }, [pathname])
 
   /** early return보다 앞에 두어야 함 (Rules of Hooks) */
   const visibleMenuItems = useMemo(
@@ -167,8 +184,21 @@ export default function AdminLayout({
     () => [...SETTINGS_SUB_MENUS].filter((item) => canShowAdminPath(userInfo, item.href)),
     [userInfo]
   )
+  const visibleSmsEmailSubMenus = useMemo(
+    () => [...SMS_EMAIL_SUB_MENUS].filter((item) => canShowAdminPath(userInfo, item.href)),
+    [userInfo]
+  )
   const showBoardSection = canShowBoardNav(userInfo) && visibleBoardSubMenus.length > 0
   const showSettingsSection = canShowSettingsNav(userInfo) && visibleSettingsSubMenus.length > 0
+  const showSmsEmailSection = canShowSmsEmailNav(userInfo) && visibleSmsEmailSubMenus.length > 0
+  const visibleMainMenuItems = useMemo(
+    () => visibleMenuItems.filter((item) => item.href !== '/admin/orders'),
+    [visibleMenuItems]
+  )
+  const paymentMenuItem = useMemo(
+    () => visibleMenuItems.find((item) => item.href === '/admin/orders'),
+    [visibleMenuItems]
+  )
 
   const userInitials =
     userInfo?.memberShipName?.trim().slice(0, 2) ||
@@ -225,7 +255,7 @@ export default function AdminLayout({
         {sidebarOpen && (
           <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-3">
             <ul className="space-y-1">
-              {visibleMenuItems.map((item) => {
+              {visibleMainMenuItems.map((item) => {
                 const Icon = item.icon
                 const isActive =
                   pathname === item.href ||
@@ -247,6 +277,101 @@ export default function AdminLayout({
                   </li>
                 )
               })}
+
+              {/* 문자 이메일 메뉴 (하위 메뉴 포함) - 결제관리 위 고정 */}
+              {showSmsEmailSection ? (
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setSmsEmailOpen(!smsEmailOpen)}
+                  className={cn(
+                    'flex w-full items-center justify-between gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
+                    pathname?.startsWith('/admin/messages')
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <MessageSquare className="h-4 w-4 shrink-0 opacity-90" />
+                    <span>문자 이메일</span>
+                  </div>
+                  <ChevronRight
+                    className={cn(
+                      'h-4 w-4 shrink-0 transition-transform duration-200',
+                      smsEmailOpen && 'rotate-90'
+                    )}
+                  />
+                </button>
+                {smsEmailOpen && (
+                  <ul className="ml-2 mt-1 space-y-0.5 border-l border-border pl-3">
+                    <li className="px-3 pt-2 text-xs font-semibold text-muted-foreground">문자</li>
+                    {visibleSmsEmailSubMenus
+                      .filter((subItem) => subItem.section === 'sms')
+                      .map((subItem) => {
+                        const SubIcon = subItem.icon
+                        const isSubActive = pathname === subItem.href
+                        return (
+                          <li key={subItem.href}>
+                            <Link
+                              href={subItem.href}
+                              className={cn(
+                                'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
+                                isSubActive
+                                  ? 'bg-primary/10 font-medium text-primary'
+                                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                              )}
+                            >
+                              <SubIcon className="h-3.5 w-3.5 shrink-0 opacity-90" />
+                              <span>{subItem.label}</span>
+                            </Link>
+                          </li>
+                        )
+                      })}
+                    <li className="px-3 pt-3 text-xs font-semibold text-muted-foreground">이메일</li>
+                    {visibleSmsEmailSubMenus
+                      .filter((subItem) => subItem.section === 'email')
+                      .map((subItem) => {
+                        const SubIcon = subItem.icon
+                        const isSubActive = pathname === subItem.href
+                        return (
+                          <li key={subItem.href}>
+                            <Link
+                              href={subItem.href}
+                              className={cn(
+                                'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
+                                isSubActive
+                                  ? 'bg-primary/10 font-medium text-primary'
+                                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                              )}
+                            >
+                              <SubIcon className="h-3.5 w-3.5 shrink-0 opacity-90" />
+                              <span>{subItem.label}</span>
+                            </Link>
+                          </li>
+                        )
+                      })}
+                  </ul>
+                )}
+              </li>
+              ) : null}
+
+              {/* 결제관리 (문자 이메일 아래) */}
+              {paymentMenuItem ? (
+                <li key={paymentMenuItem.href}>
+                  <Link
+                    href={paymentMenuItem.href}
+                    className={cn(
+                      'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
+                      pathname === paymentMenuItem.href || pathname?.startsWith(paymentMenuItem.href)
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    )}
+                  >
+                    <paymentMenuItem.icon className="h-4 w-4 shrink-0 opacity-90" />
+                    <span>{paymentMenuItem.label}</span>
+                  </Link>
+                </li>
+              ) : null}
 
               {/* 게시판 관리 메뉴 (하위 메뉴 포함) */}
               {showBoardSection ? (
