@@ -516,9 +516,6 @@ export default function SeminarListPage() {
                     출연자/강사
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    작성자
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <div className="leading-4">
                       <div>등록일</div>
                       <div>최종수정일</div>
@@ -587,27 +584,9 @@ export default function SeminarListPage() {
                       {video.subtitle && (
                         <div className="text-xs text-gray-500 mt-1">{video.subtitle}</div>
                       )}
-                      <div className="flex gap-1 mt-1">
-                        {video.isNewBadge && (
-                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                            NEW
-                          </span>
-                        )}
-                        {video.isMaterialBadge && (
-                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                            자료
-                          </span>
-                        )}
-                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div>{video.speaker || '-'}</div>
-                      {video.speakerAffiliation && (
-                        <div className="text-xs text-gray-500">{video.speakerAffiliation}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {video.editor || video.director || '-'}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       <div className="space-y-2">

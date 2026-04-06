@@ -112,9 +112,6 @@ export default function VideoDetailSections({
             <MetaCell label="카테고리">{dashStr(categoryName)}</MetaCell>
             <MetaCell label="콘텐츠 유형">{video.contentType === 'seminar' ? '세미나' : '비디오'}</MetaCell>
             <MetaCell label="출연자">{dashStr(video.speaker)}</MetaCell>
-            <MetaCell label="출연 소속">{dashStr(video.speakerAffiliation)}</MetaCell>
-            <MetaCell label="편집자">{dashStr(video.editor)}</MetaCell>
-            <MetaCell label="감독">{dashStr(video.director)}</MetaCell>
             <MetaCell label="조회수">{video.viewCount ?? 0}</MetaCell>
             <MetaCell label="평점">{video.rating != null ? String(video.rating) : '-'}</MetaCell>
             <MetaCell label="댓글 수">{video.commentCount ?? 0}</MetaCell>

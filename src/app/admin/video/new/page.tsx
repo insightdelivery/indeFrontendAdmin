@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { getAuthorsByContentType } from '@/features/contentAuthor'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -39,37 +40,78 @@ import {
   Video as VideoIcon,
 } from 'lucide-react'
 import Link from 'next/link'
-import { getUserInfo } from '@/services/auth'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
 import apiClient from '@/lib/axios'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
-const videoSchema = z.object({
-  contentType: z.literal('video'),
-  category: z.string().min(1, '카테고리를 선택해주세요.'),
-  title: z.string().min(1, '제목을 입력해주세요.'),
-  subtitle: z.string().optional(),
-  body: z.string().optional(),
-  sourceType: z.enum([
-    VIDEO_SOURCE_TYPE.FILE_UPLOAD,
-    VIDEO_SOURCE_TYPE.VIMEO,
-    VIDEO_SOURCE_TYPE.YOUTUBE,
-  ]),
-  videoStreamId: z.string().optional(),
-  videoUrl: z.string().optional(),
-  speaker: z.string().optional(),
-  speakerAffiliation: z.string().optional(),
-  editor: z.string().optional(),
-  director: z.string().optional(),
-  visibility: z.string().min(1, '공개 범위를 선택해주세요.'),
-  status: z.string().min(1, '상태를 선택해주세요.'),
-  isNewBadge: z.boolean().default(false),
-  isMaterialBadge: z.boolean().default(false),
-  allowRating: z.boolean().default(true),
-  allowComment: z.boolean().default(true),
-  tags: z.array(z.string()).optional(),
-  scheduledAt: z.string().optional(),
-})
+/** UI 전용 — API `status`로 매핑(임시저장·비공개는 둘 다 `private`) */
+const VIDEO_PUBLISH_MODE = {
+  IMMEDIATE: 'immediate',
+  DRAFT: 'draft',
+  PRIVATE: 'private',
+  SCHEDULED: 'scheduled',
+} as const
+
+const VIDEO_PUBLISH_OPTIONS: {
+  value: (typeof VIDEO_PUBLISH_MODE)[keyof typeof VIDEO_PUBLISH_MODE]
+  label: string
+  apiStatus: string
+}[] = [
+  { value: VIDEO_PUBLISH_MODE.IMMEDIATE, label: '즉시발행', apiStatus: VIDEO_STATUS.PUBLIC },
+  { value: VIDEO_PUBLISH_MODE.DRAFT, label: '임시저장', apiStatus: VIDEO_STATUS.PRIVATE },
+  { value: VIDEO_PUBLISH_MODE.PRIVATE, label: '비공개', apiStatus: VIDEO_STATUS.PRIVATE },
+  { value: VIDEO_PUBLISH_MODE.SCHEDULED, label: '예약발행', apiStatus: VIDEO_STATUS.SCHEDULED },
+]
+
+const videoSchema = z
+  .object({
+    contentType: z.literal('video'),
+    category: z.string().min(1, '카테고리를 선택해주세요.'),
+    title: z.string().min(1, '제목을 입력해주세요.'),
+    subtitle: z.string().optional(),
+    body: z.string().optional(),
+    sourceType: z.enum([
+      VIDEO_SOURCE_TYPE.FILE_UPLOAD,
+      VIDEO_SOURCE_TYPE.VIMEO,
+      VIDEO_SOURCE_TYPE.YOUTUBE,
+    ]),
+    videoStreamId: z.string().optional(),
+    videoUrl: z.string().optional(),
+    speaker: z.string().optional(),
+    speaker_id: z.union([z.number(), z.string()]).optional(),
+    visibility: z.string().min(1, '공개 범위를 선택해주세요.'),
+    publishMode: z.enum([
+      VIDEO_PUBLISH_MODE.IMMEDIATE,
+      VIDEO_PUBLISH_MODE.DRAFT,
+      VIDEO_PUBLISH_MODE.PRIVATE,
+      VIDEO_PUBLISH_MODE.SCHEDULED,
+    ]),
+    allowComment: z.boolean().default(true),
+    tags: z.array(z.string()).optional(),
+    scheduledAt: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.publishMode === VIDEO_PUBLISH_MODE.SCHEDULED) {
+      const t = data.scheduledAt?.trim()
+      if (!t) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: '예약 일시를 입력해주세요.',
+          path: ['scheduledAt'],
+        })
+      }
+    }
+  })
+  .refine(
+    (d) => {
+      const sid =
+        d.speaker_id != null && d.speaker_id !== '' ? Number(d.speaker_id) : undefined
+      const hasId = sid !== undefined && !Number.isNaN(sid)
+      const hasName = !!d.speaker?.trim()
+      return hasId || hasName
+    },
+    { message: '출연자/강사를 선택해주세요.', path: ['speaker_id'] },
+  )
 
 type VideoFormData = z.infer<typeof videoSchema>
 
@@ -94,6 +136,7 @@ export default function VideoCreatePage() {
   const [isScheduled, setIsScheduled] = useState(false)
   const [saving, setSaving] = useState(false)
   const [uploadingAttachment, setUploadingAttachment] = useState(false)
+  const [speakerOptions, setSpeakerOptions] = useState<{ author_id: number; name: string }[]>([])
   const showCenterLoader = saving || uploadingVideo || uploadingAttachment
 
   const {
@@ -109,17 +152,25 @@ export default function VideoCreatePage() {
       contentType: 'video',
       sourceType: VIDEO_SOURCE_TYPE.FILE_UPLOAD,
       visibility: '',
-      status: 'private',
-      isNewBadge: false,
-      isMaterialBadge: false,
-      allowRating: true,
+      publishMode: VIDEO_PUBLISH_MODE.PRIVATE,
       allowComment: true,
       tags: [],
+      speaker_id: undefined as number | undefined,
+      speaker: '',
     },
   })
 
+  useEffect(() => {
+    getAuthorsByContentType('VIDEO')
+      .then((authors) => {
+        const editors = authors.filter((a) => a.role === 'EDITOR')
+        setSpeakerOptions(editors.map((a) => ({ author_id: a.author_id, name: a.name })))
+      })
+      .catch(() => setSpeakerOptions([]))
+  }, [])
+
   const sourceType = watch('sourceType')
-  const status = watch('status')
+  const publishMode = watch('publishMode')
 
   const clearVideoFileSelection = useCallback(() => {
     setVideoFile(null)
@@ -136,17 +187,10 @@ export default function VideoCreatePage() {
     }
     clearVideoFileSelection()
   }, [sourceType, setValue, clearVideoFileSelection])
-  const userInfo = getUserInfo()
 
   useEffect(() => {
-    if (userInfo) {
-      setValue('editor', userInfo.memberShipName || '')
-    }
-  }, [userInfo, setValue])
-
-  useEffect(() => {
-    setIsScheduled(status === VIDEO_STATUS.SCHEDULED)
-  }, [status])
+    setIsScheduled(publishMode === VIDEO_PUBLISH_MODE.SCHEDULED)
+  }, [publishMode])
 
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -363,8 +407,28 @@ export default function VideoCreatePage() {
         }
       }
 
+      const { publishMode: mode, ...formRest } = data
+      const apiStatus =
+        mode === VIDEO_PUBLISH_MODE.IMMEDIATE
+          ? VIDEO_STATUS.PUBLIC
+          : mode === VIDEO_PUBLISH_MODE.SCHEDULED
+            ? VIDEO_STATUS.SCHEDULED
+            : VIDEO_STATUS.PRIVATE
+
+      const sidRaw = formRest.speaker_id
+      const speakerIdNorm =
+        sidRaw != null && sidRaw !== ''
+          ? typeof sidRaw === 'number'
+            ? sidRaw
+            : Number(sidRaw)
+          : undefined
+      const speaker_id =
+        speakerIdNorm !== undefined && !Number.isNaN(speakerIdNorm) ? speakerIdNorm : undefined
+
       const requestData: VideoCreateRequest = {
-        ...data,
+        ...formRest,
+        speaker_id,
+        status: apiStatus,
         sourceType: st,
         videoStreamId:
           st === VIDEO_SOURCE_TYPE.FILE_UPLOAD ? finalVideoStreamId || undefined : null,
@@ -477,6 +541,33 @@ export default function VideoCreatePage() {
               </Select>
               {errors.visibility && (
                 <p className="text-sm text-red-600">{errors.visibility.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2 max-w-md">
+              <Label htmlFor="speaker_id">출연자/강사 *</Label>
+              <Select
+                value={watch('speaker_id') != null ? String(watch('speaker_id')) : ''}
+                onValueChange={(value) => {
+                  const id = value === '' ? undefined : Number(value)
+                  setValue('speaker_id', id)
+                  const selected = speakerOptions.find((e) => e.author_id === id)
+                  setValue('speaker', selected?.name ?? '')
+                }}
+              >
+                <SelectTrigger id="speaker_id">
+                  <SelectValue placeholder="출연자/강사 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {speakerOptions.map((e) => (
+                    <SelectItem key={e.author_id} value={String(e.author_id)}>
+                      {e.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.speaker_id && (
+                <p className="text-sm text-red-600">{errors.speaker_id.message}</p>
               )}
             </div>
 
@@ -792,125 +883,60 @@ export default function VideoCreatePage() {
           </div>
         </Card>
 
-        {/* 인물 및 연동 설정 */}
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">인물 및 연동 설정</h2>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="speaker">출연자/강사</Label>
-                <Input
-                  id="speaker"
-                  {...register('speaker')}
-                  placeholder="출연자 또는 강사 이름"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="speakerAffiliation">출연자 소속</Label>
-                <Input
-                  id="speakerAffiliation"
-                  {...register('speakerAffiliation')}
-                  placeholder="소속 기관 또는 단체"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="editor">에디터</Label>
-                <Input
-                  id="editor"
-                  {...register('editor')}
-                  placeholder="에디터 이름"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="director">디렉터</Label>
-                <Input
-                  id="director"
-                  {...register('director')}
-                  placeholder="디렉터 이름"
-                />
-              </div>
-            </div>
-          </div>
-        </Card>
-
         {/* 상호작용 설정 */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">상호작용 설정</h2>
           <div className="space-y-4">
-            <div className="space-y-2 rounded-md border border-dashed border-gray-200 bg-gray-50/80 p-4">
-              <Label>적용 질문 (Q&A)</Label>
-              <p className="text-sm text-gray-600">
-                비디오 저장 후 <strong>수정</strong> 화면에서 <code className="rounded bg-white px-1 text-xs">content_question</code> API로
-                적용 질문을 등록·수정할 수 있습니다. (아티클과 동일)
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={watch('allowRating')}
-                  onCheckedChange={(checked) => setValue('allowRating', checked)}
-                />
-                <Label>별점 허용</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={watch('allowComment')}
-                  onCheckedChange={(checked) => setValue('allowComment', checked)}
-                />
-                <Label>댓글 허용</Label>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={watch('isNewBadge')}
-                  onCheckedChange={(checked) => setValue('isNewBadge', checked)}
-                />
-                <Label>NEW 배지 표시</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={watch('isMaterialBadge')}
-                  onCheckedChange={(checked) => setValue('isMaterialBadge', checked)}
-                />
-                <Label>자료 배지 표시</Label>
-              </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={watch('allowComment')}
+                onCheckedChange={(checked) => setValue('allowComment', checked)}
+              />
+              <Label>댓글 허용</Label>
             </div>
           </div>
         </Card>
-
         {/* 발행 및 시스템 정보 */}
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">발행 및 시스템 정보</h2>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="status">상태 *</Label>
-              <Select
-                value={watch('status')}
-                onValueChange={(value) => setValue('status', value)}
+              <Label className="text-base font-medium">
+                발행 상태 <span className="text-red-600">*</span>
+              </Label>
+              <RadioGroup
+                value={watch('publishMode')}
+                onValueChange={(v) =>
+                  setValue(
+                    'publishMode',
+                    v as (typeof VIDEO_PUBLISH_MODE)[keyof typeof VIDEO_PUBLISH_MODE],
+                  )
+                }
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="상태 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={VIDEO_STATUS.PUBLIC}>공개</SelectItem>
-                  <SelectItem value={VIDEO_STATUS.PRIVATE}>비공개</SelectItem>
-                  <SelectItem value={VIDEO_STATUS.SCHEDULED}>예약</SelectItem>
-                </SelectContent>
-              </Select>
-              {errors.status && (
-                <p className="text-sm text-red-600">{errors.status.message}</p>
+                <div className="flex flex-wrap gap-x-6 gap-y-3">
+                  {VIDEO_PUBLISH_OPTIONS.map((opt) => (
+                    <div key={opt.value} className="flex items-center space-x-2">
+                      <RadioGroupItem value={opt.value} id={`video-publish-${opt.value}`} />
+                      <Label
+                        htmlFor={`video-publish-${opt.value}`}
+                        className="text-sm font-normal cursor-pointer"
+                      >
+                        {opt.label}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </RadioGroup>
+              {errors.publishMode && (
+                <p className="text-sm text-red-600">{errors.publishMode.message}</p>
               )}
             </div>
 
             {isScheduled && (
               <div className="space-y-2">
-                <Label htmlFor="scheduledAt">예약 일시 *</Label>
+                <Label htmlFor="scheduledAt">
+                  예약 일시 <span className="text-red-600">*</span>
+                </Label>
                 <Input
                   id="scheduledAt"
                   type="datetime-local"
@@ -922,7 +948,7 @@ export default function VideoCreatePage() {
               </div>
             )}
           </div>
-        </Card>
+        </Card>        
       </form>
 
       {showCenterLoader && (

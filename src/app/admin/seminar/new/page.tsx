@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { getAuthorsByContentType } from '@/features/contentAuthor'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -41,32 +42,37 @@ import {
   GraduationCap,
 } from 'lucide-react'
 import Link from 'next/link'
-import { getUserInfo } from '@/services/auth'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
 import apiClient from '@/lib/axios'
 
-const videoSchema = z.object({
-  contentType: z.enum(['video', 'seminar'], {
-    required_error: '콘텐츠 타입을 선택해주세요.',
-  }),
-  category: z.string().min(1, '카테고리를 선택해주세요.'),
-  title: z.string().min(1, '제목을 입력해주세요.'),
-  subtitle: z.string().optional(),
-  body: z.string().optional(),
-  videoStreamId: z.string().optional(),
-  speaker: z.string().optional(),
-  speakerAffiliation: z.string().optional(),
-  editor: z.string().optional(),
-  director: z.string().optional(),
-  visibility: z.string().min(1, '공개 범위를 선택해주세요.'),
-  status: z.string().min(1, '상태를 선택해주세요.'),
-  isNewBadge: z.boolean().default(false),
-  isMaterialBadge: z.boolean().default(false),
-  allowRating: z.boolean().default(true),
-  allowComment: z.boolean().default(true),
-  tags: z.array(z.string()).optional(),
-  scheduledAt: z.string().optional(),
-})
+const videoSchema = z
+  .object({
+    contentType: z.enum(['video', 'seminar'], {
+      required_error: '콘텐츠 타입을 선택해주세요.',
+    }),
+    category: z.string().min(1, '카테고리를 선택해주세요.'),
+    title: z.string().min(1, '제목을 입력해주세요.'),
+    subtitle: z.string().optional(),
+    body: z.string().optional(),
+    videoStreamId: z.string().optional(),
+    speaker: z.string().optional(),
+    speaker_id: z.union([z.number(), z.string()]).optional(),
+    visibility: z.string().min(1, '공개 범위를 선택해주세요.'),
+    status: z.string().min(1, '상태를 선택해주세요.'),
+    allowComment: z.boolean().default(true),
+    tags: z.array(z.string()).optional(),
+    scheduledAt: z.string().optional(),
+  })
+  .refine(
+    (d) => {
+      const sid =
+        d.speaker_id != null && d.speaker_id !== '' ? Number(d.speaker_id) : undefined
+      const hasId = sid !== undefined && !Number.isNaN(sid)
+      const hasName = !!d.speaker?.trim()
+      return hasId || hasName
+    },
+    { message: '출연자/강사를 선택해주세요.', path: ['speaker_id'] },
+  )
 
 type VideoFormData = z.infer<typeof videoSchema>
 
@@ -91,6 +97,7 @@ export default function SeminarCreatePage() {
   const [isScheduled, setIsScheduled] = useState(false)
   const [saving, setSaving] = useState(false)
   const [uploadingAttachment, setUploadingAttachment] = useState(false)
+  const [speakerOptions, setSpeakerOptions] = useState<{ author_id: number; name: string }[]>([])
   const showCenterLoader = saving || uploadingVideo || uploadingAttachment
 
   const {
@@ -106,22 +113,23 @@ export default function SeminarCreatePage() {
       contentType: 'seminar',
       visibility: '',
       status: 'private',
-      isNewBadge: false,
-      isMaterialBadge: false,
-      allowRating: true,
       allowComment: true,
       tags: [],
+      speaker_id: undefined as number | undefined,
+      speaker: '',
     },
   })
 
-  const status = watch('status')
-  const userInfo = getUserInfo()
-
   useEffect(() => {
-    if (userInfo) {
-      setValue('editor', userInfo.memberShipName || '')
-    }
-  }, [userInfo, setValue])
+    getAuthorsByContentType('SEMINAR')
+      .then((authors) => {
+        const editors = authors.filter((a) => a.role === 'EDITOR')
+        setSpeakerOptions(editors.map((a) => ({ author_id: a.author_id, name: a.name })))
+      })
+      .catch(() => setSpeakerOptions([]))
+  }, [])
+
+  const status = watch('status')
 
   useEffect(() => {
     setIsScheduled(status === VIDEO_STATUS.SCHEDULED)
@@ -320,10 +328,21 @@ export default function SeminarCreatePage() {
         }
       }
 
+      const sidRaw = data.speaker_id
+      const speakerIdNorm =
+        sidRaw != null && sidRaw !== ''
+          ? typeof sidRaw === 'number'
+            ? sidRaw
+            : Number(sidRaw)
+          : undefined
+      const speaker_id =
+        speakerIdNorm !== undefined && !Number.isNaN(speakerIdNorm) ? speakerIdNorm : undefined
+
       const requestData: VideoCreateRequest = {
         ...data,
         contentType: 'seminar',
         sourceType: 'FILE_UPLOAD',
+        speaker_id,
         videoStreamId: finalVideoStreamId || undefined,
         videoUrl: null,
         tags: data.tags?.filter((tag) => tag.trim() !== ''),
@@ -690,42 +709,31 @@ export default function SeminarCreatePage() {
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">인물 및 연동 설정</h2>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="speaker">출연자/강사</Label>
-                <Input
-                  id="speaker"
-                  {...register('speaker')}
-                  placeholder="출연자 또는 강사 이름"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="speakerAffiliation">출연자 소속</Label>
-                <Input
-                  id="speakerAffiliation"
-                  {...register('speakerAffiliation')}
-                  placeholder="소속 기관 또는 단체"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="editor">에디터</Label>
-                <Input
-                  id="editor"
-                  {...register('editor')}
-                  placeholder="에디터 이름"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="director">디렉터</Label>
-                <Input
-                  id="director"
-                  {...register('director')}
-                  placeholder="디렉터 이름"
-                />
-              </div>
+            <div className="space-y-2 max-w-md">
+              <Label htmlFor="speaker_id">출연자/강사 *</Label>
+              <Select
+                value={watch('speaker_id') != null ? String(watch('speaker_id')) : ''}
+                onValueChange={(value) => {
+                  const id = value === '' ? undefined : Number(value)
+                  setValue('speaker_id', id)
+                  const selected = speakerOptions.find((e) => e.author_id === id)
+                  setValue('speaker', selected?.name ?? '')
+                }}
+              >
+                <SelectTrigger id="speaker_id">
+                  <SelectValue placeholder="출연자/강사 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  {speakerOptions.map((e) => (
+                    <SelectItem key={e.author_id} value={String(e.author_id)}>
+                      {e.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.speaker_id && (
+                <p className="text-sm text-red-600">{errors.speaker_id.message}</p>
+              )}
             </div>
           </div>
         </Card>
@@ -741,38 +749,12 @@ export default function SeminarCreatePage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={watch('allowRating')}
-                  onCheckedChange={(checked) => setValue('allowRating', checked)}
-                />
-                <Label>별점 허용</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={watch('allowComment')}
-                  onCheckedChange={(checked) => setValue('allowComment', checked)}
-                />
-                <Label>댓글 허용</Label>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={watch('isNewBadge')}
-                  onCheckedChange={(checked) => setValue('isNewBadge', checked)}
-                />
-                <Label>NEW 배지 표시</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={watch('isMaterialBadge')}
-                  onCheckedChange={(checked) => setValue('isMaterialBadge', checked)}
-                />
-                <Label>자료 배지 표시</Label>
-              </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={watch('allowComment')}
+                onCheckedChange={(checked) => setValue('allowComment', checked)}
+              />
+              <Label>댓글 허용</Label>
             </div>
           </div>
         </Card>

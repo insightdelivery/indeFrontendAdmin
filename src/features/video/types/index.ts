@@ -17,15 +17,11 @@ export interface Video {
   sourceType?: VideoSourceType
   thumbnail?: string
   speaker?: string
-  speakerAffiliation?: string
-  editor?: string
-  director?: string
+  /** Content Author FK — 아티클 author_id 와 동일 패턴 */
+  speaker_id?: number | null
   visibility: 'all' | 'free' | 'paid' | 'purchased' | string
   status: 'public' | 'private' | 'scheduled' | 'deleted' | string
-  isNewBadge: boolean
-  isMaterialBadge: boolean
-  allowRating: boolean
-  allowComment: boolean
+  allowComment?: boolean
   viewCount: number
   rating?: number
   commentCount: number
@@ -65,8 +61,6 @@ export interface VideoListParams {
   status?: string
   search?: string
   searchType?: 'all' | 'title' | 'speaker' | 'keyword'
-  editor?: string
-  director?: string
   sort?: 'createdAt' | 'viewCount' | 'rating'
 }
 
@@ -102,14 +96,9 @@ export interface VideoCreateRequest {
   sourceType?: VideoSourceType
   thumbnail?: string
   speaker?: string
-  speakerAffiliation?: string
-  editor?: string
-  director?: string
+  speaker_id?: number | null
   visibility: 'all' | 'free' | 'paid' | 'purchased' | string
   status: 'public' | 'private' | 'scheduled' | string
-  isNewBadge?: boolean
-  isMaterialBadge?: boolean
-  allowRating?: boolean
   allowComment?: boolean
   tags?: string[]
   questions?: string[]
@@ -124,4 +113,3 @@ export interface VideoCreateRequest {
 export interface VideoUpdateRequest extends Partial<VideoCreateRequest> {
   id: number
 }
-

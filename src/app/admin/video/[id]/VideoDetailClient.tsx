@@ -105,7 +105,6 @@ export default function VideoDetailClient() {
           })() || video.category}</div></div>
           <div><span className="text-gray-500">상태</span><div>{video.status}</div></div>
           <div><span className="text-gray-500">출연자</span><div>{video.speaker || '-'}</div></div>
-          <div><span className="text-gray-500">작성자</span><div>{video.editor || video.director || '-'}</div></div>
         </div>
       </Card>
 
