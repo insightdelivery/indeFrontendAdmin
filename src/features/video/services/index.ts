@@ -3,6 +3,7 @@
  */
 import apiClient from '@/lib/axios'
 import Cookies from 'js-cookie'
+import { validateProfileImageFile } from '@/features/contentAuthor'
 import type {
   Video,
   VideoListParams,
@@ -11,6 +12,27 @@ import type {
   VideoCreateRequest,
   VideoUpdateRequest,
 } from '../types'
+
+/** 출연자 프로필: 콘텐츠 저자와 동일 규격(500px 정사각, 3MB 이하) → S3 `video/speaker-profile/` */
+export async function uploadVideoSpeakerProfileImage(file: File): Promise<string> {
+  const validation = await validateProfileImageFile(file)
+  if (!validation.valid) {
+    throw new Error(validation.error)
+  }
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('folder', 'video/speaker-profile/')
+  const response = await apiClient.post<{ IndeAPIResponse: { ErrorCode: string; Message: string; Result: { url: string } } }>(
+    '/files/upload',
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  )
+  const api = response.data.IndeAPIResponse
+  if (!api || api.ErrorCode !== '00' || !api.Result?.url) {
+    throw new Error(api?.Message || '출연자 프로필 이미지 업로드에 실패했습니다.')
+  }
+  return api.Result.url
+}
 
 /**
  * 비디오/세미나 목록 조회

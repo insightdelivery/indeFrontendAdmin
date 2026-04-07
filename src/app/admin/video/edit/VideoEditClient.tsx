@@ -11,6 +11,7 @@ import {
   getVideo,
   updateVideo,
   uploadVideoFile,
+  uploadVideoSpeakerProfileImage,
   type Video,
   type VideoUpdateRequest,
   VIDEO_STATUS,
@@ -18,7 +19,7 @@ import {
   VIDEO_SOURCE_TYPE,
   VIDEO_CATEGORY_PARENT,
 } from '@/features/video'
-import { getAuthorsByContentType } from '@/features/contentAuthor'
+import { VideoSpeakerFormSection, type VideoSpeakerProfileUploadState } from '@/components/video/VideoSpeakerFormSection'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -86,8 +87,9 @@ const schema = z
       VIDEO_PUBLISH_MODE.PRIVATE,
       VIDEO_PUBLISH_MODE.SCHEDULED,
     ]),
-    speaker: z.string().optional(),
-    speaker_id: z.union([z.number(), z.string()]).optional(),
+    speaker: z.string().min(1, '출연자/강사 이름을 입력해주세요.'),
+    speakerAffiliation: z.string().optional(),
+    speakerProfileImage: z.string().optional(),
     allowComment: z.boolean().default(true),
     tags: z.array(z.string()).optional(),
     scheduledAt: z.string().optional(),
@@ -104,16 +106,6 @@ const schema = z
       }
     }
   })
-  .refine(
-    (d) => {
-      const sid =
-        d.speaker_id != null && d.speaker_id !== '' ? Number(d.speaker_id) : undefined
-      const hasId = sid !== undefined && !Number.isNaN(sid)
-      const hasName = !!d.speaker?.trim()
-      return hasId || hasName
-    },
-    { message: '출연자/강사를 선택해주세요.', path: ['speaker_id'] },
-  )
 
 type FormData = z.infer<typeof schema>
 
@@ -150,7 +142,11 @@ export default function VideoEditClient() {
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [speakerOptions, setSpeakerOptions] = useState<{ author_id: number; name: string }[]>([])
+  const [speakerProfileUpload, setSpeakerProfileUpload] = useState<VideoSpeakerProfileUploadState>({
+    pendingFile: null,
+    cleared: false,
+  })
+  const [speakerSectionResetToken, setSpeakerSectionResetToken] = useState(0)
   const [tagInput, setTagInput] = useState('')
   const [newAttachments, setNewAttachments] = useState<AttachmentFile[]>([])
   const [existingAttachments, setExistingAttachments] = useState<PersistedAttachment[]>([])
@@ -180,19 +176,11 @@ export default function VideoEditClient() {
       publishMode: VIDEO_PUBLISH_MODE.PRIVATE,
       allowComment: true,
       tags: [],
-      speaker_id: undefined as number | undefined,
       speaker: '',
+      speakerAffiliation: '',
+      speakerProfileImage: '',
     },
   })
-
-  useEffect(() => {
-    getAuthorsByContentType('VIDEO')
-      .then((authors) => {
-        const editors = authors.filter((a) => a.role === 'EDITOR')
-        setSpeakerOptions(editors.map((a) => ({ author_id: a.author_id, name: a.name })))
-      })
-      .catch(() => setSpeakerOptions([]))
-  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -238,11 +226,13 @@ export default function VideoEditClient() {
           visibility: data.visibility || '',
           publishMode: statusToPublishMode(data.status || 'private'),
           speaker: data.speaker || '',
-          speaker_id: data.speaker_id ?? undefined,
+          speakerAffiliation: data.speakerAffiliation ?? '',
+          speakerProfileImage: data.speakerProfileImage || '',
           allowComment: data.allowComment !== false,
           tags: Array.isArray(data.tags) ? [...data.tags] : [],
           scheduledAt: toDatetimeLocalValue(data.scheduledAt),
         })
+        setSpeakerSectionResetToken((k) => k + 1)
       } catch (error: any) {
         toast({
           title: '오류',
@@ -439,15 +429,12 @@ export default function VideoEditClient() {
         }
       }
 
-      const sidRaw = data.speaker_id
-      const speakerIdNorm =
-        sidRaw != null && sidRaw !== ''
-          ? typeof sidRaw === 'number'
-            ? sidRaw
-            : Number(sidRaw)
-          : undefined
-      const speaker_id =
-        speakerIdNorm !== undefined && !Number.isNaN(speakerIdNorm) ? speakerIdNorm : undefined
+      let speakerProfileImage = (getValues('speakerProfileImage') || '').trim()
+      if (speakerProfileUpload.pendingFile) {
+        speakerProfileImage = await uploadVideoSpeakerProfileImage(speakerProfileUpload.pendingFile)
+      } else if (speakerProfileUpload.cleared) {
+        speakerProfileImage = ''
+      }
 
       const { publishMode: mode, tags, ...formRest } = data
       const apiStatus = publishModeToApiStatus(mode)
@@ -461,7 +448,8 @@ export default function VideoEditClient() {
       const payload: VideoUpdateRequest = {
         ...formRest,
         id: video.id,
-        speaker_id,
+        speakerAffiliation: (formRest.speakerAffiliation || '').trim() || undefined,
+        speakerProfileImage,
         status: apiStatus,
         sourceType: st,
         videoStreamId: st === VIDEO_SOURCE_TYPE.FILE_UPLOAD ? finalVideoStreamId : null,
@@ -592,32 +580,15 @@ export default function VideoEditClient() {
               )}
             </div>
 
-            <div className="space-y-2 max-w-md">
-              <Label htmlFor="speaker_id_edit">출연자/강사 *</Label>
-              <Select
-                value={watch('speaker_id') != null ? String(watch('speaker_id')) : ''}
-                onValueChange={(value) => {
-                  const id = value === '' ? undefined : Number(value)
-                  setValue('speaker_id', id)
-                  const selected = speakerOptions.find((e) => e.author_id === id)
-                  setValue('speaker', selected?.name ?? '')
-                }}
-              >
-                <SelectTrigger id="speaker_id_edit">
-                  <SelectValue placeholder="출연자/강사 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  {speakerOptions.map((e) => (
-                    <SelectItem key={e.author_id} value={String(e.author_id)}>
-                      {e.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.speaker_id && (
-                <p className="text-sm text-red-600">{errors.speaker_id.message}</p>
-              )}
-            </div>
+            <VideoSpeakerFormSection<FormData>
+              register={register}
+              setValue={setValue}
+              watch={watch}
+              errors={errors}
+              onSpeakerProfileUploadStateChange={setSpeakerProfileUpload}
+              resetToken={speakerSectionResetToken}
+              idPrefix="video_edit_speaker"
+            />
 
             <div className="space-y-2">
               <Label htmlFor="title">메인 제목 *</Label>
@@ -898,6 +869,8 @@ export default function VideoEditClient() {
           </div>
         </Card>
 
+        <ContentQuestionsEditor contentType="VIDEO" contentId={video.id} />
+
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">상호작용 설정</h2>
           <div className="flex items-center space-x-2">
@@ -948,8 +921,6 @@ export default function VideoEditClient() {
             )}
           </div>
         </Card>
-
-        <ContentQuestionsEditor contentType="VIDEO" contentId={video.id} />
       </form>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>

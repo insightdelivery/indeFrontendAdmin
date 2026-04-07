@@ -17,8 +17,10 @@ export interface Video {
   sourceType?: VideoSourceType
   thumbnail?: string
   speaker?: string
-  /** Content Author FK — 아티클 author_id 와 동일 패턴 */
+  /** 레거시 Content Author FK — 신규 저장 시 null */
   speaker_id?: number | null
+  speakerAffiliation?: string | null
+  speakerProfileImage?: string | null
   visibility: 'all' | 'free' | 'paid' | 'purchased' | string
   status: 'public' | 'private' | 'scheduled' | 'deleted' | string
   allowComment?: boolean
@@ -97,6 +99,8 @@ export interface VideoCreateRequest {
   thumbnail?: string
   speaker?: string
   speaker_id?: number | null
+  speakerAffiliation?: string
+  speakerProfileImage?: string
   visibility: 'all' | 'free' | 'paid' | 'purchased' | string
   status: 'public' | 'private' | 'scheduled' | string
   allowComment?: boolean

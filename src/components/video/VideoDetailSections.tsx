@@ -1,6 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import Image from 'next/image'
 import { type Video, VIDEO_CATEGORY_PARENT, SEMINAR_CATEGORY_PARENT } from '@/features/video'
 import VideoPlayer from '@/components/video/VideoPlayer'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -111,7 +112,27 @@ export default function VideoDetailSections({
             <MetaCell label="공개 범위">{dashStr(video.visibility)}</MetaCell>
             <MetaCell label="카테고리">{dashStr(categoryName)}</MetaCell>
             <MetaCell label="콘텐츠 유형">{video.contentType === 'seminar' ? '세미나' : '비디오'}</MetaCell>
-            <MetaCell label="출연자">{dashStr(video.speaker)}</MetaCell>
+            <MetaCell label="출연자">
+              <div className="flex items-start gap-3">
+                {video.speakerProfileImage?.trim() ? (
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border bg-muted">
+                    <Image
+                      src={video.speakerProfileImage.trim()}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
+                ) : null}
+                <div className="min-w-0 space-y-0.5">
+                  <div>{dashStr(video.speaker)}</div>
+                  {video.speakerAffiliation?.trim() ? (
+                    <div className="text-xs text-muted-foreground">{video.speakerAffiliation.trim()}</div>
+                  ) : null}
+                </div>
+              </div>
+            </MetaCell>
             <MetaCell label="조회수">{video.viewCount ?? 0}</MetaCell>
             <MetaCell label="평점">{video.rating != null ? String(video.rating) : '-'}</MetaCell>
             <MetaCell label="댓글 수">{video.commentCount ?? 0}</MetaCell>

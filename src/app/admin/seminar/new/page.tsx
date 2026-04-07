@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { getAuthorsByContentType } from '@/features/contentAuthor'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -9,12 +8,14 @@ import * as z from 'zod'
 import {
   createVideo,
   uploadVideoFile,
+  uploadVideoSpeakerProfileImage,
   type VideoCreateRequest,
   CONTENT_TYPE,
   VIDEO_STATUS,
   VISIBILITY_OPTIONS,
   SEMINAR_CATEGORY_PARENT,
 } from '@/features/video'
+import { VideoSpeakerFormSection, type VideoSpeakerProfileUploadState } from '@/components/video/VideoSpeakerFormSection'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -55,24 +56,15 @@ const videoSchema = z
     subtitle: z.string().optional(),
     body: z.string().optional(),
     videoStreamId: z.string().optional(),
-    speaker: z.string().optional(),
-    speaker_id: z.union([z.number(), z.string()]).optional(),
+    speaker: z.string().min(1, '출연자/강사 이름을 입력해주세요.'),
+    speakerAffiliation: z.string().optional(),
+    speakerProfileImage: z.string().optional(),
     visibility: z.string().min(1, '공개 범위를 선택해주세요.'),
     status: z.string().min(1, '상태를 선택해주세요.'),
     allowComment: z.boolean().default(true),
     tags: z.array(z.string()).optional(),
     scheduledAt: z.string().optional(),
   })
-  .refine(
-    (d) => {
-      const sid =
-        d.speaker_id != null && d.speaker_id !== '' ? Number(d.speaker_id) : undefined
-      const hasId = sid !== undefined && !Number.isNaN(sid)
-      const hasName = !!d.speaker?.trim()
-      return hasId || hasName
-    },
-    { message: '출연자/강사를 선택해주세요.', path: ['speaker_id'] },
-  )
 
 type VideoFormData = z.infer<typeof videoSchema>
 
@@ -97,7 +89,10 @@ export default function SeminarCreatePage() {
   const [isScheduled, setIsScheduled] = useState(false)
   const [saving, setSaving] = useState(false)
   const [uploadingAttachment, setUploadingAttachment] = useState(false)
-  const [speakerOptions, setSpeakerOptions] = useState<{ author_id: number; name: string }[]>([])
+  const [speakerProfileUpload, setSpeakerProfileUpload] = useState<VideoSpeakerProfileUploadState>({
+    pendingFile: null,
+    cleared: false,
+  })
   const showCenterLoader = saving || uploadingVideo || uploadingAttachment
 
   const {
@@ -115,19 +110,11 @@ export default function SeminarCreatePage() {
       status: 'private',
       allowComment: true,
       tags: [],
-      speaker_id: undefined as number | undefined,
       speaker: '',
+      speakerAffiliation: '',
+      speakerProfileImage: '',
     },
   })
-
-  useEffect(() => {
-    getAuthorsByContentType('SEMINAR')
-      .then((authors) => {
-        const editors = authors.filter((a) => a.role === 'EDITOR')
-        setSpeakerOptions(editors.map((a) => ({ author_id: a.author_id, name: a.name })))
-      })
-      .catch(() => setSpeakerOptions([]))
-  }, [])
 
   const status = watch('status')
 
@@ -328,21 +315,21 @@ export default function SeminarCreatePage() {
         }
       }
 
-      const sidRaw = data.speaker_id
-      const speakerIdNorm =
-        sidRaw != null && sidRaw !== ''
-          ? typeof sidRaw === 'number'
-            ? sidRaw
-            : Number(sidRaw)
-          : undefined
-      const speaker_id =
-        speakerIdNorm !== undefined && !Number.isNaN(speakerIdNorm) ? speakerIdNorm : undefined
+      let speakerProfileImage = (getValues('speakerProfileImage') || '').trim()
+      if (speakerProfileUpload.pendingFile) {
+        speakerProfileImage = await uploadVideoSpeakerProfileImage(speakerProfileUpload.pendingFile)
+      } else if (speakerProfileUpload.cleared) {
+        speakerProfileImage = ''
+      }
+
+      const { speakerProfileImage: _spi, ...dataForApi } = data
 
       const requestData: VideoCreateRequest = {
-        ...data,
+        ...dataForApi,
         contentType: 'seminar',
         sourceType: 'FILE_UPLOAD',
-        speaker_id,
+        speakerAffiliation: (data.speakerAffiliation || '').trim() || undefined,
+        speakerProfileImage: speakerProfileImage.trim() !== '' ? speakerProfileImage : undefined,
         videoStreamId: finalVideoStreamId || undefined,
         videoUrl: null,
         tags: data.tags?.filter((tag) => tag.trim() !== ''),
@@ -451,6 +438,16 @@ export default function SeminarCreatePage() {
                 <p className="text-sm text-red-600">{errors.visibility.message}</p>
               )}
             </div>
+
+            <VideoSpeakerFormSection<VideoFormData>
+              register={register}
+              setValue={setValue}
+              watch={watch}
+              errors={errors}
+              onSpeakerProfileUploadStateChange={setSpeakerProfileUpload}
+              resetToken="seminar-new"
+              idPrefix="seminar_new_speaker"
+            />
 
             <div className="space-y-2">
               <Label htmlFor="title">메인 제목 *</Label>
@@ -706,49 +703,17 @@ export default function SeminarCreatePage() {
           </div>
         </Card>
 
-        <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">인물 및 연동 설정</h2>
-          <div className="space-y-4">
-            <div className="space-y-2 max-w-md">
-              <Label htmlFor="speaker_id">출연자/강사 *</Label>
-              <Select
-                value={watch('speaker_id') != null ? String(watch('speaker_id')) : ''}
-                onValueChange={(value) => {
-                  const id = value === '' ? undefined : Number(value)
-                  setValue('speaker_id', id)
-                  const selected = speakerOptions.find((e) => e.author_id === id)
-                  setValue('speaker', selected?.name ?? '')
-                }}
-              >
-                <SelectTrigger id="speaker_id">
-                  <SelectValue placeholder="출연자/강사 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  {speakerOptions.map((e) => (
-                    <SelectItem key={e.author_id} value={String(e.author_id)}>
-                      {e.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.speaker_id && (
-                <p className="text-sm text-red-600">{errors.speaker_id.message}</p>
-              )}
-            </div>
-          </div>
-        </Card>
+        <div className="space-y-2 rounded-lg border border-dashed border-gray-200 bg-gray-50/80 p-4">
+          <p className="text-sm font-medium text-gray-800">적용 질문 (Q&A)</p>
+          <p className="text-sm text-gray-600">
+            세미나 저장 후 <strong>수정</strong> 화면에서 <code className="rounded bg-white px-1 text-xs">content_question</code> API로
+            적용 질문을 등록·수정할 수 있습니다. (아티클과 동일)
+          </p>
+        </div>
 
         <Card className="p-6">
           <h2 className="text-xl font-semibold mb-4">상호작용 설정</h2>
           <div className="space-y-4">
-            <div className="space-y-2 rounded-md border border-dashed border-gray-200 bg-gray-50/80 p-4">
-              <Label>적용 질문 (Q&A)</Label>
-              <p className="text-sm text-gray-600">
-                세미나 저장 후 <strong>수정</strong> 화면에서 <code className="rounded bg-white px-1 text-xs">content_question</code> API로
-                적용 질문을 등록·수정할 수 있습니다. (아티클과 동일)
-              </p>
-            </div>
-
             <div className="flex items-center space-x-2">
               <Switch
                 checked={watch('allowComment')}
