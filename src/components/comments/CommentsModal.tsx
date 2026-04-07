@@ -13,6 +13,8 @@ import {
   type CommentContentType,
 } from '@/services/contentComments'
 
+const COMMENT_MAX_LENGTH = 500
+
 export function CommentsModal({
   open,
   onOpenChange,
@@ -165,7 +167,10 @@ export function CommentsModal({
                           <div className="mt-2 space-y-2">
                             <textarea
                               value={editingText}
-                              onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setEditingText(e.target.value)}
+                              maxLength={COMMENT_MAX_LENGTH}
+                              onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+                                setEditingText(e.target.value.slice(0, COMMENT_MAX_LENGTH))
+                              }
                               className="min-h-[80px] w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                             />
                             <div className="flex justify-end gap-2">
@@ -209,8 +214,12 @@ export function CommentsModal({
                     </div>
                     <textarea
                       value={replyDraft[c.id] ?? ''}
+                      maxLength={COMMENT_MAX_LENGTH}
                       onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
-                        setReplyDraft((prev) => ({ ...prev, [c.id]: e.target.value }))
+                        setReplyDraft((prev) => ({
+                          ...prev,
+                          [c.id]: e.target.value.slice(0, COMMENT_MAX_LENGTH),
+                        }))
                       }
                       placeholder="대댓글을 입력하세요"
                       className="min-h-[80px] w-full rounded-md border border-gray-300 px-3 py-2 text-sm"

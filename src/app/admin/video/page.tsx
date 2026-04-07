@@ -39,6 +39,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ListPagination } from '@/components/admin/ListPagination'
 import { formatDateTime } from '@/lib/utils'
 import VideoDetailSections from '@/components/video/VideoDetailSections'
 import { clearClientAdminSession } from '@/lib/adminClientSession'
@@ -93,8 +94,9 @@ export default function VideoListPage() {
   // 필터 상태
   const [filters, setFilters] = useState<VideoListParams>({
     page: 1,
-    pageSize: 20,
+    pageSize: 10,
   })
+  const [total, setTotal] = useState(0)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [category, setCategory] = useState<string>('전체')
@@ -121,6 +123,7 @@ export default function VideoListPage() {
       }
       const result = await getVideoList(params)
       setVideos(result.videos)
+      setTotal(result.total)
     } catch (error: any) {
       // 401/403 에러인 경우 토큰 무효화로 간주하고 로그인 페이지로 리다이렉트
       if (error.response?.status === 401 || error.response?.status === 403) {
@@ -307,6 +310,7 @@ export default function VideoListPage() {
     setSearchTerm('')
     setSearchType('all')
     setSort('createdAt')
+    setFilters((prev) => ({ ...prev, page: 1 }))
   }
 
   return (
@@ -366,7 +370,12 @@ export default function VideoListPage() {
                 }}
                 className="flex-1"
               />
-              <Button type="button" variant="outline" size="sm" onClick={() => void loadVideos()}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setFilters((prev) => ({ ...prev, page: 1 }))}
+              >
                 조회
               </Button>
             </div>
@@ -474,9 +483,7 @@ export default function VideoListPage() {
               checked={selectedIds.length === videos.length && videos.length > 0}
               onCheckedChange={handleSelectAll}
             />
-            <span className="text-sm text-gray-600">
-              전체 {videos.length}개
-            </span>
+            <span className="text-sm text-gray-600">총 {total.toLocaleString()}건</span>
           </div>
         </div>
 
@@ -649,6 +656,16 @@ export default function VideoListPage() {
               </tbody>
             </table>
           </div>
+        )}
+
+        {total > 0 && (
+          <ListPagination
+            currentPage={filters.page ?? 1}
+            totalPages={Math.ceil(total / (filters.pageSize ?? 10)) || 1}
+            onPageChange={(page) => setFilters((prev) => ({ ...prev, page }))}
+            total={total}
+            disabled={loading}
+          />
         )}
       </div>
 

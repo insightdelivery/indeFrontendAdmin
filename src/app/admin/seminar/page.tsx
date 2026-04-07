@@ -40,6 +40,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ListPagination } from '@/components/admin/ListPagination'
 import { formatDateTime } from '@/lib/utils'
 import VideoDetailSections from '@/components/video/VideoDetailSections'
 import { clearClientAdminSession } from '@/lib/adminClientSession'
@@ -96,8 +97,9 @@ export default function SeminarListPage() {
   // 필터 상태 (세미나만 조회)
   const [filters, setFilters] = useState<VideoListParams>({
     page: 1,
-    pageSize: 20,
+    pageSize: 10,
   })
+  const [total, setTotal] = useState(0)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [category, setCategory] = useState<string>('전체')
@@ -124,6 +126,7 @@ export default function SeminarListPage() {
       }
       const result = await getVideoList(params)
       setVideos(result.videos)
+      setTotal(result.total)
     } catch (error: any) {
       if (error.response?.status === 401 || error.response?.status === 403) {
         if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
@@ -316,6 +319,7 @@ export default function SeminarListPage() {
     setSearchTerm('')
     setSearchType('all')
     setSort('createdAt')
+    setFilters((prev) => ({ ...prev, page: 1 }))
   }
 
   return (
@@ -373,7 +377,12 @@ export default function SeminarListPage() {
                 }}
                 className="flex-1"
               />
-              <Button type="button" variant="outline" size="sm" onClick={() => void loadVideos()}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setFilters((prev) => ({ ...prev, page: 1 }))}
+              >
                 조회
               </Button>
             </div>
@@ -475,9 +484,7 @@ export default function SeminarListPage() {
               checked={selectedIds.length === videos.length && videos.length > 0}
               onCheckedChange={handleSelectAll}
             />
-            <span className="text-sm text-gray-600">
-              전체 {videos.length}개
-            </span>
+            <span className="text-sm text-gray-600">총 {total.toLocaleString()}건</span>
           </div>
         </div>
 
@@ -650,6 +657,16 @@ export default function SeminarListPage() {
               </tbody>
             </table>
           </div>
+        )}
+
+        {total > 0 && (
+          <ListPagination
+            currentPage={filters.page ?? 1}
+            totalPages={Math.ceil(total / (filters.pageSize ?? 10)) || 1}
+            onPageChange={(page) => setFilters((prev) => ({ ...prev, page }))}
+            total={total}
+            disabled={loading}
+          />
         )}
       </div>
 

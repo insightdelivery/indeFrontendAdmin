@@ -105,10 +105,10 @@ export default function ArticleListPage() {
   const [commentsModalOpen, setCommentsModalOpen] = useState(false)
   const [commentsContentId, setCommentsContentId] = useState<number | null>(null)
 
-  // 필터 상태 (페이지당 30개, listPageRules.md)
+  // 필터 상태 (페이지당 10개, listPageRules.md)
   const [filters, setFilters] = useState<ArticleListParams>({
     page: 1,
-    pageSize: 30,
+    pageSize: 10,
   })
   const [total, setTotal] = useState(0)
   const [startDate, setStartDate] = useState('')
@@ -355,6 +355,7 @@ export default function ArticleListPage() {
     setVisibility('')
     setStatus('')
     setSearchTerm('')
+    setFilters((prev) => ({ ...prev, page: 1 }))
   }
 
   return (
@@ -475,7 +476,12 @@ export default function ArticleListPage() {
                   }
                 }}
               />
-              <Button type="button" variant="outline" size="sm" onClick={() => void loadArticles()}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setFilters((prev) => ({ ...prev, page: 1 }))}
+              >
                 조회
               </Button>
             </div>
@@ -527,9 +533,7 @@ export default function ArticleListPage() {
               checked={selectedIds.length === articles.length && articles.length > 0}
               onCheckedChange={handleSelectAll}
             />
-            <span className="text-sm text-gray-600">
-              전체 {articles.length}개
-            </span>
+            <span className="text-sm text-gray-600">총 {total.toLocaleString()}건</span>
           </div>
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="h-4 w-4 mr-2" />
@@ -755,11 +759,11 @@ export default function ArticleListPage() {
           </div>
         )}
 
-        {/* 페이지네이션 (listPageRules.md: << < 1..10 > >>, 30개씩) */}
+        {/* 페이지네이션 (listPageRules.md: << < 1..10 > >>, 10개씩) */}
         {total > 0 && (
           <ListPagination
             currentPage={filters.page ?? 1}
-            totalPages={Math.ceil(total / (filters.pageSize ?? 30)) || 1}
+            totalPages={Math.ceil(total / (filters.pageSize ?? 10)) || 1}
             onPageChange={(page) =>
               setFilters((prev) => ({ ...prev, page }))
             }
