@@ -1,9 +1,15 @@
 import apiClient from '@/lib/axios'
 import Cookies from 'js-cookie'
+import { ADMIN_USER_INFO_COOKIE_EXPIRES_DAYS } from '@/constants/authCookies'
 import { ADMIN_USER_INFO_KEY } from '@/lib/adminAuthKeys'
 import { refreshAdminAccessToken } from '@/lib/adminTokenRefresh'
 import { getAdminAccessToken, setAdminAccessToken } from '@/lib/adminAccessMemory'
 import { clearClientAdminSession } from '@/lib/adminClientSession'
+
+/**
+ * 로그인 여부는 메모리 access token + HttpOnly refresh → `/adminMember/tokenrefresh` 만 신뢰한다.
+ * `ADMIN_USER_INFO_KEY` 쿠키는 사이드바·헤더 표시용 캐시이며, 없거나 만료되어도 refresh 로 복구되면 된다.
+ */
 
 export interface LoginRequest {
   memberShipId: string
@@ -67,17 +73,16 @@ export interface LogoutResponse {
   message: string
 }
 
-export const login = async (data: LoginRequest): Promise<LoginResponse> => {
-  console.log('API 호출 시작:', '/adminMember/login', data)
+const isDev = process.env.NODE_ENV === 'development'
 
+export const login = async (data: LoginRequest): Promise<LoginResponse> => {
   try {
     const response = await apiClient.post<IndeAPIResponse<LoginResult>>('/adminMember/login', data)
-    console.log('API 응답 원본:', response.data)
 
     const apiResponse = response.data.IndeAPIResponse
 
     if (!apiResponse) {
-      console.error('IndeAPIResponse가 없습니다. 응답:', response.data)
+      if (isDev) console.error('[auth] IndeAPIResponse 없음', response.data)
       throw new Error('응답 형식이 올바르지 않습니다.')
     }
 
@@ -90,27 +95,26 @@ export const login = async (data: LoginRequest): Promise<LoginResponse> => {
     }
 
     return apiResponse.Result
-  } catch (error: any) {
-    const api = error.response?.data?.IndeAPIResponse as
-      | { ErrorCode?: string; Message?: string }
-      | undefined
+  } catch (error: unknown) {
+    const api = (error as { response?: { data?: { IndeAPIResponse?: { Message?: string } } } }).response?.data
+      ?.IndeAPIResponse as { Message?: string } | undefined
     if (api?.Message) {
       throw new Error(api.Message)
     }
-    console.error('로그인 API 오류:', error)
-    if (error.response?.data) {
-      console.error('오류 응답:', error.response.data)
-    }
+    if (isDev) console.error('[auth] login', error)
     throw error
   }
 }
 
 export const refreshToken = async (): Promise<TokenRefreshResponse> => {
-  await refreshAdminAccessToken({ maxRetries: 3 })
+  await refreshAdminAccessToken()
   const access_token = getAdminAccessToken()
+  if (!access_token) {
+    throw new Error('토큰 갱신 후 access token이 없습니다.')
+  }
   const user = getUserInfo()
-  if (!access_token || !user) {
-    throw new Error('토큰 갱신 후 세션 정보가 없습니다.')
+  if (!user) {
+    throw new Error('토큰 갱신 후 사용자 표시 정보가 없습니다. 다시 로그인해주세요.')
   }
   return {
     access_token,
@@ -122,12 +126,12 @@ export const refreshToken = async (): Promise<TokenRefreshResponse> => {
 export { clearClientAdminSession } from '@/lib/adminClientSession'
 
 /**
- * 로그인 직후: access → 메모리, userInfo → 쿠키. refresh 는 응답 Set-Cookie(HttpOnly).
+ * 로그인 직후: access → 메모리, userInfo → 표시용 쿠키. refresh 는 응답 Set-Cookie(HttpOnly).
  */
 export function saveSessionAfterLogin(accessToken: string, userInfo?: UserInfo): void {
   setAdminAccessToken(accessToken)
   const cookieOptions = {
-    expires: 1,
+    expires: ADMIN_USER_INFO_COOKIE_EXPIRES_DAYS,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict' as const,
     path: '/',
@@ -168,6 +172,7 @@ export const logout = async (): Promise<LogoutResponse> => {
   }
 }
 
+/** UI·권한 표시용 캐시. 인증 여부는 `getAccessToken()` / refresh 로만 판단할 것. */
 export const getUserInfo = (): UserInfo | null => {
   const userInfoStr = Cookies.get(ADMIN_USER_INFO_KEY)
   if (userInfoStr) {

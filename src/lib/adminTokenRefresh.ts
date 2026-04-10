@@ -2,11 +2,9 @@ import axios, { AxiosError } from 'axios'
 import Cookies from 'js-cookie'
 import { ADMIN_USER_INFO_KEY } from '@/lib/adminAuthKeys'
 import { setAdminAccessToken } from '@/lib/adminAccessMemory'
+import { ADMIN_USER_INFO_COOKIE_EXPIRES_DAYS } from '@/constants/authCookies'
 
 const TOKEN_REFRESH_PATH = '/adminMember/tokenrefresh'
-
-let refreshRetryCount = 0
-const DEFAULT_MAX_RETRIES = 3
 
 function parseRefreshPayload(data: unknown): {
   access_token: string
@@ -51,14 +49,15 @@ function axiosErrorMessage(error: unknown): string {
 }
 
 /**
- * 관리자 토큰 갱신. refresh 는 HttpOnly 쿠키만 (빈 바디 {} + withCredentials).
- * 새 access 는 메모리에만 저장; user 는 표시용 쿠키 갱신.
+ * 관리자 토큰 갱신 — 요청 1회만 수행(내부에서 같은 호출을 여러 번 재시도하지 않음).
+ * refresh 는 HttpOnly 쿠키만 (빈 바디 {} + withCredentials).
+ * 새 access 는 메모리에만 저장; user 는 표시용 쿠키 갱신(없으면 생략).
+ *
+ * 실패 시 `onAuthFailure` 가 넘어오면 1회 호출(예: 로그인 이동). 누적 재시도 카운터는 없음.
  */
 export async function refreshAdminAccessToken(options?: {
-  maxRetries?: number
   onAuthFailure?: () => void
 }): Promise<string> {
-  const maxRetries = options?.maxRetries ?? DEFAULT_MAX_RETRIES
   const onAuthFailure = options?.onAuthFailure
 
   const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -75,7 +74,7 @@ export async function refreshAdminAccessToken(options?: {
     setAdminAccessToken(access_token)
 
     const cookieOptions = {
-      expires: 1,
+      expires: ADMIN_USER_INFO_COOKIE_EXPIRES_DAYS,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict' as const,
       path: '/',
@@ -84,21 +83,10 @@ export async function refreshAdminAccessToken(options?: {
       Cookies.set(ADMIN_USER_INFO_KEY, JSON.stringify(user), cookieOptions)
     }
 
-    refreshRetryCount = 0
     return access_token
   } catch (error: unknown) {
-    refreshRetryCount++
     const msg = axiosErrorMessage(error)
-
-    if (refreshRetryCount >= maxRetries) {
-      refreshRetryCount = 0
-      onAuthFailure?.()
-      throw new Error(
-        maxRetries >= DEFAULT_MAX_RETRIES
-          ? '토큰 갱신에 실패했습니다. 다시 로그인해주세요.'
-          : msg
-      )
-    }
+    onAuthFailure?.()
     throw new Error(msg)
   }
 }

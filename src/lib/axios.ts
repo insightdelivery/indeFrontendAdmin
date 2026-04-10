@@ -14,8 +14,6 @@ const apiClient = axios.create({
   maxBodyLength: 2 * 1024 * 1024 * 1024,
 })
 
-const MAX_REFRESH_RETRIES = 3
-
 let isRefreshing = false
 let failedQueue: Array<{
   resolve: (value?: unknown) => void
@@ -81,7 +79,6 @@ apiClient.interceptors.response.use(
 
       try {
         const newAccessToken = await refreshAdminAccessToken({
-          maxRetries: MAX_REFRESH_RETRIES,
           onAuthFailure: redirectToLogin,
         })
         failedQueue.forEach(({ resolve }) => resolve(newAccessToken))

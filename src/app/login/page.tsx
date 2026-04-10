@@ -39,9 +39,11 @@ function LoginForm() {
     setIsLoading(true)
     
     try {
-      console.log('로그인 시도:', data)
+      if (process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console -- 로컬 디버그만
+        console.log('[login] 시도', { memberShipId: data.memberShipId })
+      }
       const response = await login(data)
-      console.log('로그인 성공 응답:', response)
       
       // 토큰 및 사용자 정보 저장
       saveSessionAfterLogin(response.access_token, response.user)
@@ -50,7 +52,9 @@ function LoginForm() {
       try {
         await loadSysCodeOnLogin()
       } catch (error) {
-        console.error('시스템 코드 로드 실패 (로그인 후):', error)
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[login] 시스템 코드 로드 실패', error)
+        }
         // 시스템 코드 로드 실패해도 로그인은 계속 진행
       }
       
@@ -65,11 +69,8 @@ function LoginForm() {
       router.push(redirect)
     } catch (error: any) {
       // 잘못된 ID/비밀번호 등은 auth.ts 가 일반 Error 로 던짐 — 토스트만 쓰고 콘솔 error 는 내지 않음
-      if (isAxiosError(error)) {
-        console.error('로그인 오류:', error.message || error)
-        if (error.response?.data) {
-          console.error('오류 응답:', error.response.data)
-        }
+      if (process.env.NODE_ENV === 'development' && isAxiosError(error)) {
+        console.error('[login]', error.message, error.response?.data)
       }
 
       // 에러 메시지 추출 (auth.ts 가 API 메시지를 Error.message 로 넘기는 경우 포함)

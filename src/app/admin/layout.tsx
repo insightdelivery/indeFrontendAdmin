@@ -76,6 +76,11 @@ const SMS_EMAIL_SUB_MENUS = [
   { href: '/admin/messages/email/sender-emails', label: '발신이메일 관리', icon: Mail, section: 'email' },
 ] as const
 
+/**
+ * 인증이 필요한 관리 화면은 모두 `/admin` 하위에 두는 것을 권장한다.
+ * 무음 세션 복구(`refreshAdminAccessToken`)는 이 레이아웃에서만 수행되므로,
+ * 향후 `/admin` 밖에 보호 경로를 두면 동일 복구 로직을 공통 컴포넌트로 추출하거나 middleware·가드를 맞춰야 한다.
+ */
 export default function AdminLayout({
   children,
 }: {
@@ -124,7 +129,7 @@ export default function AdminLayout({
 
     ;(async () => {
       try {
-        await refreshAdminAccessToken({ maxRetries: 1 })
+        await refreshAdminAccessToken()
         if (cancelled) return
         setUserInfo(getUserInfo())
         setSessionReady(true)
