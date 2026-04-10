@@ -531,7 +531,10 @@ export default function VideoListPage() {
                     조회수
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    별점/댓글
+                    별점
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    댓글
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <div className="leading-4">
@@ -604,25 +607,27 @@ export default function VideoListPage() {
                       {video.viewCount.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      <div className="flex flex-col gap-1">
-                        {video.rating && (
-                          <span className="flex items-center gap-1">
-                            <Star className="h-3 w-3 text-yellow-500" />
-                            {video.rating.toFixed(1)}
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          className="flex items-center gap-1 text-left underline underline-offset-2 hover:no-underline"
-                          onClick={() => {
-                            setCommentsContentId(video.id)
-                            setCommentsModalOpen(true)
-                          }}
-                        >
-                          <MessageSquare className="h-3 w-3" />
-                          {video.commentCount}
-                        </button>
-                      </div>
+                      {video.rating != null ? (
+                        <span className="inline-flex items-center gap-1" title="평균 별점">
+                          <Star className="h-3 w-3 shrink-0 text-yellow-500" />
+                          {video.rating.toFixed(1)}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 text-left underline underline-offset-2 hover:no-underline"
+                        onClick={() => {
+                          setCommentsContentId(video.id)
+                          setCommentsModalOpen(true)
+                        }}
+                      >
+                        <MessageSquare className="h-3 w-3" />
+                        {video.commentCount}
+                      </button>
                     </td>
                     <td className="px-6 py-4">
                       <div className="space-y-2">

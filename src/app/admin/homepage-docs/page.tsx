@@ -1,10 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { HOMEPAGE_DOC_TYPES_ORDERED, type HomepageDocType } from '@/constants/homepageDoc'
 import { listHomepageDocs, putHomepageDoc, type HomepageDocPayload } from '@/services/homepageDoc'
-import { RichTextEditor } from '@/components/admin/RichTextEditor'
+import { RichTextEditor, type RichTextEditorHandle } from '@/components/admin/RichTextEditor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -52,6 +52,9 @@ const COPYRIGHT_LABELS: Record<string, string> = {
   video_copyright: '비디오 저작권',
   seminar_copyright: '세미나 저작권',
 }
+
+/** 회사소개 본문에 삽입하는 협력 업체 섹션 앵커 (www에서 `#partners`로 이동) */
+const COMPANY_INTRO_PARTNERS_ANCHOR_HTML = '<h2 id="partners">* 협력 업체</h2>'
 
 const DOC_LABEL: Record<string, string> = {
   company_intro: '회사소개',
@@ -153,6 +156,8 @@ export default function HomepageDocsAdminPage() {
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab')
   const tab: TabValue = isTabValue(tabParam) ? tabParam : 'company'
+
+  const companyIntroEditorRef = useRef<RichTextEditorHandle>(null)
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
@@ -292,6 +297,7 @@ export default function HomepageDocsAdminPage() {
   const renderSingleDocBody = (docType: HomepageDocType) => {
     const f = forms[docType] ?? emptyForm()
     const meta = TAB_SINGLE.find((t) => t.key === docType)!
+    const isCompanyIntro = docType === 'company_intro'
     return (
       <div className="space-y-6 max-w-4xl">
         <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
@@ -303,17 +309,37 @@ export default function HomepageDocsAdminPage() {
 
         <div className="space-y-2">
           <Label htmlFor={`title-${docType}`}>페이지 제목 (선택)</Label>
-          <Input
-            id={`title-${docType}`}
-            value={f.title}
-            onChange={(e) => updateForm(docType, { title: e.target.value })}
-            placeholder="비우면 www 기본 제목 사용"
-            className="max-w-xl"
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              id={`title-${docType}`}
+              value={f.title}
+              onChange={(e) => updateForm(docType, { title: e.target.value })}
+              placeholder="비우면 www 기본 제목 사용"
+              className={cn(isCompanyIntro ? 'max-w-xl min-w-[12rem] flex-1' : 'max-w-xl')}
+            />
+            {isCompanyIntro && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                title="본문 에디터에서 커서를 둔 위치에 협력 업체 앵커(#partners) 제목을 삽입합니다."
+                onClick={() =>
+                  companyIntroEditorRef.current?.insertContentAtCursor(COMPANY_INTRO_PARTNERS_ANCHOR_HTML)
+                }
+              >
+                * 협력업체 앵커
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="space-y-2" aria-label={`${DOC_LABEL[docType] ?? docType} 페이지 편집`}>
-          <RichTextEditor value={f.bodyHtml} onChange={(html) => updateForm(docType, { bodyHtml: html })} />
+          <RichTextEditor
+            ref={isCompanyIntro ? companyIntroEditorRef : undefined}
+            value={f.bodyHtml}
+            onChange={(html) => updateForm(docType, { bodyHtml: html })}
+          />
         </div>
 
         <div className="flex flex-wrap items-center gap-3 rounded-md border border-gray-200 bg-gray-50/80 px-4 py-3">

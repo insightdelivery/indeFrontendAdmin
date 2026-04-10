@@ -1,10 +1,11 @@
 'use client'
 
-import { useRef, useEffect, useState, useMemo } from 'react'
+import { useRef, useEffect, useState, useMemo, forwardRef, useImperativeHandle } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import type { Editor } from '@tiptap/core'
 import { mergeAttributes } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
+import Heading from '@tiptap/extension-heading'
 import TextAlign from '@tiptap/extension-text-align'
 import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
@@ -112,6 +113,28 @@ interface RichTextEditorProps {
   className?: string
 }
 
+/** www 앵커 링크용 등 id 속성 보존 */
+const HeadingWithAnchorId = Heading.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      id: {
+        default: null,
+        parseHTML: (element) => element.getAttribute('id'),
+        renderHTML: (attributes) => {
+          if (!attributes.id) return {}
+          return { id: attributes.id as string }
+        },
+      },
+    }
+  },
+})
+
+export type RichTextEditorHandle = {
+  /** 현재 커서 위치에 HTML 삽입 (포커스 후 삽입) */
+  insertContentAtCursor: (html: string) => void
+}
+
 const MAX_IMAGE_SIZE = 8 * 1024 * 1024 // 8MB
 
 function calculateImageSize(html: string): number {
@@ -166,12 +189,15 @@ const DIVIDER_OPTIONS: { label: string; style: DividerStyle }[] = [
   { label: '그라데이션 구분선', style: 'gradient' },
 ]
 
-export function RichTextEditor({
-  value,
-  onChange,
-  placeholder = '본문 내용을 입력하세요',
-  className = '',
-}: RichTextEditorProps) {
+export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(function RichTextEditor(
+  {
+    value,
+    onChange,
+    placeholder = '본문 내용을 입력하세요',
+    className = '',
+  },
+  ref
+) {
   const { toast } = useToast()
   const [totalImageSize, setTotalImageSize] = useState(0)
   const [mounted, setMounted] = useState(false)
@@ -196,12 +222,13 @@ export function RichTextEditor({
   const extensions = useMemo(
     () => [
       StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
+        heading: false,
         codeBlock: false,
         horizontalRule: false,
         // v3 StarterKit에 link·underline이 포함됨 → 별도 확장과 이중 등록 시 경고 발생
         link: false,
       }),
+      HeadingWithAnchorId.configure({ levels: [1, 2, 3] }),
       Divider,
       Superscript,
       Subscript,
@@ -290,6 +317,17 @@ export function RichTextEditor({
   useEffect(() => {
     editorRef.current = editor
   }, [editor])
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      insertContentAtCursor: (html: string) => {
+        if (!editor || !html.trim()) return
+        editor.chain().focus().insertContent(html).run()
+      },
+    }),
+    [editor]
+  )
 
   useEffect(() => {
     if (!editor || !mounted) return
@@ -799,4 +837,6 @@ export function RichTextEditor({
       `}</style>
     </div>
   )
-}
+})
+
+RichTextEditor.displayName = 'RichTextEditor'

@@ -582,7 +582,7 @@ export default function ArticleListPage() {
                     </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    추천
+                    별점
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     조회수
@@ -675,11 +675,11 @@ export default function ArticleListPage() {
                         <div>{getStatusBadge(article.status)}</div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      {article.isEditorPick ? (
-                        <span className="text-yellow-500">★</span>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700">
+                      {article.rating != null ? (
+                        <span title="평균 별점">⭐ {article.rating.toFixed(1)}</span>
                       ) : (
-                        <span className="text-gray-300">☆</span>
+                        <span className="text-gray-400">—</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
@@ -687,9 +687,6 @@ export default function ArticleListPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       <div className="flex flex-col gap-1">
-                        {article.rating && (
-                          <span>⭐ {article.rating.toFixed(1)}</span>
-                        )}
                         <button
                           type="button"
                           className="flex items-center gap-1 text-left underline underline-offset-2 hover:no-underline"
