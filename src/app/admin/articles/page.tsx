@@ -67,13 +67,10 @@ import Image from 'next/image'
 /**
  * 본문 HTML을 상세보기에서 에디터처럼 줄바꿈이 보이도록 변환.
  * - \r\n, \r, \n → <br />
- * - TipTap은 Enter 시 새 <p>를 만들므로, </p><p> 사이에도 <br /> 삽입
  */
 function contentWithLineBreaks(html: string): string {
   if (!html || typeof html !== 'string') return html
-  return html
-    .replace(/\r\n|\r|\n/g, '<br />')
-    .replace(/<\/p>\s*<p>/gi, '</p><br /><p>')
+  return html.replace(/\r\n|\r|\n/g, '<br />')
 }
 
 function formatListDateTime(value: string): string {
