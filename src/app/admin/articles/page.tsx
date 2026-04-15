@@ -940,7 +940,7 @@ export default function ArticleListPage() {
                   </CardHeader>
                   <CardContent>
                     <div
-                      className="prose prose-sm max-w-none min-h-[100px] p-4 bg-gray-50 rounded-lg border border-gray-200 [&_p]:block [&_p]:mb-1 [&_br]:block [&_blockquote]:border-l-[5px] [&_blockquote]:border-l-[#03c75a] [&_blockquote]:py-3 [&_blockquote]:px-4 [&_blockquote]:my-5 [&_blockquote]:bg-[#f6fff8] [&_blockquote]:text-[#222] [&_blockquote]:text-[15px]"
+                      className="prose prose-sm max-w-none min-h-[100px] p-4 bg-gray-50 rounded-lg border border-gray-200 [&_p]:block [&_p:empty]:min-h-[1.5em] [&_p]:mb-1 [&_br]:block [&_blockquote]:border-l-[5px] [&_blockquote]:border-l-[#03c75a] [&_blockquote]:py-3 [&_blockquote]:px-4 [&_blockquote]:my-5 [&_blockquote]:bg-[#f6fff8] [&_blockquote]:text-[#222] [&_blockquote]:text-[15px]"
                       style={{ whiteSpace: 'pre-wrap' } as React.CSSProperties}
                       dangerouslySetInnerHTML={{
                         __html: contentWithLineBreaks(selectedArticle.content),
