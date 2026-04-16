@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios'
 import Cookies from 'js-cookie'
 import { ADMIN_USER_INFO_KEY } from '@/lib/adminAuthKeys'
-import { setAdminAccessToken } from '@/lib/adminAccessMemory'
+import { getAdminAccessToken, setAdminAccessToken } from '@/lib/adminAccessMemory'
 import { ADMIN_USER_INFO_COOKIE_EXPIRES_DAYS } from '@/constants/authCookies'
 
 const TOKEN_REFRESH_PATH = '/adminMember/tokenrefresh'
@@ -63,8 +63,14 @@ export async function refreshAdminAccessToken(options?: {
   const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
   try {
+    const currentAccessToken = getAdminAccessToken()
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (currentAccessToken) {
+      headers.Authorization = `Bearer ${currentAccessToken}`
+    }
+
     const response = await axios.post(`${baseURL}${TOKEN_REFRESH_PATH}`, {}, {
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       withCredentials: true,
       timeout: 60_000,
     })
