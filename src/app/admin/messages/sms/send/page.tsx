@@ -1,30 +1,44 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CircleUserRound, Info, ExternalLink, X } from 'lucide-react'
 import {
+  createKakaoTemplate,
   createMessageBatch,
   createMessageTemplate,
+  deleteKakaoTemplate,
   deleteMessageTemplate,
   getAligoRemain,
+  getKakaoTemplates,
   getMessageTemplates,
   getSenderNumbers,
+  updateKakaoTemplate,
   updateMessageTemplate,
+  type KakaoTemplate,
   type MessageTemplate,
 } from '@/services/messages'
-import { getPublicMemberList } from '@/services/publicMembers'
+import { getPublicMemberList, type PublicMemberRecipientScope } from '@/services/publicMembers'
+import type { PublicMemberListItem } from '@/types/publicMember'
 import { Input } from '@/components/ui/input'
 
 type SendType = 'sms' | 'kakao'
 type Contact = {
   id: number
   name: string
+  nickname: string
   email: string
   phone: string
   status: 'ACTIVE' | 'WITHDRAW_REQUEST' | 'WITHDRAWN'
 }
 
 const PERSONALIZE_PLACEHOLDER = '{개인화변수추가}'
+
+/** 회원 검색 모달: API 한 페이지당 건수 (백엔드 max_page_size 이하) */
+const MEMBER_MODAL_PAGE_SIZE = 100
+/** 받는 사람 칩 미리보기 최대 개수(만 단위 선택 시 DOM 과다 방지) */
+const RECIPIENT_CHIP_PREVIEW = 20
+/** 검색 전체 로드 시 API page_size (백엔드 max_page_size 이하) */
+const MEMBER_FETCH_ALL_PAGE_SIZE = 250
 
 function getByteLength(v: string): number {
   let n = 0
@@ -36,6 +50,38 @@ function getByteLength(v: string): number {
 
 function normalizePhone(value: string): string {
   return value.replace(/\D/g, '')
+}
+
+function mapListItemToContact(m: PublicMemberListItem): Contact {
+  return {
+    id: m.member_sid,
+    name: m.name || m.nickname || `회원#${m.member_sid}`,
+    nickname: (m.nickname || '').trim(),
+    email: m.email || '',
+    phone: normalizePhone(m.phone || ''),
+    status: m.status || (m.is_active ? 'ACTIVE' : 'WITHDRAWN'),
+  }
+}
+
+/** `{키}` 형태 — SMS·카카오 공통, 수신자(Contact) 기준 치환 (알림톡 템플릿 본문과 동일 규칙). */
+function applyPersonalizationPlaceholders(text: string, c: Contact): string {
+  const idStr = String(c.id)
+  const map: Record<string, string> = {
+    이름: c.name,
+    닉네임: (c.nickname || c.name).trim(),
+    아이디: idStr,
+    회원번호: idStr,
+    핸드폰번호: c.phone,
+    휴대폰번호: c.phone,
+    이메일: c.email,
+    이메일주소: c.email,
+  }
+  let out = text
+  for (const [key, value] of Object.entries(map)) {
+    out = out.split(`{${key}}`).join(value)
+    out = out.split(`#{${key}}#`).join(value)
+  }
+  return out
 }
 
 function toDateInputValue(date: Date): string {
@@ -65,9 +111,21 @@ export default function SmsKakaoSendPage() {
   const [templateModalOpen, setTemplateModalOpen] = useState(false)
   const [saveTemplateModalOpen, setSaveTemplateModalOpen] = useState(false)
   const [contactKeyword, setContactKeyword] = useState('')
-  const [contactStatus, setContactStatus] = useState<'전체' | Contact['status']>('전체')
+  /** API `search`에 넘기는 값(입력 디바운스) */
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  /** 마지막으로「검색 전체」에 넣은 발송 가능 회원 id — 해제 시 이 집합만 제거 */
+  const [cachedFullSearchValidIds, setCachedFullSearchValidIds] = useState<number[] | null>(null)
+  const [bulkSelectLoading, setBulkSelectLoading] = useState(false)
+  const [memberSearchScope, setMemberSearchScope] = useState<PublicMemberRecipientScope>('all')
+  const [joinDateFrom, setJoinDateFrom] = useState('')
+  const [joinDateTo, setJoinDateTo] = useState('')
   const [contacts, setContacts] = useState<Contact[]>([])
   const [contactsLoading, setContactsLoading] = useState(false)
+  const [memberListPage, setMemberListPage] = useState(1)
+  const [memberListTotalCount, setMemberListTotalCount] = useState(0)
+  const [memberListHasNext, setMemberListHasNext] = useState(false)
+  /** 모달 내 선택: 페이지 이동 후에도 확정 시 상세를 잃지 않도록 id → Contact */
+  const [modalRecipientById, setModalRecipientById] = useState<Record<number, Contact>>({})
   const [selectedContactIds, setSelectedContactIds] = useState<number[]>([])
   const [senderPhone, setSenderPhone] = useState('')
   const [title, setTitle] = useState('')
@@ -79,6 +137,7 @@ export default function SmsKakaoSendPage() {
   const [editorTemplateId, setEditorTemplateId] = useState<number | null>(null)
   const [editorTemplateName, setEditorTemplateName] = useState('')
   const [editorTemplateContent, setEditorTemplateContent] = useState('')
+  const [editorTemplateCode, setEditorTemplateCode] = useState('')
   const [editorSubmitting, setEditorSubmitting] = useState(false)
   const [isScheduled, setIsScheduled] = useState(false)
   const [scheduledDate, setScheduledDate] = useState('')
@@ -86,6 +145,7 @@ export default function SmsKakaoSendPage() {
   const [submitting, setSubmitting] = useState(false)
   const [senderNumbers, setSenderNumbers] = useState<string[]>([])
   const [templates, setTemplates] = useState<MessageTemplate[]>([])
+  const [kakaoTemplates, setKakaoTemplates] = useState<KakaoTemplate[]>([])
   const [templateLoading, setTemplateLoading] = useState(false)
   const [remainSmsCnt, setRemainSmsCnt] = useState<number | null>(null)
   const [currentTime, setCurrentTime] = useState(() => new Date())
@@ -138,38 +198,125 @@ export default function SmsKakaoSendPage() {
   }, [])
 
   useEffect(() => {
-    if (contactModalOpen) {
-      void loadContacts()
-    }
-  }, [contactModalOpen])
+    const t = window.setTimeout(() => setDebouncedSearch(contactKeyword.trim()), 400)
+    return () => window.clearTimeout(t)
+  }, [contactKeyword])
 
-  const loadTemplates = async (channel: SendType) => {
+  const buildMemberListParams = useCallback(
+    (page: number, pageSize: number): Parameters<typeof getPublicMemberList>[0] | null => {
+      const params: Parameters<typeof getPublicMemberList>[0] = {
+        page,
+        page_size: pageSize,
+        recipient_scope: memberSearchScope,
+      }
+      if (debouncedSearch) params.search = debouncedSearch
+      if (memberSearchScope === 'join_date') {
+        if (!joinDateFrom.trim() || !joinDateTo.trim()) return null
+        params.join_date_from = joinDateFrom.trim()
+        params.join_date_to = joinDateTo.trim()
+      }
+      return params
+    },
+    [memberSearchScope, joinDateFrom, joinDateTo, debouncedSearch]
+  )
+
+  const loadContacts = useCallback(async () => {
+    const params = buildMemberListParams(memberListPage, MEMBER_MODAL_PAGE_SIZE)
+    if (params === null) {
+      setContacts([])
+      setMemberListTotalCount(0)
+      setMemberListHasNext(false)
+      return
+    }
+    try {
+      setContactsLoading(true)
+      const response = await getPublicMemberList(params)
+      setMemberListTotalCount(typeof response.count === 'number' ? response.count : response.results.length)
+      setMemberListHasNext(Boolean(response.next))
+      const nextContacts: Contact[] = response.results.map(mapListItemToContact)
+      setContacts(nextContacts)
+    } catch {
+      setContacts([])
+      setMemberListTotalCount(0)
+      setMemberListHasNext(false)
+    } finally {
+      setContactsLoading(false)
+    }
+  }, [buildMemberListParams, memberListPage])
+
+  useEffect(() => {
+    if (!contactModalOpen) return
+    void loadContacts()
+  }, [contactModalOpen, loadContacts])
+
+  useEffect(() => {
+    setMemberListPage(1)
+    setCachedFullSearchValidIds(null)
+  }, [memberSearchScope, joinDateFrom, joinDateTo, debouncedSearch])
+
+  const loadChannelTemplates = async (channel: SendType) => {
     try {
       setTemplateLoading(true)
-      const data = await getMessageTemplates({ channel })
-      setTemplates(data)
+      if (channel === 'sms') {
+        const data = await getMessageTemplates({ channel: 'sms' })
+        setTemplates(data)
+        setKakaoTemplates([])
+      } else {
+        const data = await getKakaoTemplates()
+        setKakaoTemplates(data)
+        setTemplates([])
+      }
     } catch {
       setTemplates([])
+      setKakaoTemplates([])
     } finally {
       setTemplateLoading(false)
     }
   }
 
   useEffect(() => {
-    void loadTemplates(sendType)
+    setTemplateId(null)
+    setTemplate('')
+    setMessage('')
+    void loadChannelTemplates(sendType)
   }, [sendType])
 
-  const filteredContacts = useMemo(() => {
-    return contacts.filter((c) => {
-      const keywordOk = c.name.includes(contactKeyword) || c.phone.includes(contactKeyword)
-      const statusOk = contactStatus === '전체' ? true : c.status === contactStatus
-      return keywordOk && statusOk
-    })
-  }, [contacts, contactKeyword, contactStatus])
+  const fetchAllValidRecipientsForSearch = useCallback(async () => {
+    const base = buildMemberListParams(1, MEMBER_FETCH_ALL_PAGE_SIZE)
+    if (base === null) {
+      return { ids: [] as number[], byId: {} as Record<number, Contact> }
+    }
+    const ids: number[] = []
+    const byId: Record<number, Contact> = {}
+    const seenPhone = new Set<string>()
+    let page = 1
+    while (true) {
+      const res = await getPublicMemberList({ ...base, page, page_size: MEMBER_FETCH_ALL_PAGE_SIZE })
+      for (const m of res.results) {
+        const c = mapListItemToContact(m)
+        const phone = normalizePhone(c.phone)
+        if (!c.name?.trim() || !phone) continue
+        if (!/^01\d{8,9}$/.test(phone)) continue
+        if (seenPhone.has(phone)) continue
+        seenPhone.add(phone)
+        ids.push(c.id)
+        byId[c.id] = c
+      }
+      if (!res.next) break
+      page += 1
+      if (page > 500) break
+    }
+    return { ids, byId }
+  }, [buildMemberListParams])
 
   const previewText = useMemo(() => {
     return message.trim()
   }, [message])
+
+  const approvedKakaoTemplates = useMemo(
+    () => kakaoTemplates.filter((t) => t.status === 'approved'),
+    [kakaoTemplates]
+  )
 
   const receiverLabel = `${selectedContacts.length}명`
 
@@ -191,9 +338,12 @@ export default function SmsKakaoSendPage() {
   }
 
   const applySelectedContacts = () => {
-    const picked = contacts.filter((c) => selectedContactIds.includes(c.id))
     const uniqueByPhone = new Map<string, Contact>()
-    for (const p of picked) {
+    for (const id of selectedContactIds) {
+      const fromCache = modalRecipientById[id]
+      const fromPage = contacts.find((x) => x.id === id)
+      const p = fromCache ?? fromPage
+      if (!p) continue
       const phone = normalizePhone(p.phone)
       if (!p.name || !phone) continue
       if (!/^01\d{8,9}$/.test(phone)) continue
@@ -203,28 +353,57 @@ export default function SmsKakaoSendPage() {
     setContactModalOpen(false)
   }
 
-  const loadContacts = async () => {
+  /** 현재 조건·검색어에 맞는 전체 목록(모든 페이지)에서 발송 가능 회원을 기존 선택과 합침 */
+  const addEntireSearchToRecipientSelection = async () => {
+    if (buildMemberListParams(1, MEMBER_MODAL_PAGE_SIZE) === null) {
+      window.alert('가입일 범위를 선택해 주세요.')
+      return
+    }
     try {
-      setContactsLoading(true)
-      const response = await getPublicMemberList({ page: 1, page_size: 200 })
-      const nextContacts: Contact[] = response.results.map((m) => ({
-        id: m.member_sid,
-        name: m.name || m.nickname || `회원#${m.member_sid}`,
-        email: m.email || '',
-        phone: normalizePhone(m.phone || ''),
-        status: m.status || (m.is_active ? 'ACTIVE' : 'WITHDRAWN'),
-      }))
-      setContacts(nextContacts)
+      setBulkSelectLoading(true)
+      const { ids, byId } = await fetchAllValidRecipientsForSearch()
+      if (ids.length === 0) {
+        window.alert('해당 검색 조건에서 발송 가능한 회원(이름·휴대폰 010 등)이 없습니다.')
+        setCachedFullSearchValidIds(null)
+        return
+      }
+      setCachedFullSearchValidIds(ids)
+      setSelectedContactIds((prev) => Array.from(new Set([...prev, ...ids])))
+      setModalRecipientById((prev) => ({ ...prev, ...byId }))
     } catch {
-      setContacts([])
+      window.alert('목록을 불러오는 중 오류가 발생했습니다.')
     } finally {
-      setContactsLoading(false)
+      setBulkSelectLoading(false)
     }
   }
+
+  /** 마지막「검색 전체」로 넣은 수신자만 제거(다른 방식으로 고른 수신자는 유지) */
+  const removeEntireSearchFromSelection = () => {
+    if (!cachedFullSearchValidIds || cachedFullSearchValidIds.length === 0) return
+    const drop = new Set(cachedFullSearchValidIds)
+    setSelectedContactIds((prev) => prev.filter((id) => !drop.has(id)))
+    setModalRecipientById((prev) => {
+      const next = { ...prev }
+      for (const id of drop) {
+        delete next[id]
+      }
+      return next
+    })
+    setCachedFullSearchValidIds(null)
+  }
+
+  const allSearchBulkChecked =
+    cachedFullSearchValidIds !== null &&
+    cachedFullSearchValidIds.length > 0 &&
+    cachedFullSearchValidIds.every((id) => selectedContactIds.includes(id))
+
+  const memberListTotalPages = Math.max(1, Math.ceil(memberListTotalCount / MEMBER_MODAL_PAGE_SIZE))
 
   const resetForm = () => {
     setSelectedContacts([])
     setSelectedContactIds([])
+    setModalRecipientById({})
+    setCachedFullSearchValidIds(null)
     setTitle('')
     setMessage('')
     setTemplate('')
@@ -233,6 +412,7 @@ export default function SmsKakaoSendPage() {
     setEditorTemplateId(null)
     setEditorTemplateName('')
     setEditorTemplateContent('')
+    setEditorTemplateCode('')
     setIsScheduled(false)
   }
 
@@ -241,8 +421,18 @@ export default function SmsKakaoSendPage() {
       window.alert('수신자를 먼저 선택해 주세요.')
       return
     }
+    if (sendType === 'kakao') {
+      if (templateId == null) {
+        window.alert('알림톡 템플릿을 선택해 주세요.')
+        return
+      }
+      if (!title.trim()) {
+        window.alert('알림톡 제목을 입력해 주세요.')
+        return
+      }
+    }
     if (!message.trim()) {
-      window.alert('문자 내용을 입력해 주세요.')
+      window.alert(sendType === 'sms' ? '문자 내용을 입력해 주세요.' : '알림톡 본문(템플릿 내용)이 비어 있습니다.')
       return
     }
     if (!senderPhone.trim()) {
@@ -265,6 +455,7 @@ export default function SmsKakaoSendPage() {
       setSubmitting(true)
       const status = isScheduled ? 'scheduled' : 'processing'
       const scheduledAt = isScheduled ? `${scheduledDate}T${scheduledTime}:00+09:00` : null
+      const pickedKakao = sendType === 'kakao' ? approvedKakaoTemplates.find((t) => t.id === templateId) : null
       await createMessageBatch({
         type: sendType,
         sender: senderPhone,
@@ -275,14 +466,16 @@ export default function SmsKakaoSendPage() {
         request_snapshot: {
           template,
           templateId,
-          messageClass,
-          messageByte,
+          messageClass: sendType === 'sms' ? messageClass : undefined,
+          messageByte: sendType === 'sms' ? messageByte : undefined,
         },
         details: selectedContacts.map((c) => ({
           receiver_name: c.name,
           receiver_phone: c.phone,
           receiver_email: c.email,
-          final_content: message.replaceAll('{이름}', c.name),
+          template_id: sendType === 'kakao' && templateId != null ? templateId : undefined,
+          template_name: sendType === 'kakao' && pickedKakao ? pickedKakao.template_name : template || undefined,
+          final_content: applyPersonalizationPlaceholders(message, c),
           status: 'success',
         })),
       })
@@ -342,18 +535,31 @@ export default function SmsKakaoSendPage() {
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <label className="text-sm font-medium text-gray-800">받는사람</label>
-                <button type="button" className="text-sm font-medium text-gray-700 underline" onClick={() => setContactModalOpen(true)}>
-                  연락처 수정
+                <button
+                  type="button"
+                  className="text-sm font-medium text-gray-700 underline"
+                  onClick={() => {
+                    setMemberListPage(1)
+                    setSelectedContactIds(selectedContacts.map((c) => c.id))
+                    setModalRecipientById(Object.fromEntries(selectedContacts.map((c) => [c.id, c])))
+                    setCachedFullSearchValidIds(null)
+                    setContactModalOpen(true)
+                  }}
+                >
+                  회원 검색
                 </button>
               </div>
               <input value={receiverLabel} readOnly className="h-11 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm" />
               {selectedContacts.length > 0 ? (
-                <div className="mt-2 flex flex-wrap gap-2 rounded-lg border border-slate-200 p-2">
-                  {selectedContacts.map((c) => (
+                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 p-2">
+                  {selectedContacts.slice(0, RECIPIENT_CHIP_PREVIEW).map((c) => (
                     <span key={c.id} className="rounded-full bg-violet-50 px-3 py-1 text-[13px] text-violet-700">
                       {c.name}({c.phone})
                     </span>
                   ))}
+                  {selectedContacts.length > RECIPIENT_CHIP_PREVIEW ? (
+                    <span className="text-[13px] text-slate-500">외 {selectedContacts.length - RECIPIENT_CHIP_PREVIEW}명</span>
+                  ) : null}
                   <button type="button" className="ml-auto text-[13px] text-rose-500 underline" onClick={() => setSelectedContacts([])}>
                     전체 삭제
                   </button>
@@ -361,18 +567,21 @@ export default function SmsKakaoSendPage() {
               ) : null}
             </div>
 
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-800">발신번호</label>
+              <select value={senderPhone} onChange={(e) => setSenderPhone(e.target.value)} className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
+                <option value="">발신번호를 선택하세요</option>
+                {senderNumbers.map((num) => (
+                  <option key={num} value={num}>{num}</option>
+                ))}
+              </select>
+              {sendType === 'kakao' ? (
+                <p className="mt-1.5 text-xs text-slate-500">알리고에 등록된 발신번호(숫자만)로 알림톡이 발송됩니다.</p>
+              ) : null}
+            </div>
+
             {sendType === 'sms' ? (
               <>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-800">발신번호</label>
-                  <select value={senderPhone} onChange={(e) => setSenderPhone(e.target.value)} className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm">
-                    <option value="">발신번호를 선택하세요</option>
-                    {senderNumbers.map((num) => (
-                      <option key={num} value={num}>{num}</option>
-                    ))}
-                  </select>
-                </div>
-
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-800">제목</label>
                   <input
@@ -438,8 +647,18 @@ export default function SmsKakaoSendPage() {
             ) : (
               <>
                 <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-800">알림톡 제목</label>
+                  <input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="알리고 subject(200자 이내)"
+                    maxLength={200}
+                    className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                  />
+                </div>
+                <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <label className="text-sm font-medium text-gray-800">템플릿</label>
+                    <label className="text-sm font-medium text-gray-800">카카오 템플릿 (승인 건)</label>
                     <button type="button" className="text-sm font-medium text-gray-700 underline" onClick={() => setTemplateEditorOpen(true)}>
                       템플릿 편집
                     </button>
@@ -449,21 +668,29 @@ export default function SmsKakaoSendPage() {
                     value={templateId ?? ''}
                     onChange={(e) => {
                       const nextId = Number(e.target.value)
-                      const picked = templates.find((t) => t.id === nextId)
+                      const picked = approvedKakaoTemplates.find((t) => t.id === nextId)
                       setTemplateId(Number.isNaN(nextId) ? null : nextId)
                       setTemplate(picked?.template_name ?? '')
                       setMessage(picked?.content ?? '')
                     }}
                   >
                     <option value="">템플릿 선택</option>
-                    {templates.map((t) => (
-                      <option key={t.id} value={t.id}>{t.template_name}</option>
+                    {approvedKakaoTemplates.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.template_name} ({t.template_code})
+                      </option>
                     ))}
                   </select>
+                  {approvedKakaoTemplates.length === 0 && !templateLoading ? (
+                    <p className="mt-2 text-xs text-amber-700">승인된 카카오 템플릿이 없습니다. 템플릿 편집에서 등록하거나 관리자 DB를 확인해 주세요.</p>
+                  ) : null}
+                  <p className="mt-2 text-xs text-slate-500">
+                    본문의 개인화: {'{이름}'}, {'{닉네임}'}, {'{아이디}'}(회원번호), {'{핸드폰번호}'}, {'{이메일}'} · 카카오형 {'#{이름}#'}도 동일하게 치환됩니다.
+                  </p>
                   <div className="mt-3 min-h-[500px] rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm whitespace-pre-wrap text-slate-700">
                     {templateLoading
                       ? '불러오는 중...'
-                      : templates.find((t) => t.id === templateId)?.content ?? '선택된 템플릿 내용이 없습니다.'}
+                      : approvedKakaoTemplates.find((t) => t.id === templateId)?.content ?? '선택된 템플릿 내용이 없습니다.'}
                   </div>
                 </div>
               </>
@@ -533,8 +760,8 @@ export default function SmsKakaoSendPage() {
               <div className="p-5">
                 <div className="overflow-hidden rounded-2xl bg-slate-100">
                   <div className="flex items-center justify-between bg-yellow-300 px-3 py-2 text-[13px] font-bold text-slate-900">
-                    <span>알림톡 도착</span>
-                    <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[11px] text-yellow-300">kakao</span>
+                    <span className="truncate pr-2">{title.trim() || '알림톡 제목'}</span>
+                    <span className="shrink-0 rounded-full bg-slate-900 px-2 py-0.5 text-[11px] text-yellow-300">kakao</span>
                   </div>
                   <div className="space-y-3 px-4 py-4 text-sm leading-6 text-slate-800 whitespace-pre-wrap">{previewText}</div>
                   <div className="px-4 pb-4">
@@ -566,21 +793,82 @@ export default function SmsKakaoSendPage() {
       {contactModalOpen ? (
         <div className="fixed inset-0 z-50 bg-black/40 p-6">
           <div className="mx-auto max-w-5xl rounded-2xl bg-white p-6">
-            <h3 className="text-lg font-semibold">회원검색</h3>
-            <p className="mt-2 text-sm text-slate-600">목록에서 수신자를 선택해 주세요.</p>
-            <div className="mt-4 flex gap-2">
-              <select value={contactStatus} onChange={(e) => setContactStatus(e.target.value as '전체' | Contact['status'])} className="h-11 rounded-lg border border-slate-300 px-3 text-sm">
-                <option value="전체">상태: 전체</option>
-                <option value="ACTIVE">활성</option>
-                <option value="WITHDRAW_REQUEST">탈퇴 요청</option>
-                <option value="WITHDRAWN">탈퇴</option>
+            <h3 className="text-lg font-semibold">회원 검색</h3>
+            <p className="mt-2 text-sm text-slate-600">검색 조건을 선택한 뒤 목록에서 수신자를 선택해 주세요.</p>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <select
+                value={memberSearchScope}
+                onChange={(e) => {
+                  const v = e.target.value as PublicMemberRecipientScope
+                  setMemberSearchScope(v)
+                  if (v === 'join_date' && !joinDateFrom && !joinDateTo) {
+                    const end = new Date()
+                    const start = new Date(end.getTime() - 29 * 24 * 60 * 60 * 1000)
+                    setJoinDateFrom(toDateInputValue(start))
+                    setJoinDateTo(toDateInputValue(end))
+                  }
+                }}
+                className="h-11 min-w-[200px] flex-1 rounded-lg border border-slate-300 px-3 text-sm"
+              >
+                <option value="marketing_agree">수신 동의 (뉴스레터·이벤트/혜택 수신 동의 회원)</option>
+                <option value="all">전체 (모든 회원)</option>
+                <option value="join_date">가입 일자 (가입일 범위)</option>
+                <option value="inactive_90">미접속 (최종 접속 90일 이상 경과, 활성 회원)</option>
+                <option value="withdrawn">탈퇴 (탈퇴 완료 회원)</option>
               </select>
-              <input value={contactKeyword} onChange={(e) => setContactKeyword(e.target.value)} placeholder="이름, 휴대전화번호 검색" className="h-11 flex-1 rounded-lg border border-slate-300 px-3 text-sm" />
-              <button type="button" onClick={loadContacts} className="h-11 rounded-lg border border-slate-300 px-4 text-sm text-slate-700">
+              <input
+                value={contactKeyword}
+                onChange={(e) => setContactKeyword(e.target.value)}
+                placeholder="이름, 휴대전화, 이메일로 목록 좁히기"
+                className="h-11 min-w-[200px] flex-[2] rounded-lg border border-slate-300 px-3 text-sm"
+              />
+              <button type="button" onClick={() => void loadContacts()} className="h-11 shrink-0 rounded-lg border border-slate-300 px-4 text-sm text-slate-700">
                 새로고침
               </button>
             </div>
-            <div className="mt-4 max-h-64 overflow-auto rounded-lg border border-slate-200">
+            {memberSearchScope === 'join_date' ? (
+              <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <span className="text-sm text-slate-700">가입일</span>
+                <Input type="date" value={joinDateFrom} onChange={(e) => setJoinDateFrom(e.target.value)} className="h-10 w-[160px] rounded-lg border-slate-300 text-sm" />
+                <span className="text-sm text-slate-500">~</span>
+                <Input type="date" value={joinDateTo} onChange={(e) => setJoinDateTo(e.target.value)} className="h-10 w-[160px] rounded-lg border-slate-300 text-sm" />
+                <span className="text-xs text-slate-500">범위 선택 후 목록이 자동으로 갱신됩니다.</span>
+              </div>
+            ) : null}
+            <p className="mt-2 text-xs text-slate-500">
+              키워드는 서버 검색(이름·이메일·휴대전화)이며, 입력 후 잠시 뒤 목록이 갱신됩니다.
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {memberSearchScope === 'marketing_agree' && '뉴스레터 수신 동의가 켜진 활성 회원만 표시됩니다.'}
+              {memberSearchScope === 'all' && '탈퇴·탈퇴 요청 포함 전체 회원입니다.'}
+              {memberSearchScope === 'join_date' && '선택한 가입일(시작~종료, 달력일 기준)에 가입한 회원입니다.'}
+              {memberSearchScope === 'inactive_90' && '상태가 활성이면서, 최종 접속이 없거나 오늘 기준 90일 이전인 회원입니다.'}
+              {memberSearchScope === 'withdrawn' && '탈퇴 완료(WITHDRAWN) 상태 회원만 표시됩니다.'}
+            </p>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
+              <span>
+                총 {memberListTotalCount.toLocaleString('ko-KR')}명 · {MEMBER_MODAL_PAGE_SIZE}명씩 · 페이지 {memberListPage} / {memberListTotalPages}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-40"
+                  disabled={contactsLoading || memberListPage <= 1}
+                  onClick={() => setMemberListPage((p) => Math.max(1, p - 1))}
+                >
+                  이전
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-40"
+                  disabled={contactsLoading || !memberListHasNext}
+                  onClick={() => setMemberListPage((p) => p + 1)}
+                >
+                  다음
+                </button>
+              </div>
+            </div>
+            <div className="mt-2 max-h-64 overflow-auto rounded-lg border border-slate-200">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50">
                   <tr>
@@ -588,24 +876,33 @@ export default function SmsKakaoSendPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredContacts.length === 0 ? (
+                  {contacts.length === 0 ? (
                     <tr className="border-t border-slate-100">
                       <td className="px-3 py-6 text-center text-slate-400" colSpan={5}>
                         {contactsLoading ? '회원 데이터를 불러오는 중...' : '회원 데이터가 없습니다.'}
                       </td>
                     </tr>
                   ) : null}
-                  {filteredContacts.map((c) => (
+                  {contacts.map((c) => (
                     <tr key={c.id} className="border-t border-slate-100">
                       <td className="px-3 py-2">
                         <input
                           type="checkbox"
                           checked={selectedContactIds.includes(c.id)}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const checked = e.target.checked
                             setSelectedContactIds((prev) =>
-                              e.target.checked ? [...prev, c.id] : prev.filter((id) => id !== c.id)
+                              checked ? Array.from(new Set([...prev, c.id])) : prev.filter((id) => id !== c.id)
                             )
-                          }
+                            setModalRecipientById((prev) => {
+                              if (checked) {
+                                return { ...prev, [c.id]: c }
+                              }
+                              const next = { ...prev }
+                              delete next[c.id]
+                              return next
+                            })
+                          }}
                         />
                       </td>
                       <td className="px-3 py-2">{c.name}</td>
@@ -618,18 +915,72 @@ export default function SmsKakaoSendPage() {
               </table>
             </div>
             <div className="mt-4 rounded-lg border border-slate-200 p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="font-semibold">받는사람 {selectedContactIds.length}</p>
-                <button type="button" className="text-rose-500 underline text-sm" onClick={() => setSelectedContactIds([])}>전체 삭제</button>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  <label
+                    className="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-800"
+                    title="검색 조건·키워드에 맞는 회원 전체(모든 페이지) 중 발송 가능한 회원을 선택합니다. 인원이 많으면 잠시 걸릴 수 있습니다."
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                      checked={allSearchBulkChecked}
+                      disabled={contactsLoading || bulkSelectLoading || memberListTotalCount === 0}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          void addEntireSearchToRecipientSelection()
+                        } else {
+                          removeEntireSearchFromSelection()
+                        }
+                      }}
+                    />
+                    <span>검색된 모든 회원</span>
+                  </label>
+                  {bulkSelectLoading ? (
+                    <span className="text-xs text-violet-600">전체 목록 불러오는 중…</span>
+                  ) : null}
+                  <p className="font-semibold">받는사람 {selectedContactIds.length.toLocaleString('ko-KR')}</p>
+                </div>
+                <button
+                  type="button"
+                  className="text-rose-500 underline text-sm"
+                  onClick={() => {
+                    setSelectedContactIds([])
+                    setModalRecipientById({})
+                    setCachedFullSearchValidIds(null)
+                  }}
+                >
+                  전체 삭제
+                </button>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {contacts.filter((c) => selectedContactIds.includes(c.id)).map((c) => (
-                  <span key={c.id} className="rounded-full bg-violet-50 px-3 py-1 text-xs text-violet-700">{c.name}({c.phone})</span>
-                ))}
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedContactIds.slice(0, RECIPIENT_CHIP_PREVIEW).map((id) => {
+                  const c = modalRecipientById[id] ?? contacts.find((x) => x.id === id)
+                  if (!c) return null
+                  return (
+                    <span key={id} className="rounded-full bg-violet-50 px-3 py-1 text-xs text-violet-700">
+                      {c.name}({c.phone})
+                    </span>
+                  )
+                })}
+                {selectedContactIds.length > RECIPIENT_CHIP_PREVIEW ? (
+                  <span className="text-xs text-slate-500">외 {selectedContactIds.length - RECIPIENT_CHIP_PREVIEW}명</span>
+                ) : null}
               </div>
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <button type="button" className="h-10 rounded-lg border border-slate-300 px-5" onClick={() => setContactModalOpen(false)}>취소</button>
+              <button
+                type="button"
+                className="h-10 rounded-lg border border-slate-300 px-5"
+                onClick={() => {
+                  setSelectedContactIds(selectedContacts.map((c) => c.id))
+                  setModalRecipientById(Object.fromEntries(selectedContacts.map((c) => [c.id, c])))
+                  setCachedFullSearchValidIds(null)
+                  setContactModalOpen(false)
+                }}
+              >
+                취소
+              </button>
               <button type="button" className="h-10 rounded-lg bg-violet-600 px-5 text-white" onClick={applySelectedContacts}>확인</button>
             </div>
           </div>
@@ -682,7 +1033,9 @@ export default function SmsKakaoSendPage() {
       {templateEditorOpen ? (
         <div className="fixed inset-0 z-50 bg-black/40 p-6">
           <div className="mx-auto max-w-2xl rounded-2xl bg-white p-6">
-            <h3 className="text-lg font-semibold text-slate-900">템플릿 편집</h3>
+            <h3 className="text-lg font-semibold text-slate-900">
+              {sendType === 'kakao' ? '카카오 알림톡 템플릿 편집' : '문자 템플릿 편집'}
+            </h3>
             <p className="mt-2 text-sm text-slate-600">등록, 수정, 삭제를 한 곳에서 처리할 수 있습니다.</p>
 
             <select
@@ -690,34 +1043,66 @@ export default function SmsKakaoSendPage() {
               value={editorTemplateId ?? ''}
               onChange={(e) => {
                 const nextId = Number(e.target.value)
+                if (sendType === 'kakao') {
+                  const selected = kakaoTemplates.find((t) => t.id === nextId)
+                  if (Number.isNaN(nextId) || !selected) {
+                    setEditorTemplateId(null)
+                    setEditorTemplateName('')
+                    setEditorTemplateContent('')
+                    setEditorTemplateCode('')
+                    return
+                  }
+                  setEditorTemplateId(nextId)
+                  setEditorTemplateName(selected.template_name)
+                  setEditorTemplateContent(selected.content)
+                  setEditorTemplateCode(selected.template_code)
+                  return
+                }
                 const selected = templates.find((t) => t.id === nextId)
                 if (Number.isNaN(nextId) || !selected) {
                   setEditorTemplateId(null)
                   setEditorTemplateName('')
                   setEditorTemplateContent('')
+                  setEditorTemplateCode('')
                   return
                 }
                 setEditorTemplateId(nextId)
                 setEditorTemplateName(selected.template_name)
                 setEditorTemplateContent(selected.content)
+                setEditorTemplateCode('')
               }}
             >
               <option value="">새 템플릿 등록</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>{t.template_name}</option>
-              ))}
+              {sendType === 'kakao'
+                ? kakaoTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.template_name} ({t.template_code}) — {t.status}
+                    </option>
+                  ))
+                : templates.map((t) => (
+                    <option key={t.id} value={t.id}>{t.template_name}</option>
+                  ))}
             </select>
+
+            {sendType === 'kakao' ? (
+              <input
+                value={editorTemplateCode}
+                onChange={(e) => setEditorTemplateCode(e.target.value)}
+                placeholder="알리고 템플릿 코드 (tpl_code, 카카오 비즈센터와 동일)"
+                className="mt-3 h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
+              />
+            ) : null}
 
             <input
               value={editorTemplateName}
               onChange={(e) => setEditorTemplateName(e.target.value)}
-              placeholder="템플릿 제목"
+              placeholder={sendType === 'kakao' ? '템플릿 표시 이름' : '템플릿 제목'}
               className="mt-3 h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
             />
             <textarea
               value={editorTemplateContent}
               onChange={(e) => setEditorTemplateContent(e.target.value)}
-              placeholder="템플릿 내용"
+              placeholder="템플릿 본문 (변수는 카카오 승인본과 일치해야 합니다)"
               className="mt-3 h-36 w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm"
             />
 
@@ -731,8 +1116,12 @@ export default function SmsKakaoSendPage() {
                   if (!window.confirm('선택한 템플릿을 삭제하시겠습니까?')) return
                   try {
                     setEditorSubmitting(true)
-                    await deleteMessageTemplate(editorTemplateId)
-                    await loadTemplates(sendType)
+                    if (sendType === 'kakao') {
+                      await deleteKakaoTemplate(editorTemplateId)
+                    } else {
+                      await deleteMessageTemplate(editorTemplateId)
+                    }
+                    await loadChannelTemplates(sendType)
                     if (templateId === editorTemplateId) {
                       setTemplateId(null)
                       setTemplate('')
@@ -741,6 +1130,7 @@ export default function SmsKakaoSendPage() {
                     setEditorTemplateId(null)
                     setEditorTemplateName('')
                     setEditorTemplateContent('')
+                    setEditorTemplateCode('')
                     window.alert('템플릿이 삭제되었습니다.')
                   } catch (e) {
                     window.alert(e instanceof Error ? e.message : '템플릿 삭제에 실패했습니다.')
@@ -762,21 +1152,39 @@ export default function SmsKakaoSendPage() {
                   className="h-10 rounded-lg border border-slate-300 px-4 text-sm text-slate-700 disabled:opacity-60"
                   onClick={async () => {
                     if (!editorTemplateName.trim() || !editorTemplateContent.trim()) {
-                      window.alert('템플릿 제목과 내용을 입력해 주세요.')
+                      window.alert('템플릿 이름과 내용을 입력해 주세요.')
+                      return
+                    }
+                    if (sendType === 'kakao' && !editorTemplateCode.trim()) {
+                      window.alert('알리고 템플릿 코드를 입력해 주세요.')
                       return
                     }
                     try {
                       setEditorSubmitting(true)
-                      const created = await createMessageTemplate({
-                        channel: sendType,
-                        template_name: editorTemplateName.trim(),
-                        content: editorTemplateContent.trim(),
-                      })
-                      await loadTemplates(sendType)
-                      setEditorTemplateId(created.id)
-                      setTemplateId(created.id)
-                      setTemplate(created.template_name)
-                      setMessage(created.content)
+                      if (sendType === 'kakao') {
+                        const created = await createKakaoTemplate({
+                          template_code: editorTemplateCode.trim(),
+                          template_name: editorTemplateName.trim(),
+                          content: editorTemplateContent.trim(),
+                        })
+                        await loadChannelTemplates(sendType)
+                        setEditorTemplateId(created.id)
+                        setTemplateId(created.id)
+                        setTemplate(created.template_name)
+                        setMessage(created.content)
+                        setEditorTemplateCode(created.template_code)
+                      } else {
+                        const created = await createMessageTemplate({
+                          channel: 'sms',
+                          template_name: editorTemplateName.trim(),
+                          content: editorTemplateContent.trim(),
+                        })
+                        await loadChannelTemplates(sendType)
+                        setEditorTemplateId(created.id)
+                        setTemplateId(created.id)
+                        setTemplate(created.template_name)
+                        setMessage(created.content)
+                      }
                       window.alert('템플릿이 등록되었습니다.')
                     } catch (e) {
                       window.alert(e instanceof Error ? e.message : '템플릿 등록에 실패했습니다.')
@@ -794,19 +1202,36 @@ export default function SmsKakaoSendPage() {
                   onClick={async () => {
                     if (editorTemplateId === null) return
                     if (!editorTemplateName.trim() || !editorTemplateContent.trim()) {
-                      window.alert('템플릿 제목과 내용을 입력해 주세요.')
+                      window.alert('템플릿 이름과 내용을 입력해 주세요.')
+                      return
+                    }
+                    if (sendType === 'kakao' && !editorTemplateCode.trim()) {
+                      window.alert('알리고 템플릿 코드를 입력해 주세요.')
                       return
                     }
                     try {
                       setEditorSubmitting(true)
-                      const updated = await updateMessageTemplate(editorTemplateId, {
-                        template_name: editorTemplateName.trim(),
-                        content: editorTemplateContent.trim(),
-                      })
-                      await loadTemplates(sendType)
-                      setTemplateId(updated.id)
-                      setTemplate(updated.template_name)
-                      setMessage(updated.content)
+                      if (sendType === 'kakao') {
+                        const updated = await updateKakaoTemplate(editorTemplateId, {
+                          template_code: editorTemplateCode.trim(),
+                          template_name: editorTemplateName.trim(),
+                          content: editorTemplateContent.trim(),
+                        })
+                        await loadChannelTemplates(sendType)
+                        setTemplateId(updated.id)
+                        setTemplate(updated.template_name)
+                        setMessage(updated.content)
+                        setEditorTemplateCode(updated.template_code)
+                      } else {
+                        const updated = await updateMessageTemplate(editorTemplateId, {
+                          template_name: editorTemplateName.trim(),
+                          content: editorTemplateContent.trim(),
+                        })
+                        await loadChannelTemplates(sendType)
+                        setTemplateId(updated.id)
+                        setTemplate(updated.template_name)
+                        setMessage(updated.content)
+                      }
                       window.alert('템플릿이 수정되었습니다.')
                     } catch (e) {
                       window.alert(e instanceof Error ? e.message : '템플릿 수정에 실패했습니다.')
@@ -861,7 +1286,7 @@ export default function SmsKakaoSendPage() {
                     setTemplate(saved.template_name)
                     setSaveTemplateName('')
                     setSaveTemplateModalOpen(false)
-                    await loadTemplates(sendType)
+                    await loadChannelTemplates(sendType)
                     window.alert('템플릿이 저장되었습니다.')
                   } catch (e) {
                     window.alert(e instanceof Error ? e.message : '템플릿 저장에 실패했습니다.')

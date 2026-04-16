@@ -163,6 +163,55 @@ export async function getMessageTemplates(params?: { channel?: 'sms' | 'kakao' |
   return unwrapResult<MessageTemplate[]>(data)
 }
 
+export type KakaoTemplate = {
+  id: number
+  template_code: string
+  template_name: string
+  content: string
+  variables: unknown[]
+  buttons: unknown[]
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export async function getKakaoTemplates(params?: { status?: string }) {
+  const { data } = await apiClient.get('/messages/kakao-templates', { params })
+  return unwrapResult<KakaoTemplate[]>(data)
+}
+
+export async function createKakaoTemplate(payload: {
+  template_code: string
+  template_name: string
+  content: string
+  variables?: unknown[]
+  buttons?: unknown[]
+  status?: string
+}) {
+  const { data } = await apiClient.post('/messages/kakao-templates', payload)
+  return unwrapResult<KakaoTemplate>(data)
+}
+
+export async function updateKakaoTemplate(
+  templateId: number,
+  payload: Partial<{
+    template_code: string
+    template_name: string
+    content: string
+    variables: unknown[]
+    buttons: unknown[]
+    status: string
+  }>
+) {
+  const { data } = await apiClient.put(`/messages/kakao-templates/${templateId}`, payload)
+  return unwrapResult<KakaoTemplate>(data)
+}
+
+export async function deleteKakaoTemplate(templateId: number) {
+  const { data } = await apiClient.delete(`/messages/kakao-templates/${templateId}`)
+  return unwrapResult<null>(data)
+}
+
 export async function createMessageTemplate(payload: {
   channel: 'sms' | 'kakao' | 'email'
   template_name: string

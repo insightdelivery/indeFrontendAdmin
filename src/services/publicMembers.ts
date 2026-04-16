@@ -34,12 +34,23 @@ function normalizeListPayload<T>(raw: unknown): PublicMemberListPayload<T> {
   return { list, total, page, page_size: pageSize }
 }
 
+export type PublicMemberRecipientScope =
+  | 'marketing_agree'
+  | 'all'
+  | 'join_date'
+  | 'inactive_90'
+  | 'withdrawn'
+
 export async function getPublicMemberList(params?: {
   page?: number
   page_size?: number
   search?: string
   ordering?: string
   status?: 'ACTIVE' | 'WITHDRAW_REQUEST' | 'WITHDRAWN'
+  /** 문자/카카오 수신자 검색 등: 백엔드 `AdminPublicMemberViewSet.get_queryset` */
+  recipient_scope?: PublicMemberRecipientScope
+  join_date_from?: string
+  join_date_to?: string
 }): Promise<PublicMemberListResponse> {
   const { data } = await apiClient.get(`${BASE}`, { params })
   return unwrapResult<PublicMemberListResponse>(data)
