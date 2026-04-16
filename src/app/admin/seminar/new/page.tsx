@@ -45,6 +45,7 @@ import {
 import Link from 'next/link'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
 import apiClient from '@/lib/axios'
+import { ContentFormBottomActions } from '@/components/admin/ContentFormBottomActions'
 
 const videoSchema = z
   .object({
@@ -762,6 +763,18 @@ export default function SeminarCreatePage() {
             )}
           </div>
         </Card>
+
+        <ContentFormBottomActions>
+          <Button
+            type="button"
+            onClick={handleSubmit(onSubmit)}
+            disabled={saving}
+            size="sm"
+            className="bg-black text-white hover:bg-gray-800"
+          >
+            {saving ? '저장 중...' : '등록'}
+          </Button>
+        </ContentFormBottomActions>
       </form>
 
       {showCenterLoader && (

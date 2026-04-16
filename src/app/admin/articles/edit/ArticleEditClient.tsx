@@ -37,6 +37,7 @@ import {
 import Link from 'next/link'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
 import ContentQuestionsEditor from '@/components/admin/ContentQuestionsEditor'
+import { ContentFormBottomActions } from '@/components/admin/ContentFormBottomActions'
 import { SysCodeSelect } from '@/components/admin/SysCodeSelect'
 import { SysCodeRadioGroup } from '@/components/admin/SysCodeRadioGroup'
 import {
@@ -46,6 +47,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { publicArticleDetailUrl } from '@/lib/publicWwwUrl'
 
 const articleSchema = z
   .object({
@@ -403,7 +405,7 @@ export default function ArticleEditClient() {
             variant="outline"
             size="sm"
             onClick={() => {
-              window.open(`/articles/${articleId}`, '_blank')
+              window.open(publicArticleDetailUrl(articleId), '_blank', 'noopener,noreferrer')
             }}
           >
             <Eye className="h-4 w-4 mr-2" />
@@ -716,6 +718,38 @@ export default function ArticleEditClient() {
             </div>
           </div>
         </Card>
+
+        <ContentFormBottomActions>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              window.open(publicArticleDetailUrl(articleId), '_blank', 'noopener,noreferrer')
+            }}
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            미리보기
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className="bg-black text-white hover:bg-gray-800"
+            onClick={handleSubmit(onSubmit)}
+            disabled={saving}
+          >
+            {saving ? '저장 중...' : '수정 완료'}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className="bg-red-500 text-white hover:bg-red-600"
+            onClick={() => setDeleteModalOpen(true)}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            삭제
+          </Button>
+        </ContentFormBottomActions>
       </form>
 
       {/* 삭제 확인 모달 */}

@@ -34,6 +34,7 @@ import ContentQuestionsEditor from '@/components/admin/ContentQuestionsEditor'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import apiClient from '@/lib/axios'
+import { ContentFormBottomActions } from '@/components/admin/ContentFormBottomActions'
 
 /** 등록 페이지(`video/new`)와 동일 — API `status`로 매핑 */
 const VIDEO_PUBLISH_MODE = {
@@ -921,6 +922,27 @@ export default function VideoEditClient() {
             )}
           </div>
         </Card>
+
+        <ContentFormBottomActions>
+          <Button
+            type="button"
+            size="sm"
+            className="bg-black text-white hover:bg-gray-800"
+            onClick={handleSubmit(onSubmit)}
+            disabled={saving}
+          >
+            {saving ? '저장 중...' : '저장'}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className="bg-red-500 text-white hover:bg-red-600"
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            삭제
+          </Button>
+        </ContentFormBottomActions>
       </form>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>

@@ -35,6 +35,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
+import { ContentFormBottomActions } from '@/components/admin/ContentFormBottomActions'
 
 const articleSchema = z
   .object({
@@ -639,6 +640,39 @@ export default function ArticleCreatePage() {
             )}
           </div>
         </Card>
+
+        <ContentFormBottomActions>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleSaveDraft}
+            disabled={saving}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            임시 저장
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              window.open('/articles/preview', '_blank')
+            }}
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            미리보기
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSubmit(onSubmit, onInvalid)}
+            disabled={saving}
+            size="sm"
+            className="bg-black text-white hover:bg-gray-800"
+          >
+            {saving ? '저장 중...' : '등록'}
+          </Button>
+        </ContentFormBottomActions>
       </form>
     </div>
   )

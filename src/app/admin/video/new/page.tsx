@@ -44,6 +44,7 @@ import Link from 'next/link'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
 import apiClient from '@/lib/axios'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { ContentFormBottomActions } from '@/components/admin/ContentFormBottomActions'
 
 /** UI 전용 — API `status`로 매핑(임시저장·비공개는 둘 다 `private`) */
 const VIDEO_PUBLISH_MODE = {
@@ -925,7 +926,19 @@ export default function VideoCreatePage() {
               </div>
             )}
           </div>
-        </Card>        
+        </Card>
+
+        <ContentFormBottomActions>
+          <Button
+            type="button"
+            onClick={handleSubmit(onSubmit)}
+            disabled={saving}
+            size="sm"
+            className="bg-black text-white hover:bg-gray-800"
+          >
+            {saving ? '저장 중...' : '등록'}
+          </Button>
+        </ContentFormBottomActions>
       </form>
 
       {showCenterLoader && (

@@ -32,6 +32,7 @@ import { ArrowLeft, Trash2, Video as VideoIcon, GraduationCap, X, Upload, File }
 import ContentQuestionsEditor from '@/components/admin/ContentQuestionsEditor'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import apiClient from '@/lib/axios'
+import { ContentFormBottomActions } from '@/components/admin/ContentFormBottomActions'
 
 const schema = z
   .object({
@@ -754,6 +755,27 @@ export default function SeminarEditClient() {
             )}
           </div>
         </Card>
+
+        <ContentFormBottomActions>
+          <Button
+            type="button"
+            size="sm"
+            className="bg-black text-white hover:bg-gray-800"
+            onClick={handleSubmit(onSubmit)}
+            disabled={saving}
+          >
+            {saving ? '저장 중...' : '저장'}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className="bg-red-500 text-white hover:bg-red-600"
+            onClick={() => setDeleteOpen(true)}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            삭제
+          </Button>
+        </ContentFormBottomActions>
       </form>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>

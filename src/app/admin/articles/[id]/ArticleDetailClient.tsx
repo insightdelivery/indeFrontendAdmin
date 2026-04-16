@@ -31,6 +31,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { getSysCodeName, getSysCodeFromCache } from '@/lib/syscode'
 import { formatDateTime } from '@/lib/utils'
+import { publicArticleDetailUrl } from '@/lib/publicWwwUrl'
 
 /**
  * 본문 HTML을 상세보기에서 에디터처럼 줄바꿈이 보이도록 변환.
@@ -194,7 +195,7 @@ export default function ArticleDetailClient() {
             variant="outline"
             size="sm"
             onClick={() => {
-              window.open(`/articles/${articleId}`, '_blank')
+              window.open(publicArticleDetailUrl(articleId), '_blank', 'noopener,noreferrer')
             }}
           >
             <Eye className="h-4 w-4 mr-2" />
