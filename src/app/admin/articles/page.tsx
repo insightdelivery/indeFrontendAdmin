@@ -578,7 +578,7 @@ export default function ArticleListPage() {
                       <div>상태</div>
                     </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     별점
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -672,12 +672,14 @@ export default function ArticleListPage() {
                         <div>{getStatusBadge(article.status)}</div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-700">
-                      {article.rating != null ? (
-                        <span title="평균 별점">⭐ {article.rating.toFixed(1)}</span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                      <div className="flex justify-center">
+                        {article.rating != null ? (
+                          <span title="평균 별점">⭐ {article.rating.toFixed(1)}</span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       {article.viewCount.toLocaleString()}

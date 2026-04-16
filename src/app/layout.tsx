@@ -9,11 +9,16 @@ export const metadata: Metadata = {
   title: "Inde Administrator",
   description: "InDe 관리자",
   icons: {
-    icon: [{ url: "/ms-icon-70x70.png", sizes: "70x70", type: "image/png" }],
-    apple: "/ms-icon-70x70.png",
+    icon: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-48x48.png", sizes: "48x48", type: "image/png" },
+    ],
+    shortcut: ["/favicon.png"],
+    apple: [{ url: "/favicon-180x180.png", sizes: "180x180", type: "image/png" }],
   },
   other: {
-    "msapplication-TileImage": "/ms-icon-70x70.png",
+    "msapplication-TileImage": "/favicon-192x192.png",
   },
   robots: {
     index: false,

@@ -530,7 +530,7 @@ export default function VideoListPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     조회수
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     별점
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -607,14 +607,16 @@ export default function VideoListPage() {
                       {video.viewCount.toLocaleString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {video.rating != null ? (
-                        <span className="inline-flex items-center gap-1" title="평균 별점">
-                          <Star className="h-3 w-3 shrink-0 text-yellow-500" />
-                          {video.rating.toFixed(1)}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
+                      <div className="flex justify-center">
+                        {video.rating != null ? (
+                          <span className="inline-flex items-center gap-1" title="평균 별점">
+                            <Star className="h-3 w-3 shrink-0 text-yellow-500" />
+                            {video.rating.toFixed(1)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       <button
