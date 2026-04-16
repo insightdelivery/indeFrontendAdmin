@@ -492,17 +492,35 @@ export default function SmsKakaoSendPage() {
     <section className="rounded-xl border border-slate-200 bg-white">
       <div className="grid min-h-[820px] grid-cols-1 lg:grid-cols-[62%_38%]">
         <div className="border-r border-slate-200 p-6 pb-24">
-          <div className="mb-6 flex items-center gap-3">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <h1 className="text-lg font-semibold text-gray-900">문자 전송</h1>
-            <span className="text-sm text-gray-500">잔여문자량 {remainSmsCnt !== null ? `${remainSmsCnt.toLocaleString('ko-KR')}건` : '-'}</span>
-            <button
-              type="button"
-              onClick={() => window.open('https://www.aligo.in', '_blank', 'noopener,noreferrer')}
-              className="inline-flex items-center gap-1 text-sm text-gray-700 underline underline-offset-2"
-            >
-              충전하기
-              <ExternalLink className="h-4 w-4" />
-            </button>
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+              <div
+                className="rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-1.5 shadow-sm ring-1 ring-violet-100"
+                role="status"
+                aria-live="polite"
+              >
+                <p className="text-sm leading-snug text-violet-800">
+                  <span className="font-medium">잔여문자량</span>{' '}
+                  {remainSmsCnt !== null ? (
+                    <>
+                      <span className="font-bold tabular-nums text-red-600">{remainSmsCnt.toLocaleString('ko-KR')}</span>
+                      <span className="text-violet-800">건</span>
+                    </>
+                  ) : (
+                    <span className="font-medium text-slate-400">—</span>
+                  )}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => window.open('https://www.aligo.in', '_blank', 'noopener,noreferrer')}
+                className="inline-flex items-center gap-1 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600"
+              >
+                충전하기
+                <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-95" aria-hidden />
+              </button>
+            </div>
           </div>
 
           <div className="space-y-6">
