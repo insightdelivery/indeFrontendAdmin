@@ -1,9 +1,3 @@
+# 관리자(frontend_admin) 전체 — 검색 크롤러 색인·수집 비허용
 User-agent: *
-Disallow: /admin
-Disallow: /login
-Disallow: /api
-
-
-
-
-
+Disallow: /
