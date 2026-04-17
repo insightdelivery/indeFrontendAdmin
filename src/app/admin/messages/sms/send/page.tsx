@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CircleUserRound, Info, ExternalLink, X } from 'lucide-react'
 import {
   createKakaoTemplate,
@@ -17,8 +17,7 @@ import {
   type KakaoTemplate,
   type MessageTemplate,
 } from '@/services/messages'
-import { getPublicMemberList, type PublicMemberRecipientScope } from '@/services/publicMembers'
-import type { PublicMemberListItem } from '@/types/publicMember'
+import { MemberSearchPanel, type MemberSearchConfirmPayload, type MemberSearchRow } from '@/components/messages/MemberSearchPanel'
 import { Input } from '@/components/ui/input'
 
 type SendType = 'sms' | 'kakao'
@@ -29,16 +28,14 @@ type Contact = {
   email: string
   phone: string
   status: 'ACTIVE' | 'WITHDRAW_REQUEST' | 'WITHDRAWN'
+  /** PublicMemberShip.created_at (ISO) — 목록 가입일시 표시용 */
+  createdAt: string
 }
 
 const PERSONALIZE_PLACEHOLDER = '{개인화변수추가}'
 
-/** 회원 검색 모달: API 한 페이지당 건수 (백엔드 max_page_size 이하) */
-const MEMBER_MODAL_PAGE_SIZE = 100
 /** 받는 사람 칩 미리보기 최대 개수(만 단위 선택 시 DOM 과다 방지) */
 const RECIPIENT_CHIP_PREVIEW = 20
-/** 검색 전체 로드 시 API page_size (백엔드 max_page_size 이하) */
-const MEMBER_FETCH_ALL_PAGE_SIZE = 250
 
 function getByteLength(v: string): number {
   let n = 0
@@ -50,17 +47,6 @@ function getByteLength(v: string): number {
 
 function normalizePhone(value: string): string {
   return value.replace(/\D/g, '')
-}
-
-function mapListItemToContact(m: PublicMemberListItem): Contact {
-  return {
-    id: m.member_sid,
-    name: m.name || m.nickname || `회원#${m.member_sid}`,
-    nickname: (m.nickname || '').trim(),
-    email: m.email || '',
-    phone: normalizePhone(m.phone || ''),
-    status: m.status || (m.is_active ? 'ACTIVE' : 'WITHDRAWN'),
-  }
 }
 
 /** `{키}` 형태 — SMS·카카오 공통, 수신자(Contact) 기준 치환 (알림톡 템플릿 본문과 동일 규칙). */
@@ -132,23 +118,6 @@ export default function SmsKakaoSendPage() {
   const [contactModalOpen, setContactModalOpen] = useState(false)
   const [templateModalOpen, setTemplateModalOpen] = useState(false)
   const [saveTemplateModalOpen, setSaveTemplateModalOpen] = useState(false)
-  const [contactKeyword, setContactKeyword] = useState('')
-  /** API `search`에 넘기는 값(입력 디바운스) */
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  /** 마지막으로「검색 전체」에 넣은 발송 가능 회원 id — 해제 시 이 집합만 제거 */
-  const [cachedFullSearchValidIds, setCachedFullSearchValidIds] = useState<number[] | null>(null)
-  const [bulkSelectLoading, setBulkSelectLoading] = useState(false)
-  const [memberSearchScope, setMemberSearchScope] = useState<PublicMemberRecipientScope>('all')
-  const [joinDateFrom, setJoinDateFrom] = useState('')
-  const [joinDateTo, setJoinDateTo] = useState('')
-  const [contacts, setContacts] = useState<Contact[]>([])
-  const [contactsLoading, setContactsLoading] = useState(false)
-  const [memberListPage, setMemberListPage] = useState(1)
-  const [memberListTotalCount, setMemberListTotalCount] = useState(0)
-  const [memberListHasNext, setMemberListHasNext] = useState(false)
-  /** 모달 내 선택: 페이지 이동 후에도 확정 시 상세를 잃지 않도록 id → Contact */
-  const [modalRecipientById, setModalRecipientById] = useState<Record<number, Contact>>({})
-  const [selectedContactIds, setSelectedContactIds] = useState<number[]>([])
   const [senderPhone, setSenderPhone] = useState('')
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
@@ -223,63 +192,6 @@ export default function SmsKakaoSendPage() {
     void loadRemain()
   }, [])
 
-  useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedSearch(contactKeyword.trim()), 400)
-    return () => window.clearTimeout(t)
-  }, [contactKeyword])
-
-  const buildMemberListParams = useCallback(
-    (page: number, pageSize: number): Parameters<typeof getPublicMemberList>[0] | null => {
-      const params: Parameters<typeof getPublicMemberList>[0] = {
-        page,
-        page_size: pageSize,
-        recipient_scope: memberSearchScope,
-      }
-      if (debouncedSearch) params.search = debouncedSearch
-      if (memberSearchScope === 'join_date') {
-        if (!joinDateFrom.trim() || !joinDateTo.trim()) return null
-        params.join_date_from = joinDateFrom.trim()
-        params.join_date_to = joinDateTo.trim()
-      }
-      return params
-    },
-    [memberSearchScope, joinDateFrom, joinDateTo, debouncedSearch]
-  )
-
-  const loadContacts = useCallback(async () => {
-    const params = buildMemberListParams(memberListPage, MEMBER_MODAL_PAGE_SIZE)
-    if (params === null) {
-      setContacts([])
-      setMemberListTotalCount(0)
-      setMemberListHasNext(false)
-      return
-    }
-    try {
-      setContactsLoading(true)
-      const response = await getPublicMemberList(params)
-      setMemberListTotalCount(typeof response.count === 'number' ? response.count : response.results.length)
-      setMemberListHasNext(Boolean(response.next))
-      const nextContacts: Contact[] = response.results.map(mapListItemToContact)
-      setContacts(nextContacts)
-    } catch {
-      setContacts([])
-      setMemberListTotalCount(0)
-      setMemberListHasNext(false)
-    } finally {
-      setContactsLoading(false)
-    }
-  }, [buildMemberListParams, memberListPage])
-
-  useEffect(() => {
-    if (!contactModalOpen) return
-    void loadContacts()
-  }, [contactModalOpen, loadContacts])
-
-  useEffect(() => {
-    setMemberListPage(1)
-    setCachedFullSearchValidIds(null)
-  }, [memberSearchScope, joinDateFrom, joinDateTo, debouncedSearch])
-
   const loadChannelTemplates = async (channel: SendType) => {
     try {
       setTemplateLoading(true)
@@ -309,34 +221,6 @@ export default function SmsKakaoSendPage() {
     void loadChannelTemplates(sendType)
   }, [sendType])
 
-  const fetchAllValidRecipientsForSearch = useCallback(async () => {
-    const base = buildMemberListParams(1, MEMBER_FETCH_ALL_PAGE_SIZE)
-    if (base === null) {
-      return { ids: [] as number[], byId: {} as Record<number, Contact> }
-    }
-    const ids: number[] = []
-    const byId: Record<number, Contact> = {}
-    const seenPhone = new Set<string>()
-    let page = 1
-    while (true) {
-      const res = await getPublicMemberList({ ...base, page, page_size: MEMBER_FETCH_ALL_PAGE_SIZE })
-      for (const m of res.results) {
-        const c = mapListItemToContact(m)
-        const phone = normalizePhone(c.phone)
-        if (!c.name?.trim() || !phone) continue
-        if (!/^01\d{8,9}$/.test(phone)) continue
-        if (seenPhone.has(phone)) continue
-        seenPhone.add(phone)
-        ids.push(c.id)
-        byId[c.id] = c
-      }
-      if (!res.next) break
-      page += 1
-      if (page > 500) break
-    }
-    return { ids, byId }
-  }, [buildMemberListParams])
-
   const previewText = useMemo(() => {
     return message.trim()
   }, [message])
@@ -347,6 +231,25 @@ export default function SmsKakaoSendPage() {
   )
 
   const receiverLabel = `${selectedContacts.length}명`
+
+  const smsMemberSearchInitial = useMemo(() => {
+    const initialById: Record<number, MemberSearchRow> = {}
+    for (const c of selectedContacts) {
+      initialById[c.id] = {
+        id: c.id,
+        name: c.name,
+        nickname: c.nickname,
+        email: c.email,
+        phone: c.phone,
+        status: c.status,
+        createdAt: c.createdAt,
+      }
+    }
+    return {
+      initialSelectedIds: selectedContacts.map((c) => c.id),
+      initialById,
+    }
+  }, [selectedContacts])
 
   const insertAtCursor = (text: string) => {
     const el = textareaRef.current
@@ -365,73 +268,30 @@ export default function SmsKakaoSendPage() {
     })
   }
 
-  const applySelectedContacts = () => {
+  const applySelectedContacts = (payload: MemberSearchConfirmPayload) => {
     const uniqueByPhone = new Map<string, Contact>()
-    for (const id of selectedContactIds) {
-      const fromCache = modalRecipientById[id]
-      const fromPage = contacts.find((x) => x.id === id)
-      const p = fromCache ?? fromPage
+    for (const id of payload.selectedIds) {
+      const p = payload.byId[id]
       if (!p) continue
       const phone = normalizePhone(p.phone)
       if (!p.name || !phone) continue
       if (!/^01\d{8,9}$/.test(phone)) continue
-      uniqueByPhone.set(phone, { ...p, phone })
+      uniqueByPhone.set(phone, {
+        id: p.id,
+        name: p.name,
+        nickname: p.nickname,
+        email: p.email,
+        phone,
+        status: p.status,
+        createdAt: p.createdAt,
+      })
     }
     setSelectedContacts(Array.from(uniqueByPhone.values()))
     setContactModalOpen(false)
   }
 
-  /** 현재 조건·검색어에 맞는 전체 목록(모든 페이지)에서 발송 가능 회원을 기존 선택과 합침 */
-  const addEntireSearchToRecipientSelection = async () => {
-    if (buildMemberListParams(1, MEMBER_MODAL_PAGE_SIZE) === null) {
-      window.alert('가입일 범위를 선택해 주세요.')
-      return
-    }
-    try {
-      setBulkSelectLoading(true)
-      const { ids, byId } = await fetchAllValidRecipientsForSearch()
-      if (ids.length === 0) {
-        window.alert('해당 검색 조건에서 발송 가능한 회원(이름·휴대폰 010 등)이 없습니다.')
-        setCachedFullSearchValidIds(null)
-        return
-      }
-      setCachedFullSearchValidIds(ids)
-      setSelectedContactIds((prev) => Array.from(new Set([...prev, ...ids])))
-      setModalRecipientById((prev) => ({ ...prev, ...byId }))
-    } catch {
-      window.alert('목록을 불러오는 중 오류가 발생했습니다.')
-    } finally {
-      setBulkSelectLoading(false)
-    }
-  }
-
-  /** 마지막「검색 전체」로 넣은 수신자만 제거(다른 방식으로 고른 수신자는 유지) */
-  const removeEntireSearchFromSelection = () => {
-    if (!cachedFullSearchValidIds || cachedFullSearchValidIds.length === 0) return
-    const drop = new Set(cachedFullSearchValidIds)
-    setSelectedContactIds((prev) => prev.filter((id) => !drop.has(id)))
-    setModalRecipientById((prev) => {
-      const next = { ...prev }
-      for (const id of drop) {
-        delete next[id]
-      }
-      return next
-    })
-    setCachedFullSearchValidIds(null)
-  }
-
-  const allSearchBulkChecked =
-    cachedFullSearchValidIds !== null &&
-    cachedFullSearchValidIds.length > 0 &&
-    cachedFullSearchValidIds.every((id) => selectedContactIds.includes(id))
-
-  const memberListTotalPages = Math.max(1, Math.ceil(memberListTotalCount / MEMBER_MODAL_PAGE_SIZE))
-
   const resetForm = () => {
     setSelectedContacts([])
-    setSelectedContactIds([])
-    setModalRecipientById({})
-    setCachedFullSearchValidIds(null)
     setTitle('')
     setMessage('')
     setTemplate('')
@@ -586,13 +446,7 @@ export default function SmsKakaoSendPage() {
                 <button
                   type="button"
                   className="text-sm font-medium text-gray-700 underline"
-                  onClick={() => {
-                    setMemberListPage(1)
-                    setSelectedContactIds(selectedContacts.map((c) => c.id))
-                    setModalRecipientById(Object.fromEntries(selectedContacts.map((c) => [c.id, c])))
-                    setCachedFullSearchValidIds(null)
-                    setContactModalOpen(true)
-                  }}
+                  onClick={() => setContactModalOpen(true)}
                 >
                   회원 검색
                 </button>
@@ -868,196 +722,13 @@ export default function SmsKakaoSendPage() {
       {contactModalOpen ? (
         <div className="fixed inset-0 z-50 bg-black/40 p-6">
           <div className="mx-auto max-w-5xl rounded-2xl bg-white p-6">
-            <h3 className="text-lg font-semibold">회원 검색</h3>
-            <p className="mt-2 text-sm text-slate-600">검색 조건을 선택한 뒤 목록에서 수신자를 선택해 주세요.</p>
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <select
-                value={memberSearchScope}
-                onChange={(e) => {
-                  const v = e.target.value as PublicMemberRecipientScope
-                  setMemberSearchScope(v)
-                  if (v === 'join_date' && !joinDateFrom && !joinDateTo) {
-                    const end = new Date()
-                    const start = new Date(end.getTime() - 29 * 24 * 60 * 60 * 1000)
-                    setJoinDateFrom(toDateInputValue(start))
-                    setJoinDateTo(toDateInputValue(end))
-                  }
-                }}
-                className="h-11 min-w-[200px] flex-1 rounded-lg border border-slate-300 px-3 text-sm"
-              >
-                <option value="marketing_agree">수신 동의 (뉴스레터·이벤트/혜택 수신 동의 회원)</option>
-                <option value="all">전체 (모든 회원)</option>
-                <option value="join_date">가입 일자 (가입일 범위)</option>
-                <option value="inactive_90">미접속 (최종 접속 90일 이상 경과, 활성 회원)</option>
-                <option value="withdrawn">탈퇴 (탈퇴 완료 회원)</option>
-              </select>
-              <input
-                value={contactKeyword}
-                onChange={(e) => setContactKeyword(e.target.value)}
-                placeholder="이름, 휴대전화, 이메일로 목록 좁히기"
-                className="h-11 min-w-[200px] flex-[2] rounded-lg border border-slate-300 px-3 text-sm"
-              />
-              <button type="button" onClick={() => void loadContacts()} className="h-11 shrink-0 rounded-lg border border-slate-300 px-4 text-sm text-slate-700">
-                새로고침
-              </button>
-            </div>
-            {memberSearchScope === 'join_date' ? (
-              <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                <span className="text-sm text-slate-700">가입일</span>
-                <Input type="date" value={joinDateFrom} onChange={(e) => setJoinDateFrom(e.target.value)} className="h-10 w-[160px] rounded-lg border-slate-300 text-sm" />
-                <span className="text-sm text-slate-500">~</span>
-                <Input type="date" value={joinDateTo} onChange={(e) => setJoinDateTo(e.target.value)} className="h-10 w-[160px] rounded-lg border-slate-300 text-sm" />
-                <span className="text-xs text-slate-500">범위 선택 후 목록이 자동으로 갱신됩니다.</span>
-              </div>
-            ) : null}
-            <p className="mt-2 text-xs text-slate-500">
-              키워드는 서버 검색(이름·이메일·휴대전화)이며, 입력 후 잠시 뒤 목록이 갱신됩니다.
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              {memberSearchScope === 'marketing_agree' && '뉴스레터 수신 동의가 켜진 활성 회원만 표시됩니다.'}
-              {memberSearchScope === 'all' && '탈퇴·탈퇴 요청 포함 전체 회원입니다.'}
-              {memberSearchScope === 'join_date' && '선택한 가입일(시작~종료, 달력일 기준)에 가입한 회원입니다.'}
-              {memberSearchScope === 'inactive_90' && '상태가 활성이면서, 최종 접속이 없거나 오늘 기준 90일 이전인 회원입니다.'}
-              {memberSearchScope === 'withdrawn' && '탈퇴 완료(WITHDRAWN) 상태 회원만 표시됩니다.'}
-            </p>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
-              <span>
-                총 {memberListTotalCount.toLocaleString('ko-KR')}명 · {MEMBER_MODAL_PAGE_SIZE}명씩 · 페이지 {memberListPage} / {memberListTotalPages}
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-40"
-                  disabled={contactsLoading || memberListPage <= 1}
-                  onClick={() => setMemberListPage((p) => Math.max(1, p - 1))}
-                >
-                  이전
-                </button>
-                <button
-                  type="button"
-                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm disabled:opacity-40"
-                  disabled={contactsLoading || !memberListHasNext}
-                  onClick={() => setMemberListPage((p) => p + 1)}
-                >
-                  다음
-                </button>
-              </div>
-            </div>
-            <div className="mt-2 max-h-64 overflow-auto rounded-lg border border-slate-200">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-3 py-2"></th><th className="px-3 py-2 text-left">이름</th><th className="px-3 py-2 text-left">이메일</th><th className="px-3 py-2 text-left">휴대전화번호</th><th className="px-3 py-2 text-left">상태</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {contacts.length === 0 ? (
-                    <tr className="border-t border-slate-100">
-                      <td className="px-3 py-6 text-center text-slate-400" colSpan={5}>
-                        {contactsLoading ? '회원 데이터를 불러오는 중...' : '회원 데이터가 없습니다.'}
-                      </td>
-                    </tr>
-                  ) : null}
-                  {contacts.map((c) => (
-                    <tr key={c.id} className="border-t border-slate-100">
-                      <td className="px-3 py-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedContactIds.includes(c.id)}
-                          onChange={(e) => {
-                            const checked = e.target.checked
-                            setSelectedContactIds((prev) =>
-                              checked ? Array.from(new Set([...prev, c.id])) : prev.filter((id) => id !== c.id)
-                            )
-                            setModalRecipientById((prev) => {
-                              if (checked) {
-                                return { ...prev, [c.id]: c }
-                              }
-                              const next = { ...prev }
-                              delete next[c.id]
-                              return next
-                            })
-                          }}
-                        />
-                      </td>
-                      <td className="px-3 py-2">{c.name}</td>
-                      <td className="px-3 py-2">{c.email}</td>
-                      <td className="px-3 py-2">{c.phone}</td>
-                      <td className="px-3 py-2">{c.status}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="mt-4 rounded-lg border border-slate-200 p-3">
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-3">
-                  <label
-                    className="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-800"
-                    title="검색 조건·키워드에 맞는 회원 전체(모든 페이지) 중 발송 가능한 회원을 선택합니다. 인원이 많으면 잠시 걸릴 수 있습니다."
-                  >
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
-                      checked={allSearchBulkChecked}
-                      disabled={contactsLoading || bulkSelectLoading || memberListTotalCount === 0}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          void addEntireSearchToRecipientSelection()
-                        } else {
-                          removeEntireSearchFromSelection()
-                        }
-                      }}
-                    />
-                    <span>검색된 모든 회원</span>
-                  </label>
-                  {bulkSelectLoading ? (
-                    <span className="text-xs text-violet-600">전체 목록 불러오는 중…</span>
-                  ) : null}
-                  <p className="font-semibold">받는사람 {selectedContactIds.length.toLocaleString('ko-KR')}</p>
-                </div>
-                <button
-                  type="button"
-                  className="text-rose-500 underline text-sm"
-                  onClick={() => {
-                    setSelectedContactIds([])
-                    setModalRecipientById({})
-                    setCachedFullSearchValidIds(null)
-                  }}
-                >
-                  전체 삭제
-                </button>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {selectedContactIds.slice(0, RECIPIENT_CHIP_PREVIEW).map((id) => {
-                  const c = modalRecipientById[id] ?? contacts.find((x) => x.id === id)
-                  if (!c) return null
-                  return (
-                    <span key={id} className="rounded-full bg-violet-50 px-3 py-1 text-xs text-violet-700">
-                      {c.name}({c.phone})
-                    </span>
-                  )
-                })}
-                {selectedContactIds.length > RECIPIENT_CHIP_PREVIEW ? (
-                  <span className="text-xs text-slate-500">외 {selectedContactIds.length - RECIPIENT_CHIP_PREVIEW}명</span>
-                ) : null}
-              </div>
-            </div>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                className="h-10 rounded-lg border border-slate-300 px-5"
-                onClick={() => {
-                  setSelectedContactIds(selectedContacts.map((c) => c.id))
-                  setModalRecipientById(Object.fromEntries(selectedContacts.map((c) => [c.id, c])))
-                  setCachedFullSearchValidIds(null)
-                  setContactModalOpen(false)
-                }}
-              >
-                취소
-              </button>
-              <button type="button" className="h-10 rounded-lg bg-violet-600 px-5 text-white" onClick={applySelectedContacts}>확인</button>
-            </div>
+            <MemberSearchPanel
+              mode="sms"
+              initialSelectedIds={smsMemberSearchInitial.initialSelectedIds}
+              initialById={smsMemberSearchInitial.initialById}
+              onConfirm={applySelectedContacts}
+              onCancel={() => setContactModalOpen(false)}
+            />
           </div>
         </div>
       ) : null}
