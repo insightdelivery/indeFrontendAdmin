@@ -506,12 +506,12 @@ export default function SeminarEditClient() {
             </div>
 
             <div className="space-y-2">
-              <Label>키워드/태그</Label>
+              <Label>검색 키워드/태그</Label>
               <div className="flex gap-2">
                 <Input
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={(e) => {
+                  onKeyPress={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault()
                       handleAddTag()
