@@ -104,6 +104,28 @@ function hhmmToMinutes(value: string): number {
   return h * 60 + m
 }
 
+/** 카카오 템플릿 `buttons` — 발송 시 알리고 `button_1` 값으로 직렬화된다. 입력은 배열 또는 button_1과 동일 구조의 JSON. */
+function parseKakaoTemplateButtonsJson(raw: string): unknown[] {
+  const t = raw.trim()
+  if (!t) return []
+  let v: unknown
+  try {
+    v = JSON.parse(t) as unknown
+  } catch {
+    throw new Error('button_1 JSON은 올바른 JSON 형식이어야 합니다.')
+  }
+  if (Array.isArray(v)) {
+    return v
+  }
+  if (v !== null && typeof v === 'object' && 'button' in v) {
+    const inner = (v as { button: unknown }).button
+    if (Array.isArray(inner)) {
+      return inner
+    }
+  }
+  throw new Error('button_1 JSON은 버튼 배열 `[...]` 이거나 `{"button":[...]}` 형식이어야 합니다.')
+}
+
 export default function SmsKakaoSendPage() {
   const [sendType, setSendType] = useState<SendType>('sms')
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([])
@@ -139,6 +161,10 @@ export default function SmsKakaoSendPage() {
   const [editorTemplateContent, setEditorTemplateContent] = useState('')
   const [editorTemplateCode, setEditorTemplateCode] = useState('')
   const [editorSubmitting, setEditorSubmitting] = useState(false)
+  /** 카카오 템플릿 편집: 알리고 emtitle */
+  const [editorKakaoEmtitle, setEditorKakaoEmtitle] = useState('')
+  /** 카카오 템플릿 편집: 알리고 button_1 JSON */
+  const [editorKakaoButtonsJson, setEditorKakaoButtonsJson] = useState('[]')
   const [isScheduled, setIsScheduled] = useState(false)
   const [scheduledDate, setScheduledDate] = useState('')
   const [scheduledTime, setScheduledTime] = useState('')
@@ -278,6 +304,8 @@ export default function SmsKakaoSendPage() {
     setTemplateId(null)
     setTemplate('')
     setMessage('')
+    setEditorKakaoEmtitle('')
+    setEditorKakaoButtonsJson('[]')
     void loadChannelTemplates(sendType)
   }, [sendType])
 
@@ -413,6 +441,8 @@ export default function SmsKakaoSendPage() {
     setEditorTemplateName('')
     setEditorTemplateContent('')
     setEditorTemplateCode('')
+    setEditorKakaoEmtitle('')
+    setEditorKakaoButtonsJson('[]')
     setIsScheduled(false)
   }
 
@@ -705,10 +735,37 @@ export default function SmsKakaoSendPage() {
                   <p className="mt-2 text-xs text-slate-500">
                     본문의 개인화: {'{이름}'}, {'{닉네임}'}, {'{아이디}'}(회원번호), {'{핸드폰번호}'}, {'{이메일}'} · 카카오형 {'#{이름}#'}도 동일하게 치환됩니다.
                   </p>
-                  <div className="mt-3 min-h-[500px] rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm whitespace-pre-wrap text-slate-700">
-                    {templateLoading
-                      ? '불러오는 중...'
-                      : approvedKakaoTemplates.find((t) => t.id === templateId)?.content ?? '선택된 템플릿 내용이 없습니다.'}
+                  <div className="mt-3 rounded-xl border border-slate-300">
+                    <div className="flex flex-wrap gap-2 border-b border-slate-200 p-2">
+                      <select
+                        value={variableValue}
+                        onChange={(e) => {
+                          const next = e.target.value
+                          setVariableValue(next)
+                          if (next !== PERSONALIZE_PLACEHOLDER) {
+                            insertAtCursor(next)
+                          }
+                        }}
+                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-[14px]"
+                      >
+                        <option value={PERSONALIZE_PLACEHOLDER}>{PERSONALIZE_PLACEHOLDER}</option>
+                        <option value="{이름}">{'{이름}'}</option>
+                        <option value="{아이디}">{'{아이디}'}</option>
+                        <option value="{핸드폰번호}">{'{핸드폰번호}'}</option>
+                      </select>
+                    </div>
+                    <textarea
+                      ref={textareaRef}
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder={templateLoading ? '불러오는 중...' : '템플릿을 선택한 뒤 필요 시 변수를 넣어 편집하세요. 승인본과 개행·변수 형식이 일치해야 합니다.'}
+                      disabled={templateLoading}
+                      className="h-[280px] w-full resize-none rounded-b-xl px-4 py-3 text-[15px] outline-none disabled:bg-slate-50"
+                    />
+                  </div>
+                  <div className="mt-3 flex items-start gap-2 rounded-lg bg-blue-50 px-3 py-2 text-xs text-slate-600">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+                    URL이나 URL 변수를 포함할 때는 앞뒤에 반드시 공백을 추가해야 합니다.
                   </div>
                 </div>
               </>
@@ -1068,12 +1125,18 @@ export default function SmsKakaoSendPage() {
                     setEditorTemplateName('')
                     setEditorTemplateContent('')
                     setEditorTemplateCode('')
+                    setEditorKakaoEmtitle('')
+                    setEditorKakaoButtonsJson('[]')
                     return
                   }
                   setEditorTemplateId(nextId)
                   setEditorTemplateName(selected.template_name)
                   setEditorTemplateContent(selected.content)
                   setEditorTemplateCode(selected.template_code)
+                  setEditorKakaoEmtitle((selected.emtitle || '').slice(0, 500))
+                  setEditorKakaoButtonsJson(
+                    selected.buttons != null ? JSON.stringify(selected.buttons, null, 2) : '[]'
+                  )
                   return
                 }
                 const selected = templates.find((t) => t.id === nextId)
@@ -1082,6 +1145,8 @@ export default function SmsKakaoSendPage() {
                   setEditorTemplateName('')
                   setEditorTemplateContent('')
                   setEditorTemplateCode('')
+                  setEditorKakaoEmtitle('')
+                  setEditorKakaoButtonsJson('[]')
                   return
                 }
                 setEditorTemplateId(nextId)
@@ -1124,6 +1189,36 @@ export default function SmsKakaoSendPage() {
               className="mt-3 h-36 w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm"
             />
 
+            {sendType === 'kakao' ? (
+              <>
+                <div>
+                  <label className="mb-2 mt-4 block text-sm font-medium text-slate-800">
+                    강조표기형 타이틀 <span className="font-normal text-slate-500">(선택 · 알리고 emtitle)</span>
+                  </label>
+                  <input
+                    value={editorKakaoEmtitle}
+                    onChange={(e) => setEditorKakaoEmtitle(e.target.value)}
+                    placeholder="강조표기형 템플릿에만 해당 시 입력"
+                    maxLength={500}
+                    className="h-11 w-full rounded-lg border border-slate-300 px-3 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-800">
+                    버튼 정보 <span className="font-normal text-slate-500">(선택 · 알리고 button_1 JSON)</span>
+                  </label>
+                  <textarea
+                    value={editorKakaoButtonsJson}
+                    onChange={(e) => setEditorKakaoButtonsJson(e.target.value)}
+                    placeholder='예: [{"name":"채널 추가","linkType":"AC","linkTypeName":"채널 추가","linkMo":"...","linkPc":"..."}]'
+                    rows={5}
+                    spellCheck={false}
+                    className="w-full resize-y rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs leading-relaxed text-slate-800"
+                  />
+                </div>
+              </>
+            ) : null}
+
             <div className="mt-5 flex justify-between">
               <button
                 type="button"
@@ -1149,6 +1244,8 @@ export default function SmsKakaoSendPage() {
                     setEditorTemplateName('')
                     setEditorTemplateContent('')
                     setEditorTemplateCode('')
+                    setEditorKakaoEmtitle('')
+                    setEditorKakaoButtonsJson('[]')
                     window.alert('템플릿이 삭제되었습니다.')
                   } catch (e) {
                     window.alert(e instanceof Error ? e.message : '템플릿 삭제에 실패했습니다.')
@@ -1180,10 +1277,19 @@ export default function SmsKakaoSendPage() {
                     try {
                       setEditorSubmitting(true)
                       if (sendType === 'kakao') {
+                        let buttonsParsed: unknown[]
+                        try {
+                          buttonsParsed = parseKakaoTemplateButtonsJson(editorKakaoButtonsJson)
+                        } catch (err) {
+                          window.alert(err instanceof Error ? err.message : 'button_1 JSON이 올바르지 않습니다.')
+                          return
+                        }
                         const created = await createKakaoTemplate({
                           template_code: editorTemplateCode.trim(),
                           template_name: editorTemplateName.trim(),
                           content: editorTemplateContent.trim(),
+                          emtitle: editorKakaoEmtitle.trim().slice(0, 500),
+                          buttons: buttonsParsed,
                         })
                         await loadChannelTemplates(sendType)
                         setEditorTemplateId(created.id)
@@ -1191,6 +1297,10 @@ export default function SmsKakaoSendPage() {
                         setTemplate(created.template_name)
                         setMessage(created.content)
                         setEditorTemplateCode(created.template_code)
+                        setEditorKakaoEmtitle((created.emtitle || '').slice(0, 500))
+                        setEditorKakaoButtonsJson(
+                          created.buttons != null ? JSON.stringify(created.buttons, null, 2) : '[]'
+                        )
                       } else {
                         const created = await createMessageTemplate({
                           channel: 'sms',
@@ -1230,16 +1340,29 @@ export default function SmsKakaoSendPage() {
                     try {
                       setEditorSubmitting(true)
                       if (sendType === 'kakao') {
+                        let buttonsParsed: unknown[]
+                        try {
+                          buttonsParsed = parseKakaoTemplateButtonsJson(editorKakaoButtonsJson)
+                        } catch (err) {
+                          window.alert(err instanceof Error ? err.message : 'button_1 JSON이 올바르지 않습니다.')
+                          return
+                        }
                         const updated = await updateKakaoTemplate(editorTemplateId, {
                           template_code: editorTemplateCode.trim(),
                           template_name: editorTemplateName.trim(),
                           content: editorTemplateContent.trim(),
+                          emtitle: editorKakaoEmtitle.trim().slice(0, 500),
+                          buttons: buttonsParsed,
                         })
                         await loadChannelTemplates(sendType)
                         setTemplateId(updated.id)
                         setTemplate(updated.template_name)
                         setMessage(updated.content)
                         setEditorTemplateCode(updated.template_code)
+                        setEditorKakaoEmtitle((updated.emtitle || '').slice(0, 500))
+                        setEditorKakaoButtonsJson(
+                          updated.buttons != null ? JSON.stringify(updated.buttons, null, 2) : '[]'
+                        )
                       } else {
                         const updated = await updateMessageTemplate(editorTemplateId, {
                           template_name: editorTemplateName.trim(),

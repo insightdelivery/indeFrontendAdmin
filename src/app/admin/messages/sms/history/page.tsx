@@ -1,7 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { cancelMessageBatch, getMessageBatch, getMessageBatches, resendFailed, syncMessageBatchResult } from '@/services/messages'
+import {
+  cancelMessageBatch,
+  getKakaoAligoHistoryDetail,
+  getMessageBatch,
+  getMessageBatches,
+  resendFailed,
+  syncMessageBatchResult,
+} from '@/services/messages'
 
 type HistoryRow = {
   no: number
@@ -16,6 +23,13 @@ type HistoryRow = {
   date: string
   scheduledAt: string | null
   recipients: string[]
+  /** 알리고 mid — 있으면 액션에서 전송결과(상세) 조회 */
+  aligoKakaoMid: string | null
+}
+
+function cellStr(v: unknown): string {
+  if (v === null || v === undefined || v === '') return '-'
+  return String(v)
 }
 
 function formatKstDateTime(value: string): string {
@@ -59,15 +73,33 @@ export default function SmsKakaoHistoryPage() {
     failCount: number
     excludedCount: number
   } | null>(null)
+  const [aligoDetailOpen, setAligoDetailOpen] = useState(false)
+  const [aligoDetailBatchId, setAligoDetailBatchId] = useState<number | null>(null)
+  const [aligoDetailMid, setAligoDetailMid] = useState<string | null>(null)
+  const [aligoDetailLoading, setAligoDetailLoading] = useState(false)
+  const [aligoDetailError, setAligoDetailError] = useState<string | null>(null)
+  const [aligoDetailRows, setAligoDetailRows] = useState<Array<Record<string, unknown>>>([])
+  const [aligoDetailMeta, setAligoDetailMeta] = useState<{
+    current_page?: string | number
+    total_page?: string | number
+    total_count?: string | number
+  }>({})
 
   const loadHistory = async () => {
     try {
       setLoading(true)
       setLoadError(null)
       const data = await getMessageBatches()
-      const smsKakaoOnly = data.filter((b) => b.type === 'sms' || b.type === 'kakao')
+      const smsKakaoOnly = data
+        .filter((b) => b.type === 'sms' || b.type === 'kakao')
+        .sort((a, b) => {
+          const ta = new Date(a.completed_at || a.requested_at).getTime()
+          const tb = new Date(b.completed_at || b.requested_at).getTime()
+          if (tb !== ta) return tb - ta
+          return b.id - a.id
+        })
       const mapped = smsKakaoOnly.map((b, idx) => ({
-        no: smsKakaoOnly.length - idx,
+        no: idx + 1,
         batchId: b.id,
         from: b.sender,
         type: b.type === 'kakao' ? '카카오' : '문자',
@@ -79,6 +111,7 @@ export default function SmsKakaoHistoryPage() {
         date: b.requested_at,
         scheduledAt: b.scheduled_at ?? null,
         recipients: [],
+        aligoKakaoMid: b.type === 'kakao' ? (b.aligo_kakao_mid ?? null) : null,
       }))
       setServerRows(mapped)
     } catch (e) {
@@ -145,7 +178,7 @@ export default function SmsKakaoHistoryPage() {
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
             {shownRows.map((row) => (
-              <tr key={row.no} className="hover:bg-slate-50">
+              <tr key={row.batchId} className="hover:bg-slate-50">
                 <td className="px-4 py-4">{row.no}</td>
                 <td className="px-4 py-4">{row.from}</td>
                 <td className="px-4 py-4 text-center">{row.type}</td>
@@ -194,7 +227,37 @@ export default function SmsKakaoHistoryPage() {
                 </td>
                 <td className="px-4 py-4 text-center">{formatKstDateTime(row.date)}</td>
                 <td className="px-4 py-4 text-center">
-                  <div className="flex items-center justify-center gap-2">
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    {row.type === '카카오' && row.aligoKakaoMid ? (
+                      <button
+                        type="button"
+                        className="text-violet-700 underline underline-offset-2"
+                        onClick={async () => {
+                          setAligoDetailOpen(true)
+                          setAligoDetailBatchId(row.batchId)
+                          setAligoDetailMid(row.aligoKakaoMid)
+                          setAligoDetailLoading(true)
+                          setAligoDetailError(null)
+                          setAligoDetailRows([])
+                          setAligoDetailMeta({})
+                          try {
+                            const r = await getKakaoAligoHistoryDetail(row.batchId, { page: 1, limit: 500 })
+                            setAligoDetailRows(Array.isArray(r.list) ? r.list : [])
+                            setAligoDetailMeta({
+                              current_page: r.current_page,
+                              total_page: r.total_page,
+                              total_count: r.total_count,
+                            })
+                          } catch (e) {
+                            setAligoDetailError(e instanceof Error ? e.message : '알리고 상세 조회에 실패했습니다.')
+                          } finally {
+                            setAligoDetailLoading(false)
+                          }
+                        }}
+                      >
+                        알리고 상세
+                      </button>
+                    ) : null}
                     {row.status === 'scheduled' && !isScheduledTimePassed(row.scheduledAt) ? (
                       <button
                         type="button"
@@ -303,6 +366,78 @@ export default function SmsKakaoHistoryPage() {
             </div>
             <div className="mt-4 flex justify-end">
               <button type="button" className="h-10 rounded-lg bg-violet-600 px-5 text-white" onClick={() => setSelectedContent(null)}>닫기</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {aligoDetailOpen ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-lg">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">알리고 알림톡 전송결과(상세)</h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  batch {aligoDetailBatchId ?? '-'} · mid {aligoDetailMid ?? '-'}
+                  {aligoDetailMeta.total_count != null
+                    ? ` · 총 ${String(aligoDetailMeta.total_count)}건 (페이지 ${String(aligoDetailMeta.current_page ?? 1)}/${String(aligoDetailMeta.total_page ?? 1)})`
+                    : null}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700"
+                onClick={() => {
+                  setAligoDetailOpen(false)
+                  setAligoDetailBatchId(null)
+                  setAligoDetailMid(null)
+                  setAligoDetailRows([])
+                  setAligoDetailError(null)
+                  setAligoDetailMeta({})
+                }}
+              >
+                닫기
+              </button>
+            </div>
+            <div className="max-h-[calc(90vh-5rem)] overflow-auto p-5">
+              {aligoDetailLoading ? (
+                <p className="py-8 text-center text-sm text-slate-500">불러오는 중…</p>
+              ) : aligoDetailError ? (
+                <p className="py-4 text-center text-sm text-rose-600">{aligoDetailError}</p>
+              ) : aligoDetailRows.length === 0 ? (
+                <p className="py-8 text-center text-sm text-slate-500">수신별 상세 내역이 없습니다. (전송 직후·24시간 이내 등 알리고 안내 참고)</p>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-slate-200">
+                  <table className="w-full min-w-[880px] text-left text-xs text-slate-800">
+                    <thead className="bg-slate-50 text-slate-600">
+                      <tr>
+                        <th className="px-3 py-2">수신번호</th>
+                        <th className="px-3 py-2">결과(rslt)</th>
+                        <th className="px-3 py-2">사유</th>
+                        <th className="px-3 py-2">요청일</th>
+                        <th className="px-3 py-2">전송일</th>
+                        <th className="px-3 py-2">응답일</th>
+                        <th className="px-3 py-2">tpl_code</th>
+                        <th className="px-3 py-2">내용</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {aligoDetailRows.map((item, idx) => (
+                        <tr key={`${cellStr(item.msgid)}-${idx}`}>
+                          <td className="px-3 py-2 whitespace-nowrap">{cellStr(item.phone)}</td>
+                          <td className="px-3 py-2 whitespace-nowrap font-mono">{cellStr(item.rslt)}</td>
+                          <td className="max-w-[200px] px-3 py-2 break-words">{cellStr(item.rslt_message)}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-slate-600">{cellStr(item.reqdate)}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-slate-600">{cellStr(item.sentdate)}</td>
+                          <td className="px-3 py-2 whitespace-nowrap text-slate-600">{cellStr(item.rsltdate)}</td>
+                          <td className="px-3 py-2 font-mono text-[11px]">{cellStr(item.tpl_code)}</td>
+                          <td className="max-w-[280px] px-3 py-2 break-words text-slate-700">{cellStr(item.message)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         </div>

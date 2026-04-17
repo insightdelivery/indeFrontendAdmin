@@ -57,8 +57,14 @@ export default function EmailHistoryPage() {
       setLoading(true)
       setLoadError(null)
       const data = await getMessageBatches({ type: 'email' })
-      const mapped: EmailHistoryRow[] = data.map((b, idx) => ({
-        no: data.length - idx,
+      const sorted = [...data].sort((a, b) => {
+        const ta = new Date(a.completed_at || a.requested_at).getTime()
+        const tb = new Date(b.completed_at || b.requested_at).getTime()
+        if (tb !== ta) return tb - ta
+        return b.id - a.id
+      })
+      const mapped: EmailHistoryRow[] = sorted.map((b, idx) => ({
+        no: idx + 1,
         batchId: b.id,
         sender: b.sender,
         title: b.title || '',

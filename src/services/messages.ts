@@ -41,6 +41,8 @@ export type MessageBatch = {
   scheduled_at?: string | null
   completed_at?: string | null
   created_at: string
+  /** 카카오·알리고 발송 배치만. 알리고 `history/detail` 조회용 mid */
+  aligo_kakao_mid?: string | null
   details?: Array<{
     id: number
     receiver_phone?: string
@@ -168,6 +170,8 @@ export type KakaoTemplate = {
   template_code: string
   template_name: string
   content: string
+  /** 알리고 강조표기형 타이틀(emtitle) */
+  emtitle?: string
   variables: unknown[]
   buttons: unknown[]
   status: string
@@ -184,6 +188,7 @@ export async function createKakaoTemplate(payload: {
   template_code: string
   template_name: string
   content: string
+  emtitle?: string
   variables?: unknown[]
   buttons?: unknown[]
   status?: string
@@ -198,6 +203,7 @@ export async function updateKakaoTemplate(
     template_code: string
     template_name: string
     content: string
+    emtitle: string
     variables: unknown[]
     buttons: unknown[]
     status: string
@@ -251,5 +257,17 @@ export async function syncMessageBatchResult(batchId: number) {
     success_count: number
     fail_count: number
     excluded_count: number
+  }>(data)
+}
+
+/** 알리고 akv10 전송결과(상세) — 수신번호별 */
+export async function getKakaoAligoHistoryDetail(batchId: number, params?: { page?: number; limit?: number }) {
+  const { data } = await apiClient.get(`/messages/batches/${batchId}/kakao-aligo-detail`, { params })
+  return unwrapResult<{
+    mid: string
+    list: Array<Record<string, unknown>>
+    current_page?: string | number
+    total_page?: string | number
+    total_count?: string | number
   }>(data)
 }
