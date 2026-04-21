@@ -23,7 +23,12 @@ export interface Article {
   allowComment: boolean
   commentCount: number
   highlightCount: number
+  /** content_question 등록 건수(목록 API에서 집계) */
   questionCount: number
+  /** 답변이 1건 이상인 질문 수(목록 API에서 집계) */
+  answeredQuestionCount?: number
+  /** publicUserActivityLog BOOKMARK 기반(백필·API 저장) */
+  bookmarkCount?: number
   tags?: string[]
   previewLength?: number
   scheduledAt?: string

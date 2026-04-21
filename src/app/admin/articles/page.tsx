@@ -588,7 +588,10 @@ export default function ArticleListPage() {
                     참여 데이터
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    질문
+                    <div className="leading-4 normal-case">
+                      <div>질문(답변/전체)</div>
+                      <div>북마크</div>
+                    </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <div className="leading-4">
@@ -700,8 +703,15 @@ export default function ArticleListPage() {
                         <span>🔖 {article.highlightCount}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {article.questionCount || 0}개
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      <div className="space-y-2">
+                        <p title="답변이 있는 질문 수 / 등록된 적용 질문 수">
+                          {article.answeredQuestionCount ?? 0}/{article.questionCount ?? 0}
+                        </p>
+                        <p title="북마크 수(publicUserActivityLog BOOKMARK)">
+                          {(article.bookmarkCount ?? 0).toLocaleString()}
+                        </p>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       <div className="space-y-2">

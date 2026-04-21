@@ -44,6 +44,8 @@ export interface Article {
   commentCount: number
   highlightCount: number
   questionCount: number
+  answeredQuestionCount?: number
+  bookmarkCount?: number
   tags?: string[]
   questions?: string[]
   previewLength?: number
