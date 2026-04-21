@@ -22,7 +22,8 @@ export interface Video {
   speakerAffiliation?: string | null
   speakerProfileImage?: string | null
   visibility: 'all' | 'free' | 'paid' | 'purchased' | string
-  status: 'public' | 'private' | 'scheduled' | 'deleted' | string
+  /** 노출 상태 sysCodeSid (발행 SID 집합) */
+  status: string
   allowComment?: boolean
   viewCount: number
   rating?: number

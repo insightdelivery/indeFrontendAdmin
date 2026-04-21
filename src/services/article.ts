@@ -23,14 +23,7 @@ export const VISIBILITY_OPTIONS = [
   { value: 'purchased', label: '콘텐츠 구매자' },
 ] as const
 
-// 발행 상태
-export const PUBLISH_STATUS = {
-  DRAFT: 'draft', // 임시저장
-  PUBLISHED: 'published', // 공개
-  PRIVATE: 'private', // 비공개
-  SCHEDULED: 'scheduled', // 예약 발행
-  DELETED: 'deleted', // 삭제됨
-} as const
+export { PUBLISH_STATUS } from '@/features/articles/constants'
 
 export interface Article {
   id: number
@@ -43,7 +36,7 @@ export interface Article {
   author: string
   authorAffiliation?: string
   visibility: 'all' | 'free' | 'paid' | 'purchased'
-  status: 'draft' | 'published' | 'private' | 'scheduled' | 'deleted'
+  status: string
   isEditorPick: boolean
   viewCount: number
   rating?: number

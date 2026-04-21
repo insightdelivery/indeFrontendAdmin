@@ -30,6 +30,7 @@ import {
 import Link from 'next/link'
 import Image from 'next/image'
 import { getSysCodeName, getSysCodeFromCache } from '@/lib/syscode'
+import { CONTENT_PUBLISH_STATUS } from '@/features/content-publish-syscodes'
 import { formatDateTime } from '@/lib/utils'
 import { publicArticleDetailUrl } from '@/lib/publicWwwUrl'
 
@@ -95,12 +96,23 @@ export default function ArticleDetailClient() {
   }
 
   const getStatusBadge = (status: string) => {
+    const statusCodes = getSysCodeFromCache('SYS26209B020')
+    if (statusCodes) {
+      const statusName = getSysCodeName(statusCodes, status)
+      if (statusName !== status) {
+        return (
+          <span className="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+            {statusName}
+          </span>
+        )
+      }
+    }
     const statusMap: Record<string, { label: string; className: string }> = {
-      published: { label: '공개', className: 'bg-green-100 text-green-800' },
-      private: { label: '비공개', className: 'bg-gray-100 text-gray-800' },
-      scheduled: { label: '예약 발행', className: 'bg-blue-100 text-blue-800' },
-      draft: { label: '임시저장', className: 'bg-yellow-100 text-yellow-800' },
-      deleted: { label: '삭제됨', className: 'bg-red-100 text-red-800' },
+      [CONTENT_PUBLISH_STATUS.PUBLISHED]: { label: '공개', className: 'bg-green-100 text-green-800' },
+      [CONTENT_PUBLISH_STATUS.PRIVATE]: { label: '비공개', className: 'bg-gray-100 text-gray-800' },
+      [CONTENT_PUBLISH_STATUS.SCHEDULED]: { label: '예약 발행', className: 'bg-blue-100 text-blue-800' },
+      [CONTENT_PUBLISH_STATUS.DRAFT]: { label: '임시저장', className: 'bg-yellow-100 text-yellow-800' },
+      [CONTENT_PUBLISH_STATUS.DELETED]: { label: '삭제됨', className: 'bg-red-100 text-red-800' },
     }
     const statusInfo = statusMap[status] || { label: status, className: 'bg-gray-100 text-gray-800' }
     return (

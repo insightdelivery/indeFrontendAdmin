@@ -15,7 +15,8 @@ export interface Article {
   author_id?: number | null
   authorAffiliation?: string
   visibility: 'all' | 'free' | 'paid' | 'purchased' | string
-  status: 'draft' | 'published' | 'private' | 'scheduled' | 'deleted' | string
+  /** 발행 상태 sysCodeSid */
+  status: string
   isEditorPick: boolean
   viewCount: number
   rating?: number

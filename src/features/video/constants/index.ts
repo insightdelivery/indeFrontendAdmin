@@ -31,12 +31,15 @@ export const VISIBILITY_OPTIONS = [
   { value: 'purchased', label: '콘텐츠 구매자' },
 ] as const
 
-// 상태
+import { CONTENT_PUBLISH_STATUS } from '@/features/content-publish-syscodes'
+
+/** 비디오/세미나 상태 — DB에는 아티클과 동일 발행 sysCodeSid */
 export const VIDEO_STATUS = {
-  PUBLIC: 'public', // 공개
-  PRIVATE: 'private', // 비공개
-  SCHEDULED: 'scheduled', // 예약
-  DELETED: 'deleted', // 삭제대기
+  PUBLIC: CONTENT_PUBLISH_STATUS.PUBLISHED,
+  PRIVATE: CONTENT_PUBLISH_STATUS.PRIVATE,
+  SCHEDULED: CONTENT_PUBLISH_STATUS.SCHEDULED,
+  DELETED: CONTENT_PUBLISH_STATUS.DELETED,
+  DRAFT: CONTENT_PUBLISH_STATUS.DRAFT,
 } as const
 
 // 검색 타입

@@ -25,13 +25,15 @@ export const VISIBILITY_OPTIONS = [
   { value: 'purchased', label: '콘텐츠 구매자' },
 ] as const
 
-// 발행 상태
+import { CONTENT_PUBLISH_STATUS } from '@/features/content-publish-syscodes'
+
+/** 발행 상태 — DB·API에는 sysCodeSid만 사용 */
 export const PUBLISH_STATUS = {
-  DRAFT: 'draft', // 임시저장
-  PUBLISHED: 'published', // 공개
-  PRIVATE: 'private', // 비공개
-  SCHEDULED: 'scheduled', // 예약 발행
-  DELETED: 'deleted', // 삭제됨
+  DRAFT: CONTENT_PUBLISH_STATUS.DRAFT,
+  PUBLISHED: CONTENT_PUBLISH_STATUS.PUBLISHED,
+  PRIVATE: CONTENT_PUBLISH_STATUS.PRIVATE,
+  SCHEDULED: CONTENT_PUBLISH_STATUS.SCHEDULED,
+  DELETED: CONTENT_PUBLISH_STATUS.DELETED,
 } as const
 
 // 시스템 코드 구분값
