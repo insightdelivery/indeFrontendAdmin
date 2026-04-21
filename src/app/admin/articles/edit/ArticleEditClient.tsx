@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -77,8 +77,29 @@ const articleSchema = z
     },
     { message: '작성자(에디터)를 선택해주세요.', path: ['author_id'] }
   )
+  .superRefine((data, ctx) => {
+    if (data.status === CONTENT_PUBLISH_STATUS.SCHEDULED) {
+      const t = data.scheduledAt?.trim()
+      if (!t) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: '예약 일시를 입력해주세요.',
+          path: ['scheduledAt'],
+        })
+      }
+    }
+  })
 
 type ArticleFormData = z.infer<typeof articleSchema>
+
+function toDatetimeLocalValue(value?: string | null) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const offset = date.getTimezoneOffset()
+  const local = new Date(date.getTime() - offset * 60 * 1000)
+  return local.toISOString().slice(0, 16)
+}
 
 export default function ArticleEditClient() {
   const router = useRouter()
@@ -93,7 +114,6 @@ export default function ArticleEditClient() {
   const [initialThumbnail, setInitialThumbnail] = useState<string>('') // 초기 썸네일 값 저장
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
   const [tagInput, setTagInput] = useState('')
-  const [isScheduled, setIsScheduled] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
   /** 아티클 담당 에디터 목록(콘텐츠 유형 ARTICLE, 역할 EDITOR) */
@@ -111,6 +131,10 @@ export default function ArticleEditClient() {
   })
 
   const status = watch('status')
+  const isScheduled = useMemo(
+    () => status === CONTENT_PUBLISH_STATUS.SCHEDULED,
+    [status],
+  )
 
   useEffect(() => {
     if (!idFromQuery || Number.isNaN(articleId) || articleId <= 0) {
@@ -124,10 +148,6 @@ export default function ArticleEditClient() {
       loadArticle()
     }
   }, [articleId])
-
-  useEffect(() => {
-    setIsScheduled(false) // TODO: sysCodeSid를 확인하여 scheduled 상태인지 판단
-  }, [status])
 
   useEffect(() => {
     getAuthorsByContentType('ARTICLE')
@@ -180,7 +200,7 @@ export default function ArticleEditClient() {
         allowComment: !!data.allowComment,
         tags: data.tags || [],
         previewLength: data.previewLength || 50,
-        scheduledAt: data.scheduledAt ? new Date(data.scheduledAt).toISOString().slice(0, 16) : '',
+        scheduledAt: toDatetimeLocalValue(data.scheduledAt),
       })
     } catch (error: any) {
       toast({
@@ -676,7 +696,7 @@ export default function ArticleEditClient() {
               <SysCodeRadioGroup
                 sysCodeGubn="SYS26209B020"
                 value={watch('status')}
-                onValueChange={(value) => setValue('status', value)}
+                onValueChange={(value) => setValue('status', value, { shouldValidate: true })}
                 orientation="horizontal"
               />
               {errors.status && (
@@ -686,12 +706,17 @@ export default function ArticleEditClient() {
 
             {isScheduled && (
               <div className="space-y-2">
-                <Label htmlFor="scheduledAt">예약 일시 *</Label>
+                <Label htmlFor="scheduledAt">
+                  예약 일시 <span className="text-red-600">*</span>
+                </Label>
                 <Input
                   id="scheduledAt"
                   type="datetime-local"
                   {...register('scheduledAt')}
                 />
+                {errors.scheduledAt && (
+                  <p className="text-sm text-red-600">{errors.scheduledAt.message}</p>
+                )}
               </div>
             )}
 

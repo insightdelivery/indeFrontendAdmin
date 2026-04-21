@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -36,6 +36,7 @@ import {
 import Link from 'next/link'
 import { RichTextEditor } from '@/components/admin/RichTextEditor'
 import { ContentFormBottomActions } from '@/components/admin/ContentFormBottomActions'
+import { CONTENT_PUBLISH_STATUS } from '@/features/content-publish-syscodes'
 
 const articleSchema = z
   .object({
@@ -64,6 +65,18 @@ const articleSchema = z
     },
     { message: '작성자(에디터)를 선택해주세요.', path: ['author_id'] }
   )
+  .superRefine((data, ctx) => {
+    if (data.status === CONTENT_PUBLISH_STATUS.SCHEDULED) {
+      const t = data.scheduledAt?.trim()
+      if (!t) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: '예약 일시를 입력해주세요.',
+          path: ['scheduledAt'],
+        })
+      }
+    }
+  })
 
 type ArticleFormData = z.infer<typeof articleSchema>
 
@@ -73,7 +86,6 @@ export default function ArticleCreatePage() {
   const [thumbnail, setThumbnail] = useState<string>('')
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
   const [tagInput, setTagInput] = useState('')
-  const [isScheduled, setIsScheduled] = useState(false)
   const [saving, setSaving] = useState(false)
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
   /** 아티클 담당 에디터 목록(콘텐츠 유형 ARTICLE, 역할 EDITOR) */
@@ -103,6 +115,10 @@ export default function ArticleCreatePage() {
   })
 
   const status = watch('status')
+  const isScheduled = useMemo(
+    () => status === CONTENT_PUBLISH_STATUS.SCHEDULED,
+    [status],
+  )
 
   useEffect(() => {
     getAuthorsByContentType('ARTICLE')
@@ -112,12 +128,6 @@ export default function ArticleCreatePage() {
       })
       .catch(() => setEditorOptions([]))
   }, [])
-
-  useEffect(() => {
-    // status가 sysCodeSid인 경우도 처리할 수 있도록 수정
-    // TODO: 실제 sysCodeSid를 확인하여 scheduled 상태인지 판단
-    setIsScheduled(false) // 임시로 false, 실제로는 sysCodeSid를 확인해야 함
-  }, [status])
 
   // 자동 저장 (1분 간격)
   useEffect(() => {
@@ -617,7 +627,7 @@ export default function ArticleCreatePage() {
               <SysCodeRadioGroup
                 sysCodeGubn="SYS26209B020"
                 value={watch('status')}
-                onValueChange={(value) => setValue('status', value)}
+                onValueChange={(value) => setValue('status', value, { shouldValidate: true })}
                 orientation="horizontal"
               />
               {errors.status && (
@@ -627,7 +637,9 @@ export default function ArticleCreatePage() {
 
             {isScheduled && (
               <div className="space-y-2">
-                <Label htmlFor="scheduledAt">예약 일시 *</Label>
+                <Label htmlFor="scheduledAt">
+                  예약 일시 <span className="text-red-600">*</span>
+                </Label>
                 <Input
                   id="scheduledAt"
                   type="datetime-local"
