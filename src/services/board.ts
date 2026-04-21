@@ -108,15 +108,17 @@ export async function getInquiry(id: number): Promise<InquiryDetail> {
   return unwrapResult<InquiryDetail>(data)
 }
 
-/** 1:1 문의 답변 저장 (send_email: 답변 안내 메일 발송 여부, 기본 true) */
+/** 1:1 문의 답변 저장 (send_email 기본 false, send_kakao_alimtalk 기본 true) */
 export async function answerInquiry(
   id: number,
   answer: string,
-  sendEmail = true
+  sendEmail = false,
+  sendKakaoAlimtalk = true
 ): Promise<InquiryDetail> {
   const { data } = await apiClient.patch(`${BASE}/inquiries/${id}`, {
     answer,
     send_email: sendEmail,
+    send_kakao_alimtalk: sendKakaoAlimtalk,
   })
   return unwrapResult<InquiryDetail>(data)
 }

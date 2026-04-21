@@ -30,7 +30,8 @@ export default function InquiryDetailClient({ id }: { id: string }) {
   const [answer, setAnswer] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [sendEmail, setSendEmail] = useState(true)
+  const [sendEmail, setSendEmail] = useState(false)
+  const [sendKakaoAlimtalk, setSendKakaoAlimtalk] = useState(true)
   const [typeSysCodes, setTypeSysCodes] = useState<SysCodeItem[]>([])
 
   useEffect(() => {
@@ -66,7 +67,7 @@ export default function InquiryDetailClient({ id }: { id: string }) {
     if (Number.isNaN(idNum)) return
     try {
       setSubmitting(true)
-      const updated = await answerInquiry(idNum, answer.trim(), sendEmail)
+      const updated = await answerInquiry(idNum, answer.trim(), sendEmail, sendKakaoAlimtalk)
       setDetail(updated)
       toast({ title: '답변 저장', description: '답변이 저장되었습니다.', duration: 3000 })
     } catch (e: any) {
@@ -170,18 +171,30 @@ export default function InquiryDetailClient({ id }: { id: string }) {
               />
             </div>
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="inquiry-send-email"
-                  checked={sendEmail}
-                  onCheckedChange={(v) => setSendEmail(v === true)}
-                />
-                <Label htmlFor="inquiry-send-email" className="text-sm font-normal text-gray-700 cursor-pointer">
-                  답변 안내 이메일 보내기
-                </Label>
+              <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
+                <div className="flex items-center gap-2 shrink-0">
+                  <Checkbox
+                    id="inquiry-send-email"
+                    checked={sendEmail}
+                    onCheckedChange={(v) => setSendEmail(v === true)}
+                  />
+                  <Label htmlFor="inquiry-send-email" className="text-sm font-normal text-gray-700 cursor-pointer">
+                    답변 안내 이메일 보내기
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Checkbox
+                    id="inquiry-send-kakao"
+                    checked={sendKakaoAlimtalk}
+                    onCheckedChange={(v) => setSendKakaoAlimtalk(v === true)}
+                  />
+                  <Label htmlFor="inquiry-send-kakao" className="text-sm font-normal text-gray-700 cursor-pointer">
+                    답변안내 카카오 알림톡 보내기
+                  </Label>
+                </div>
               </div>
               {(detail.answer_email_sent_at || detail.answer_email_opened_at) && (
-                <p className="text-xs text-gray-500 pl-6">
+                <p className="text-xs text-gray-500 pl-0 sm:pl-1">
                   {detail.answer_email_sent_at ? <>발송: {formatDate(detail.answer_email_sent_at)}</> : null}
                   {detail.answer_email_opened_at ? (
                     <> · 열람: {formatDate(detail.answer_email_opened_at)}</>
