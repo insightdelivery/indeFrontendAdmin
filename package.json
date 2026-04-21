@@ -45,6 +45,7 @@
     "react-dom": "^18.3.0",
     "react-easy-crop": "^5.5.7",
     "react-hook-form": "^7.51.0",
+    "recharts": "^2.15.0",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
     "tus-js-client": "^4.2.3",

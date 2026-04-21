@@ -283,12 +283,23 @@ export const fetchSysCodeBulkByParents = async (
   }
 }
 
+/** 로그인 전환 등 이전 세션 캐시를 버릴 때 사용 (단일 키 `sysCodeData`). */
+export const clearSysCodeCache = (): void => {
+  try {
+    if (typeof window === 'undefined') return
+    localStorage.removeItem(CACHE_KEY)
+  } catch {
+    // quota / 비프라이빗 모드 등은 무시
+  }
+}
+
 /**
- * 로그인 시 필요한 시스템 코드를 1회 bulk 호출로 localStorage에 저장
+ * 로그인 시 기존 sysCodeData를 비운 뒤, bulk API로 받은 값만 localStorage에 다시 저장한다.
  */
 export const loadSysCodeOnLogin = async (
   parentIds: readonly string[] = SYSCODE_LOGIN_PARENT_IDS
 ): Promise<void> => {
+  clearSysCodeCache()
   try {
     const bulkData = await fetchSysCodeBulkByParents(parentIds)
     const hasData = Object.keys(bulkData).length > 0
