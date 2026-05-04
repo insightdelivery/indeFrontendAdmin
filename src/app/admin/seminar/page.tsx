@@ -9,6 +9,7 @@ import {
   deleteVideo,
   deleteVideos,
   updateVideoStatus,
+  exportVideosToExcel,
   type Video,
   type VideoListParams,
   CONTENT_TYPE,
@@ -62,6 +63,7 @@ import {
   Video as VideoIcon,
   FileVideo,
   GraduationCap,
+  Download,
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -109,6 +111,7 @@ export default function SeminarListPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [searchType, setSearchType] = useState<string>('all')
   const [sort, setSort] = useState<string>('createdAt')
+  const [exporting, setExporting] = useState(false)
 
   const loadVideos = useCallback(async () => {
     try {
@@ -146,6 +149,45 @@ export default function SeminarListPage() {
       setLoading(false)
     }
   }, [filters, startDate, endDate, category, visibility, status, searchTerm, searchType, sort, toast])
+
+  const handleExport = async () => {
+    try {
+      setExporting(true)
+      const blob = await exportVideosToExcel({
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        contentType: 'seminar',
+        category: category === '전체' ? undefined : category,
+        visibility: visibility || undefined,
+        status: status || undefined,
+        search: searchTerm || undefined,
+        searchType: searchType as VideoListParams['searchType'],
+        sort: sort as VideoListParams['sort'],
+      })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `seminars_${new Date().toISOString().split('T')[0]}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      toast({
+        title: '성공',
+        description: '엑셀 파일이 다운로드되었습니다.',
+        duration: 3000,
+      })
+    } catch (error: any) {
+      toast({
+        title: '오류',
+        description: error.message || '엑셀 다운로드에 실패했습니다.',
+        variant: 'destructive',
+        duration: 3000,
+      })
+    } finally {
+      setExporting(false)
+    }
+  }
 
   useEffect(() => {
     loadVideos()
@@ -499,6 +541,10 @@ export default function SeminarListPage() {
             />
             <span className="text-sm text-gray-600">총 {total.toLocaleString()}건</span>
           </div>
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
+            <Download className="h-4 w-4 mr-2" />
+            {exporting ? '다운로드 중…' : '엑셀 다운로드'}
+          </Button>
         </div>
 
         {loading ? (
@@ -534,6 +580,9 @@ export default function SeminarListPage() {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     출연자/강사
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    발행일
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <div className="leading-4">
@@ -610,6 +659,9 @@ export default function SeminarListPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div>{video.speaker || '-'}</div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                      {video.publishedAt ? formatListDateTime(video.publishedAt) : '—'}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       <div className="space-y-2">

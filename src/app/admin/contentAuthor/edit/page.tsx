@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
@@ -42,6 +43,7 @@ import { ArrowLeft, Upload, X, User, ImageIcon, Link2, LayoutGrid } from 'lucide
 const schema = z.object({
   name: z.string().min(1, '이름을 입력해주세요.'),
   profile_image: z.string().optional(),
+  editor_intro: z.string().max(8000, '에디터 소개는 8000자 이하로 입력해주세요.').optional(),
   role: z.enum(['DIRECTOR', 'EDITOR']),
   status: z.enum(['ACTIVE', 'INACTIVE']),
   member_ship_sid: z.string().optional(),
@@ -93,6 +95,7 @@ export default function ContentAuthorEditPage() {
     defaultValues: {
       role: 'EDITOR',
       status: 'ACTIVE',
+      editor_intro: '',
       member_ship_sid: MEMBER_SHIP_NONE,
       content_types: [],
     },
@@ -167,6 +170,7 @@ export default function ContentAuthorEditPage() {
         reset({
           name: author.name,
           profile_image: author.profile_image ?? '',
+          editor_intro: author.editor_intro ?? '',
           role: author.role,
           status: author.status,
           member_ship_sid: author.member_ship_sid || MEMBER_SHIP_NONE,
@@ -199,6 +203,7 @@ export default function ContentAuthorEditPage() {
       await updateAuthor(authorId, {
         name: data.name,
         profile_image: profileImageUrl,
+        editor_intro: data.editor_intro ?? '',
         role: data.role,
         status: data.status,
         member_ship_sid: (data.member_ship_sid && data.member_ship_sid !== MEMBER_SHIP_NONE) ? data.member_ship_sid : null,
@@ -291,6 +296,22 @@ export default function ContentAuthorEditPage() {
               />
               {errors.name && (
                 <p className="text-sm text-destructive">{errors.name.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="editor_intro" className="text-sm font-medium">
+                에디터 소개
+              </Label>
+              <Textarea
+                id="editor_intro"
+                {...register('editor_intro')}
+                placeholder="에디터 소개를 입력하세요"
+                rows={5}
+                className="max-w-2xl"
+              />
+              {errors.editor_intro && (
+                <p className="text-sm text-destructive">{errors.editor_intro.message}</p>
               )}
             </div>
 

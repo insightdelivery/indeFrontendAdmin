@@ -36,6 +36,8 @@ export interface Video {
     size?: number
   }>
   scheduledAt?: string
+  /** 즉시 공개 시 등록 시각, 예약 시 scheduledAt */
+  publishedAt?: string | null
   createdAt: string
   updatedAt: string
   deletedAt?: string

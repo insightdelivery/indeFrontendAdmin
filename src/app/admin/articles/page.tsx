@@ -594,6 +594,9 @@ export default function ArticleListPage() {
                     </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    발행일
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <div className="leading-4">
                       <div>등록일</div>
                       <div>최종수정일</div>
@@ -712,6 +715,9 @@ export default function ArticleListPage() {
                           {(article.bookmarkCount ?? 0).toLocaleString()}
                         </p>
                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                      {article.publishedAt ? formatListDateTime(article.publishedAt) : '—'}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       <div className="space-y-2">
@@ -907,6 +913,17 @@ export default function ArticleListPage() {
                           {selectedArticle.authorAffiliation && (
                             <p className="text-sm text-gray-500 mt-0.5">{selectedArticle.authorAffiliation}</p>
                           )}
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">발행일</label>
+                        <div className="mt-1 flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-gray-400" />
+                          <p className="text-base text-gray-700">
+                            {selectedArticle.publishedAt
+                              ? formatDateTime(selectedArticle.publishedAt)
+                              : '—'}
+                          </p>
                         </div>
                       </div>
                       <div className="space-y-1">

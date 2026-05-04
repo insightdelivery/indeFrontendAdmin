@@ -20,6 +20,7 @@ export interface ContentAuthor {
   role: AuthorRole
   status: AuthorStatus
   member_ship_sid?: string | null
+  editor_intro?: string
   created_at: string
   updated_at: string
   content_types?: ContentAuthorContentTypeItem[] | ContentTypeOption[]
@@ -60,6 +61,7 @@ export interface ContentAuthorCreateRequest {
   role: AuthorRole
   status: AuthorStatus
   member_ship_sid?: string | null
+  editor_intro?: string
   content_types?: ContentTypeOption[]
 }
 

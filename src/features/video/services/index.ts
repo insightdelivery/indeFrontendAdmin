@@ -531,3 +531,30 @@ export const hardDeleteVideo = async (id: number): Promise<void> => {
   }
 }
 
+export type VideoExportParams = Omit<VideoListParams, 'page' | 'pageSize'>
+
+/**
+ * 비디오/세미나 목록 엑셀 (.xlsx). 필터는 목록 API와 동일.
+ */
+export async function exportVideosToExcel(params?: VideoExportParams): Promise<Blob> {
+  try {
+    const response = await apiClient.get('/video/export', {
+      params,
+      responseType: 'blob',
+    })
+    return response.data as Blob
+  } catch (error: any) {
+    let errorMessage = '엑셀 다운로드에 실패했습니다.'
+
+    if (error.response?.data?.IndeAPIResponse?.Message) {
+      errorMessage = error.response.data.IndeAPIResponse.Message
+    } else if (error.response?.data?.error) {
+      errorMessage = error.response.data.error
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+
+    throw new Error(errorMessage)
+  }
+}
+
