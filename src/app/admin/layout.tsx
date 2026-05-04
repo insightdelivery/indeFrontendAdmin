@@ -41,6 +41,8 @@ import {
   Phone,
   Images,
   Globe,
+  Newspaper,
+  LayoutGrid,
 } from 'lucide-react'
 
 const SIDEBAR_MENU_ITEMS = [
@@ -48,6 +50,7 @@ const SIDEBAR_MENU_ITEMS = [
   { href: '/admin/articles', label: '아티클 관리', icon: FileText },
   { href: '/admin/video', label: '비디오 관리', icon: Video },
   { href: '/admin/seminar', label: '세미나 관리', icon: GraduationCap },
+  { href: '/admin/curation', label: '특집(큐레이션) 관리', icon: LayoutGrid },
   { href: '/admin/contentAuthor', label: '작성자 관리', icon: UserCircle },
   { href: '/admin/display-events', label: '이벤트 베너 관리', icon: Images },
   { href: '/admin/homepage-docs', label: '홈페이지 관리', icon: Globe },
@@ -74,6 +77,7 @@ const SMS_EMAIL_SUB_MENUS = [
   { href: '/admin/messages/email/send', label: '이메일 전송', icon: Send, section: 'email' },
   { href: '/admin/messages/email/history', label: '이메일 전송 내역', icon: History, section: 'email' },
   { href: '/admin/messages/email/sender-emails', label: '발신이메일 관리', icon: Mail, section: 'email' },
+  { href: '/admin/messages/newsletter', label: '뉴스레터 신청', icon: Newspaper, section: 'email' },
 ] as const
 
 /**

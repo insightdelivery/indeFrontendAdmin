@@ -38,6 +38,8 @@ export const MENU_CODE_BY_ADMIN_PATH: Record<string, string> = {
   '/admin/articles': MenuCodes.ARTICLE,
   '/admin/video': MenuCodes.VIDEO,
   '/admin/seminar': MenuCodes.SEMINAR,
+  /** 세미나 관리와 동일 권한 — 특집(큐레이션) */
+  '/admin/curation': MenuCodes.SEMINAR,
   '/admin/contentAuthor': MenuCodes.CONTENT_AUTHOR,
   '/admin/display-events': MenuCodes.DISPLAY_EVENTS,
   '/admin/homepage-docs': MenuCodes.HOMEPAGE_DOC,
@@ -56,6 +58,7 @@ export const MENU_CODE_BY_ADMIN_PATH: Record<string, string> = {
   '/admin/messages/email/send': MenuCodes.EMAIL_SEND,
   '/admin/messages/email/history': MenuCodes.EMAIL_HISTORY,
   '/admin/messages/email/sender-emails': MenuCodes.EMAIL_SENDER_MANAGE,
+  '/admin/messages/newsletter': MenuCodes.EMAIL_SEND,
 }
 
 export function canReadMenuCode(user: UserInfo | null, menuCode: string): boolean {
