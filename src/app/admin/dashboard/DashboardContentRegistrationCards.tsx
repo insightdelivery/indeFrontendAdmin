@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { getUserInfo } from '@/services/auth'
 import type { DashboardArticleSummary, DashboardVideoSummary } from '@/services/dashboard'
 import { MenuCodes, canReadMenuCode } from '@/lib/adminMenuCodes'
+import { Layers } from 'lucide-react'
 
 type ContentRegCardProps = {
   title: string
@@ -117,7 +118,15 @@ export default function DashboardContentRegistrationCards({
 
   return (
     <section className="space-y-4" aria-label="콘텐츠 등록 현황">
-      <h2 className="text-sm font-semibold text-foreground">콘텐츠 등록 현황</h2>
+      <div>
+        <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground">
+          <span className="inline-flex items-center rounded-full bg-gray-300 px-6 py-1.5 text-gray-900">
+            <Layers className="h-5 w-5 shrink-0 text-gray-700 mr-3" aria-hidden />
+            콘텐츠 등록 현황
+          </span>
+        </h2>
+        <hr className="mt-[-2px] ml-5 h-0.5 border-0 bg-gray-200" />
+      </div>
       {summaryError ? <p className="text-sm text-destructive">{summaryError}</p> : null}
       {summaryLoading ? <p className="text-sm text-muted-foreground">집계를 불러오는 중입니다…</p> : null}
       <div className="grid gap-4 lg:grid-cols-3">

@@ -40,6 +40,17 @@ export interface Article {
   deletedBy?: string
 }
 
+/** 관리자 목록 GET /article/list 정렬 필드 (sortBy) */
+export type ArticleListSortBy =
+  | 'createdAt'
+  | 'viewCount'
+  | 'rating'
+  | 'commentCount'
+  | 'highlightCount'
+  | 'answeredQuestionCount'
+  | 'bookmarkCount'
+  | 'publishedAt'
+
 export interface ArticleListParams {
   page?: number
   pageSize?: number
@@ -49,6 +60,8 @@ export interface ArticleListParams {
   visibility?: string
   status?: string
   search?: string
+  sortBy?: ArticleListSortBy
+  sortOrder?: 'asc' | 'desc'
 }
 
 export interface ArticleListResponse {

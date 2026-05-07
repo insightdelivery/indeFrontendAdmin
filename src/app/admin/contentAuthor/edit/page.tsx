@@ -234,10 +234,6 @@ export default function ContentAuthorEditPage() {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </Link>
-            <div className="min-w-0">
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">작성자 수정</h1>
-              <p className="mt-0.5 text-sm text-muted-foreground">저자 정보를 불러오는 중입니다.</p>
-            </div>
           </div>
         </header>
         <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-8 text-muted-foreground">
@@ -265,12 +261,6 @@ export default function ContentAuthorEditPage() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">작성자 수정</h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              ID {authorId} 저자 정보를 수정합니다. 프로필 이미지와 연결 관리자를 변경할 수 있습니다.
-            </p>
-          </div>
         </div>
       </header>
 

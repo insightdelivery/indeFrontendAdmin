@@ -35,6 +35,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card'
 import { GripVertical, Plus, Trash2 } from 'lucide-react'
 import { createCuration, getCuration, updateCuration, type CurationContentType } from '@/services/curation'
+import { cn } from '@/lib/utils'
 
 function newRowKey(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID()
@@ -315,126 +316,124 @@ export default function CurationForm({ curationId, compact, onSaved, onCancel }:
   return (
     <form onSubmit={onSubmit} className="space-y-6 max-w-4xl">
       {!compact ? (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-semibold text-gray-900">
-              {isEdit ? '특집(큐레이션) 수정' : '특집(큐레이션) 등록'}
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              한 특집에 여러 콘텐츠(아티클·비디오·세미나)를 순서대로 묶을 수 있습니다.
-            </p>
-          </div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3">
           <Button type="button" variant="outline" size="sm" asChild>
             <Link href="/admin/curation">목록</Link>
           </Button>
         </div>
       ) : null}
 
-      <Card>
-        <CardContent className="space-y-4 pt-5">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="space-y-2 pt-0">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <Label
+            htmlFor="curation-block-name"
+            className="w-30 shrink-0 text-right text-sm font-medium leading-none"
+          >
+            특집(큐레이션)제목 <span className="text-red-600">*</span>
+          </Label>
+          <Input
+            id="curation-block-name"
+            value={blockName}
+            onChange={(e) => setBlockName(e.target.value)}
+            placeholder="특집 제목을 입력하세요"
+            required
+            className="h-9 flax-1 basis-[min(100%,50rem)] max-w-xl"
+          />
+        </div>
+
+        {/* 노출 기간: 라벨 너비 w-28 로 위 행과 수직 정렬 */}
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
+          <div className="flex min-w-0 items-center gap-2">
             <Label
-              htmlFor="curation-block-name"
-              className="w-28 shrink-0 text-right text-sm font-medium leading-none"
+              htmlFor="curation-start"
+              className="w-30 shrink-0 text-right text-sm font-medium leading-none whitespace-nowrap"
             >
-              특집 제목 <span className="text-red-600">*</span>
+              노출 시작 일시 
             </Label>
             <Input
-              id="curation-block-name"
-              value={blockName}
-              onChange={(e) => setBlockName(e.target.value)}
-              placeholder="특집 제목을 입력하세요"
-              required
-              className="h-9 min-w-[12rem] flex-1 basis-[min(100%,22rem)] max-w-xl"
+              id="curation-start"
+              type="datetime-local"
+              value={exposureStart}
+              onChange={(e) => setExposureStart(e.target.value)}
+              className="h-9 w-[min(100%,16rem)]"
             />
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-border sm:border-l sm:pl-4">
-              <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap">
-                <input type="checkbox" checked={isExposed} onChange={(e) => setIsExposed(e.target.checked)} />
-                홈페이지 노출
-              </label>
-            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-border sm:border-l sm:pl-4">
+            <label className="flex items-center gap-2 text-sm cursor-pointer whitespace-nowrap">
+              <input type="checkbox" checked={isExposed} onChange={(e) => setIsExposed(e.target.checked)} />
+              홈페이지 노출
+            </label>
           </div>
 
-          {/* 노출 기간: 라벨 너비 w-28 로 위 행과 수직 정렬 */}
-          <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <Label
-                htmlFor="curation-start"
-                className="w-28 shrink-0 text-right text-sm font-medium leading-none whitespace-nowrap"
-              >
-                노출 시작
-              </Label>
-              <Input
-                id="curation-start"
-                type="datetime-local"
-                value={exposureStart}
-                onChange={(e) => setExposureStart(e.target.value)}
-                className="h-9 w-[min(100%,16rem)]"
-              />
-            </div>
-            <div className="flex min-w-0 items-center gap-2">
-              <Label
-                htmlFor="curation-end"
-                className="w-28 shrink-0 text-right text-sm font-medium leading-none whitespace-nowrap"
-              >
-                노출 종료
-              </Label>
-              <Input
-                id="curation-end"
-                type="datetime-local"
-                value={exposureEnd}
-                onChange={(e) => setExposureEnd(e.target.value)}
-                className="h-9 w-[min(100%,16rem)]"
-              />
-            </div>
+        </div>  
+        <div className="flex flex-wrap items-center gap-x-8 gap-y-2 justify-between">          
+          <div className="flex min-w-0 items-center gap-2">
+            <Label
+              htmlFor="curation-end"
+              className="w-30 shrink-0 text-right text-sm font-medium leading-none whitespace-nowrap"
+            >
+              노출 종료 일시 
+            </Label>
+            <Input
+              id="curation-end"
+              type="datetime-local"
+              value={exposureEnd}
+              onChange={(e) => setExposureEnd(e.target.value)}
+              className="h-9 w-[min(100%,16rem)]"
+            />
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="space-y-3 pt-5">
-          <div className="flex justify-end">
+          <div className="flex items-center">
             <Button type="button" variant="secondary" size="sm" onClick={addRow}>
               <Plus className="h-4 w-4 mr-1" />
               행 추가
             </Button>
           </div>
-          <div className="rounded-md border">
-            <div className="max-h-[min(22rem,55vh)] overflow-auto">
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onRowsDragEnd}>
-                <table className="w-full text-left text-sm">
-                  <thead className="sticky top-0 z-10 border-b bg-muted text-muted-foreground shadow-sm">
-                    <tr>
-                      <th className="px-1 py-2 font-medium w-10" aria-label="순서 변경" />
-                      <th className="px-3 py-2 font-medium w-12">#</th>
-                      <th className="px-3 py-2 font-medium min-w-[140px]">타입</th>
-                      <th className="px-3 py-2 font-medium min-w-[120px]">콘텐츠 코드</th>
-                      <th className="px-3 py-2 font-medium w-28">정렬</th>
-                      <th className="px-3 py-2 font-medium w-20 text-right">관리</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    <SortableContext items={rows.map((r) => r.key)} strategy={verticalListSortingStrategy}>
-                      {rows.map((row, idx) => (
-                        <CurationSortableRow
-                          key={row.key}
-                          row={row}
-                          index={idx}
-                          rowCount={rows.length}
-                          onUpdate={updateRow}
-                          onRemove={removeRow}
-                        />
-                      ))}
-                    </SortableContext>
-                  </tbody>
-                </table>
-              </DndContext>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <div className="flex gap-2">
+      <div className="space-y-3 pt-0">
+        <div className="rounded-md border">
+          <div className="max-h-[min(22rem,55vh)] overflow-auto">
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onRowsDragEnd}>
+              <table className="w-full text-left text-sm">
+                <thead className="sticky top-0 z-10 border-b bg-[#03213b] text-[#fff] text-sm shadow-sm bg-muted text-muted-foreground h-12 rounded-t-md">
+                  <tr>
+                    <th className="px-1 py-2 font-medium w-10 rounded-tl-md" aria-label="순서 변경" />
+                    <th className="px-3 py-2 font-medium w-12">#</th>
+                    <th className="px-3 py-2 font-medium min-w-[140px]">타입</th>
+                    <th className="px-3 py-2 font-medium min-w-[120px]">콘텐츠 코드</th>
+                    <th className="px-3 py-2 font-medium w-28">정렬</th>
+                    <th className="px-3 py-2 font-medium w-20 text-right rounded-tr-md">관리</th>
+                  </tr>
+                </thead>
+           
+                <tbody className="divide-y">
+                  <SortableContext items={rows.map((r) => r.key)} strategy={verticalListSortingStrategy}>
+                    {rows.map((row, idx) => (
+                      <CurationSortableRow
+                        key={row.key}
+                        row={row}
+                        index={idx}
+                        rowCount={rows.length}
+                        onUpdate={updateRow}
+                        onRemove={removeRow}
+                      />
+                    ))}
+                  </SortableContext>
+                </tbody>
+              </table>
+            </DndContext>
+          </div>
+        </div>
+      </div>
+
+
+      <div
+        className={cn(
+          'flex flex-wrap gap-2 border-t justify-end border-gray-200 bg-[#c1c1c1] px-6 py-4',
+          compact && '-mx-6 mt-2',
+        )}
+      >
         <Button type="submit" disabled={saving} className="bg-black text-white hover:bg-gray-800">
           {saving ? '저장 중…' : isEdit ? '저장' : '등록'}
         </Button>

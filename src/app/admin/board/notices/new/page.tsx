@@ -57,20 +57,13 @@ export default function NewNoticePage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">공지 등록</h1>
-          <p className="text-gray-600 text-sm">새 공지사항을 작성합니다.</p>
-        </div>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>공지 내용</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 mt-1">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">제목</label>
+             <div className="flex items-center gap-4 mb-2">
+                 <label className="text-sm font-medium text-gray-700 block mb-1">제목</label>
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -78,8 +71,7 @@ export default function NewNoticePage() {
                 className="max-w-xl"
               />
             </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">내용</label>
+            <div style={{ height: '600px', width: '100%' }}>
               <RichTextEditor
                 value={content}
                 onChange={(value) => setContent(value)}

@@ -104,7 +104,6 @@ export default function SeminarDetailClient() {
               목록으로
             </Button>
           </Link>
-          <h1 className="text-lg font-semibold text-gray-900">세미나 상세</h1>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <Link href={`/admin/seminar/edit?id=${video.id}`}>

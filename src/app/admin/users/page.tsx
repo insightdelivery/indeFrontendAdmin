@@ -15,7 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -23,8 +22,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ListPagination } from '@/components/admin/ListPagination'
 import { WithdrawModal } from '@/components/admin/users/WithdrawModal'
-import { Plus, Search, Edit, Trash2, UserX } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { ADMIN_CONTENT_TABLE_HEAD_TH } from '@/lib/adminContentListTable'
+import { Plus, Search, Edit, Trash2, UserX, RefreshCw, X } from 'lucide-react'
 
 const STATUS_FILTER_ALL = '__all__'
 const STATUS_FILTER_OPTIONS = [
@@ -51,6 +53,19 @@ function formatDate(s: string | null) {
     minute: '2-digit',
   })
 }
+
+const TH = ADMIN_CONTENT_TABLE_HEAD_TH
+const COL_SID = 'w-16 min-w-16 max-w-16 px-2'
+const COL_EMAIL = 'w-[220px] min-w-[220px] max-w-[220px] px-2'
+const COL_NAME = 'w-[104px] min-w-[104px] max-w-[104px] px-2'
+const COL_NICK = 'w-[120px] min-w-[120px] max-w-[120px] px-2'
+const COL_PHONE = 'w-[120px] min-w-[120px] max-w-[120px] px-2'
+const COL_JOINED = 'w-[88px] min-w-[88px] max-w-[88px] px-2'
+const COL_STATUS = 'w-[92px] min-w-[92px] max-w-[92px] px-2'
+const COL_ACTIVE = 'w-[72px] min-w-[72px] max-w-[72px] px-2'
+const COL_CREATED = 'w-[132px] min-w-[132px] max-w-[132px] px-2'
+const COL_WITHDRAWN = 'w-[132px] min-w-[132px] max-w-[132px] px-2'
+const COL_ACTIONS = 'w-24 min-w-24 max-w-24 px-0.5'
 
 export default function UsersPage() {
   const { toast } = useToast()
@@ -96,6 +111,15 @@ export default function UsersPage() {
     load()
   }, [load])
 
+  const filterBarActive =
+    !!search.trim() || (statusFilter && statusFilter !== STATUS_FILTER_ALL)
+
+  const resetFilters = () => {
+    setSearch('')
+    setStatusFilter(STATUS_FILTER_ALL)
+    load(1)
+  }
+
   const handleDeleteClick = (memberSid: number) => {
     setDeletingId(memberSid)
     setDeleteModalOpen(true)
@@ -136,33 +160,22 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">회원 관리</h1>
-          <p className="text-gray-600 text-sm mt-1">공개 회원(PublicMemberShip) 목록을 조회·수정·삭제할 수 있습니다.</p>
-        </div>
-        <Link href="/admin/users/new">
-          <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800">
-            <Plus className="h-4 w-4 mr-2" />
-            새 회원
-          </Button>
-        </Link>
-      </div>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Search className="h-5 w-5 text-gray-500 shrink-0" />
+    <div className="space-y-2 relative">
+      {/* 검색/필터 — defaultUxUiListPlan.md 규격 */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="col-span-1 flex flex-wrap items-center gap-2 md:col-span-2 lg:col-span-2">
+            <label className="min-w-fit whitespace-nowrap text-sm font-medium text-gray-700">검색</label>
             <Input
               placeholder="이메일·이름·닉네임·연락처 검색"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && load(1)}
-              className="max-w-xs"
+              className="h-9 min-w-0 flex-1"
             />
+            <label className="min-w-fit whitespace-nowrap text-sm font-medium text-gray-700">상태</label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[130px]">
+              <SelectTrigger className="h-9 w-[130px] shrink-0">
                 <SelectValue placeholder="회원 상태" />
               </SelectTrigger>
               <SelectContent>
@@ -173,139 +186,202 @@ export default function UsersPage() {
                 ))}
               </SelectContent>
             </Select>
-            <Button type="button" variant="outline" size="sm" onClick={() => load(1)}>
+            <Button
+              type="button"
+              size="sm"
+              className="w-32 shrink-0 border-0 bg-[#3c83cf] text-white shadow-sm hover:bg-[#3278b8] hover:text-white"
+              onClick={() => load(1)}
+            >
+              <Search className="mr-2 h-4 w-4 shrink-0" aria-hidden />
               조회
             </Button>
+            {filterBarActive ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={resetFilters}
+                className="w-32 shrink-0 border-0 bg-[#3c83cf] text-white shadow-sm hover:bg-[#3278b8] hover:text-white"
+              >
+                <X className="mr-1 h-4 w-4" aria-hidden />
+                필터 초기화
+              </Button>
+            ) : null}
           </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-gray-500 py-8 text-center">불러오는 중...</p>
-          ) : (items?.length ?? 0) === 0 ? (
-            <p className="text-gray-500 py-8 text-center">등록된 회원이 없습니다.</p>
-          ) : (
-            <div className="border rounded-lg overflow-hidden overflow-x-auto">
-              <table className="w-full text-sm min-w-[960px]">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="text-left p-3 font-medium w-16">SID</th>
-                    <th className="text-left p-3 font-medium">이메일</th>
-                    <th className="text-left p-3 font-medium">이름</th>
-                    <th className="text-left p-3 font-medium">닉네임</th>
-                    <th className="text-left p-3 font-medium">연락처</th>
-                    <th className="text-center p-3 font-medium w-20">가입경로</th>
-                    <th className="text-center p-3 font-medium w-20">상태</th>
-                    <th className="text-center p-3 font-medium w-16">활성</th>
-                    <th className="text-right p-3 font-medium w-28 whitespace-nowrap">가입일시</th>
-                    <th className="text-right p-3 font-medium w-28 whitespace-nowrap">탈퇴일시</th>
-                    <th className="text-right p-3 font-medium w-[7.5rem] whitespace-nowrap">관리</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((row) => (
-                    <tr
-                      key={row.member_sid}
-                      className="border-b last:border-0 hover:bg-gray-50"
-                    >
-                      <td className="p-3 text-gray-600">{row.member_sid}</td>
-                      <td className="p-3 font-medium">
-                        <Link
-                          href={`/admin/users/edit?id=${row.member_sid}&tab=user-info`}
-                          className="text-blue-700 hover:underline"
-                        >
-                          {row.email}
+          <div className="flex flex-wrap items-center justify-end gap-2 lg:col-span-1">
+            <Button type="button" variant="outline" size="sm" onClick={() => load(1)} disabled={loading}>
+              <RefreshCw className={`mr-2 h-4 w-4 shrink-0 ${loading ? 'animate-spin' : ''}`} aria-hidden />
+              새로고침
+            </Button>
+            <Link href="/admin/users/new">
+              <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800">
+                <Plus className="mr-2 h-4 w-4 shrink-0" aria-hidden />
+                새 회원
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* 테이블 — defaultUxUiListPlan.md 규격 */}
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        {loading ? (
+          <div className="p-12 text-center text-gray-500">
+            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900" />
+            로딩 중...
+          </div>
+        ) : (items?.length ?? 0) === 0 ? (
+          <div className="p-12 text-center text-gray-500">
+            {filterBarActive ? '검색 결과가 없습니다.' : '등록된 회원이 없습니다.'}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full table-fixed border-collapse min-w-[960px]">
+              <colgroup>
+                <col className="w-16" />
+                <col className="w-[220px]" />
+                <col className="w-[104px]" />
+                <col className="w-[120px]" />
+                <col className="w-[120px]" />
+                <col className="w-[88px]" />
+                <col className="w-[92px]" />
+                <col className="w-[72px]" />
+                <col className="w-[132px]" />
+                <col className="w-[132px]" />
+                <col className="w-24" />
+              </colgroup>
+              <thead className="border-b border-white/15 bg-[#03213b] text-[#fff] text-sm shadow-sm bg-muted text-muted-foreground rounded-t-md h-12">
+                <tr>
+                  <th className={cn(TH, COL_SID, 'text-center')}>SID</th>
+                  <th className={cn(TH, COL_EMAIL, 'text-left normal-case')}>이메일</th>
+                  <th className={cn(TH, COL_NAME, 'text-center')}>이름</th>
+                  <th className={cn(TH, COL_NICK, 'text-center normal-case')}>닉네임</th>
+                  <th className={cn(TH, COL_PHONE, 'text-center')}>연락처</th>
+                  <th className={cn(TH, COL_JOINED, 'text-center')}>가입경로</th>
+                  <th className={cn(TH, COL_STATUS, 'text-center')}>상태</th>
+                  <th className={cn(TH, COL_ACTIVE, 'text-center')}>활성</th>
+                  <th className={cn(TH, COL_CREATED, 'text-center normal-case')}>가입일시</th>
+                  <th className={cn(TH, COL_WITHDRAWN, 'text-center normal-case')}>탈퇴일시</th>
+                  <th className={cn(TH, COL_ACTIONS, 'text-center')}>작업</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {items.map((row) => (
+                  <tr key={row.member_sid} className="hover:bg-gray-50">
+                    <td className={cn(COL_SID, 'py-3 align-middle text-center text-sm text-gray-600 tabular-nums')}>
+                      {row.member_sid}
+                    </td>
+                    <td className={cn(COL_EMAIL, 'py-3 align-middle text-left text-sm')}>
+                      <Link
+                        href={`/admin/users/edit?id=${row.member_sid}&tab=user-info`}
+                        className="block w-full truncate font-medium text-[#000] no-underline hover:text-[#000] hover:no-underline"
+                        title={row.email}
+                      >
+                        {row.email}
+                      </Link>
+                    </td>
+                    <td className={cn(COL_NAME, 'py-3 align-middle text-center text-sm text-gray-700')}>
+                      {row.name || '—'}
+                    </td>
+                    <td className={cn(COL_NICK, 'py-3 align-middle text-center text-sm text-gray-700')}>
+                      {row.nickname || '—'}
+                    </td>
+                    <td className={cn(COL_PHONE, 'py-3 align-middle text-center text-sm text-gray-700')}>
+                      {row.phone || '—'}
+                    </td>
+                    <td className={cn(COL_JOINED, 'py-3 align-middle text-center text-sm text-gray-600')}>
+                      {JOINED_VIA_LABEL[row.joined_via] ?? row.joined_via}
+                    </td>
+                    <td className={cn(COL_STATUS, 'py-3 align-middle text-center')}>
+                      {row.status === 'WITHDRAWN' ? (
+                        <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                          탈퇴
+                        </span>
+                      ) : row.status === 'WITHDRAW_REQUEST' ? (
+                        <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                          탈퇴요청
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                          정상
+                        </span>
+                      )}
+                    </td>
+                    <td className={cn(COL_ACTIVE, 'py-3 align-middle text-center')}>
+                      {row.is_active ? (
+                        <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                          Y
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                          N
+                        </span>
+                      )}
+                    </td>
+                    <td className={cn(COL_CREATED, 'py-3 align-middle text-center text-xs text-gray-600 tabular-nums whitespace-nowrap')}>
+                      {formatDate(row.created_at)}
+                    </td>
+                    <td className={cn(COL_WITHDRAWN, 'py-3 align-middle text-center text-xs text-gray-600 tabular-nums whitespace-nowrap')}>
+                      {formatDate(row.withdraw_completed_at ?? null)}
+                    </td>
+                    <td className={cn(COL_ACTIONS, 'py-2 align-middle text-center')}>
+                      <div className="flex items-center justify-center gap-0">
+                        <Link href={`/admin/users/edit?id=${row.member_sid}`}>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 p-0" title="수정">
+                            <Edit className="h-3 w-3" />
+                          </Button>
                         </Link>
-                      </td>
-                      <td className="p-3">{row.name}</td>
-                      <td className="p-3">{row.nickname}</td>
-                      <td className="p-3">{row.phone}</td>
-                      <td className="p-3 text-center text-gray-600">
-                        {JOINED_VIA_LABEL[row.joined_via] ?? row.joined_via}
-                      </td>
-                      <td className="p-3 text-center">
-                        {row.status === 'WITHDRAWN' ? (
-                          <span className="text-red-600 font-medium">탈퇴</span>
-                        ) : row.status === 'WITHDRAW_REQUEST' ? (
-                          <span className="text-amber-600">탈퇴요청</span>
-                        ) : (
-                          <span className="text-green-600">정상</span>
-                        )}
-                      </td>
-                      <td className="p-3 text-center">
-                        {row.is_active ? (
-                          <span className="text-green-600">Y</span>
-                        ) : (
-                          <span className="text-red-600">N</span>
-                        )}
-                      </td>
-                      <td className="p-3 text-right text-gray-600 whitespace-nowrap text-xs">
-                        {formatDate(row.created_at)}
-                      </td>
-                      <td className="p-3 text-right text-gray-600 whitespace-nowrap text-xs">
-                        {formatDate(row.withdraw_completed_at ?? null)}
-                      </td>
-                      <td className="p-3 text-right align-middle">
-                        <div className="flex items-center justify-end gap-0.5 whitespace-nowrap">
-                          <Link href={`/admin/users/edit?id=${row.member_sid}`}>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                          {row.status !== 'WITHDRAWN' && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 shrink-0 text-amber-600 hover:text-amber-700"
-                              onClick={() => handleWithdrawClick(row)}
-                              title="탈퇴 처리"
-                            >
-                              <UserX className="h-4 w-4" />
-                            </Button>
-                          )}
+                        {row.status !== 'WITHDRAWN' ? (
                           <Button
                             variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 shrink-0 text-red-600 hover:text-red-700"
-                            onClick={() => handleDeleteClick(row.member_sid)}
+                            size="icon"
+                            className="h-6 w-6 shrink-0 p-0 text-amber-600 hover:text-amber-700"
+                            onClick={() => handleWithdrawClick(row)}
+                            title="탈퇴 처리"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <UserX className="h-3 w-3" />
                           </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {totalCount > 20 && (
-            <div className="flex justify-between items-center mt-4">
-              <span className="text-gray-500 text-sm">총 {totalCount}건</span>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                  이전
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page * 20 >= totalCount}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  다음
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                        ) : null}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0 p-0 text-red-600 hover:text-red-700"
+                          onClick={() => handleDeleteClick(row.member_sid)}
+                          title="삭제"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {totalCount > 0 ? (
+          <ListPagination
+            currentPage={page}
+            totalPages={Math.max(1, Math.ceil(totalCount / 20))}
+            onPageChange={(next) => load(next)}
+            total={totalCount}
+            disabled={loading}
+          />
+        ) : null}
+      </div>
 
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>회원 삭제</DialogTitle>
-            <DialogDescription>이 회원을 삭제하시겠습니까? 복구할 수 없습니다.</DialogDescription>
+        <DialogContent className="flex w-full max-w-lg flex-col gap-0 overflow-hidden p-0 sm:rounded-lg [&>button]:text-white [&>button]:hover:bg-white/10 [&>button]:hover:text-white [&>button]:ring-offset-[#021a2e]">
+          <DialogHeader className="shrink-0 border-b border-white/10 bg-[#021a2e] px-6 py-4 text-left text-white sm:text-left">
+            <DialogTitle className="text-lg font-semibold text-white">회원 삭제</DialogTitle>
           </DialogHeader>
-          <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+          <div className="px-6 py-4">
+            <DialogDescription className="text-sm text-gray-600">
+              이 회원을 삭제하시겠습니까? 복구할 수 없습니다.
+            </DialogDescription>
+          </div>
+          <DialogFooter className="flex items-center justify-end gap-2 border-t border-gray-200 bg-slate-100 px-6 py-4 sm:gap-2">
             <Button type="button" variant="outline" size="sm" onClick={() => setDeleteModalOpen(false)}>
               취소
             </Button>

@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   getVideoList,
@@ -12,10 +11,10 @@ import {
   exportVideosToExcel,
   type Video,
   type VideoListParams,
+  type VideoListSortBy,
   VIDEO_STATUS,
-  SEARCH_TYPE,
-  SORT_OPTIONS,
   VIDEO_CATEGORY_PARENT,
+  VISIBILITY_OPTIONS,
 } from '@/features/video'
 import { CONTENT_PUBLISH_STATUS } from '@/features/content-publish-syscodes'
 import { useToast } from '@/hooks/use-toast'
@@ -40,9 +39,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ListPagination } from '@/components/admin/ListPagination'
-import { formatDateTime } from '@/lib/utils'
+import { cn } from '@/lib/utils'
+import {
+  ADMIN_CONTENT_TABLE_HEAD_TH,
+  splitPublishedAtListParts,
+  VIDEO_LIST_COL_ACTIONS,
+  VIDEO_LIST_COL_BOOKMARK,
+  VIDEO_LIST_COL_CAT,
+  VIDEO_LIST_COL_CHK,
+  VIDEO_LIST_COL_COMMENT,
+  VIDEO_LIST_COL_PUBL,
+  VIDEO_LIST_COL_QA,
+  VIDEO_LIST_COL_SPEAKER,
+  VIDEO_LIST_COL_STAR,
+  VIDEO_LIST_COL_THUMB,
+  VIDEO_LIST_COL_TITLE,
+  VIDEO_LIST_COL_VIEW,
+  VIDEO_LIST_COL_VIS,
+} from '@/lib/adminContentListTable'
 import VideoDetailSections from '@/components/video/VideoDetailSections'
 import { clearClientAdminSession } from '@/lib/adminClientSession'
 import {
@@ -51,34 +66,97 @@ import {
   Trash2,
   Eye,
   EyeOff,
-  Calendar,
-  Filter,
   X,
-  RefreshCw,
-  User,
-  Tag,
   MessageSquare,
   Star,
-  Video as VideoIcon,
   Download,
+  Search,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from 'lucide-react'
 import Image from 'next/image'
 
-function formatListDateTime(value: string): string {
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return '-'
-  return d.toLocaleString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })
+function VideoSortTh({
+  label,
+  sortKey,
+  align,
+  sortBy,
+  sortOrder,
+  onSort,
+  headerSubLines,
+  thClassName,
+}: {
+  label: string
+  sortKey: VideoListSortBy
+  align: 'left' | 'center' | 'right'
+  sortBy?: VideoListSortBy
+  sortOrder?: 'asc' | 'desc'
+  onSort: (key: VideoListSortBy) => void
+  headerSubLines?: string[]
+  thClassName?: string
+}) {
+  const active = sortBy === sortKey
+  const justify =
+    align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'
+  const textAlign =
+    align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'
+  const sortIcons = active ? (
+    sortOrder === 'asc' ? (
+      <ArrowUp className="h-3.5 w-3.5 shrink-0 text-[#fff]" aria-hidden />
+    ) : (
+      <ArrowDown className="h-3.5 w-3.5 shrink-0 text-[#fff]" aria-hidden />
+    )
+  ) : (
+    <ArrowUpDown className="h-3.5 w-3.5 shrink-0 text-[#fff]/60" aria-hidden />
+  )
+  return (
+    <th
+      className={cn(
+        `py-2.5 ${textAlign} text-xs font-medium uppercase tracking-wider normal-case`,
+        headerSubLines?.length ? '' : 'whitespace-nowrap',
+        'text-[#fff]',
+        thClassName
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={cn(
+          'w-full rounded focus:outline-none focus-visible:ring-2',
+          headerSubLines?.length
+            ? cn(
+                `inline-flex flex-col gap-0.5 leading-tight ${justify === 'justify-end' ? 'items-end' : justify === 'justify-center' ? 'items-center' : 'items-start'}`
+              )
+            : cn('inline-flex items-center gap-1', justify),
+          'text-[#fff] hover:bg-white/10 hover:text-[#fff] focus-visible:ring-white/40'
+        )}
+        title={
+          active
+            ? sortOrder === 'asc'
+              ? '오름차순 — 클릭 시 내림차순'
+              : '내림차순 — 클릭 시 오름차순'
+            : '클릭하여 정렬'
+        }
+      >
+        <span className={cn('inline-flex items-center gap-1', justify)}>
+          <span className="uppercase tracking-wider">{label}</span>
+          {sortIcons}
+        </span>
+        {headerSubLines?.map((line) => (
+          <span
+            key={line}
+            className="block text-[10px] font-normal normal-case leading-tight opacity-90"
+          >
+            {line}
+          </span>
+        ))}
+      </button>
+    </th>
+  )
 }
 
 export default function VideoListPage() {
-  const router = useRouter()
   const { toast } = useToast()
   const [videos, setVideos] = useState<Video[]>([])
   const [loading, setLoading] = useState(true)
@@ -98,6 +176,8 @@ export default function VideoListPage() {
   const [filters, setFilters] = useState<VideoListParams>({
     page: 1,
     pageSize: 10,
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
   })
   const [total, setTotal] = useState(0)
   const [startDate, setStartDate] = useState('')
@@ -107,7 +187,6 @@ export default function VideoListPage() {
   const [status, setStatus] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [searchType, setSearchType] = useState<string>('all')
-  const [sort, setSort] = useState<string>('createdAt')
   const [exporting, setExporting] = useState(false)
 
   const loadVideos = useCallback(async () => {
@@ -122,8 +201,7 @@ export default function VideoListPage() {
         visibility: visibility || undefined,
         status: status || undefined,
         search: searchTerm || undefined,
-        searchType: searchType as any,
-        sort: sort as any,
+        searchType: searchType as VideoListParams['searchType'],
       }
       const result = await getVideoList(params)
       setVideos(result.videos)
@@ -148,7 +226,7 @@ export default function VideoListPage() {
     } finally {
       setLoading(false)
     }
-  }, [filters, startDate, endDate, category, visibility, status, searchTerm, searchType, sort, toast])
+  }, [filters, startDate, endDate, category, visibility, status, searchTerm, searchType, toast])
 
   const handleExport = async () => {
     try {
@@ -162,7 +240,8 @@ export default function VideoListPage() {
         status: status || undefined,
         search: searchTerm || undefined,
         searchType: searchType as VideoListParams['searchType'],
-        sort: sort as VideoListParams['sort'],
+        sortBy: filters.sortBy,
+        sortOrder: filters.sortOrder,
       })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -192,6 +271,15 @@ export default function VideoListPage() {
   useEffect(() => {
     loadVideos()
   }, [loadVideos])
+
+  const handleVideoSort = useCallback((key: VideoListSortBy) => {
+    setFilters((prev) => {
+      const same = prev.sortBy === key
+      const nextOrder: 'asc' | 'desc' =
+        same && prev.sortOrder === 'desc' ? 'asc' : 'desc'
+      return { ...prev, page: 1, sortBy: key, sortOrder: nextOrder }
+    })
+  }, [])
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -364,47 +452,104 @@ export default function VideoListPage() {
     setStatus('')
     setSearchTerm('')
     setSearchType('all')
-    setSort('createdAt')
-    setFilters((prev) => ({ ...prev, page: 1 }))
+    setFilters((prev) => ({
+      ...prev,
+      page: 1,
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+    }))
   }
 
+  const filterBarActive =
+    !!startDate ||
+    !!endDate ||
+    category !== '전체' ||
+    !!visibility ||
+    !!status ||
+    !!searchTerm ||
+    searchType !== 'all' ||
+    filters.sortBy !== 'createdAt' ||
+    filters.sortOrder !== 'desc'
+
+  const TH = ADMIN_CONTENT_TABLE_HEAD_TH
+
   return (
-    <div className="space-y-6 relative">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">비디오 관리</h1>
-          <p className="text-sm text-gray-600 mt-1">비디오 콘텐츠를 검색·필터링하고 관리할 수 있습니다.</p>
-        </div>
-        <div className="flex flex-shrink-0 items-center justify-end gap-2">
-          <Link href="/admin/video/new">
-            <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800">
-              <Plus className="h-4 w-4 mr-2" />
-              새 콘텐츠
-            </Button>
-          </Link>
-        </div>
-      </div>
+    <div className="space-y-2 relative">
+      {/* 검색 및 필터 (아티클 목록과 동일 패턴) */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
+              <label className="min-w-fit whitespace-nowrap text-sm font-medium text-gray-700">시작 등록일</label>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="min-w-fit whitespace-nowrap text-sm font-medium text-gray-700">종료 등록</label>
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            </div>
+          </div>
 
-      {/* 검색 및 필터 영역 */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter className="h-5 w-5 text-gray-500" />
-          <h2 className="text-lg font-semibold">검색 및 필터</h2>
-          {(startDate || endDate || category !== '전체' || visibility || status || searchTerm) && (
-            <Button variant="ghost" size="sm" onClick={resetFilters} className="ml-auto">
-              <X className="h-4 w-4 mr-1" />
-              필터 초기화
-            </Button>
-          )}
-        </div>
+          <div className="flex flex-wrap items-center gap-2 w-full">
+            <div className="flex items-center gap-2">
+              <label className=" whitespace-nowrap text-sm font-medium text-gray-700 min-w-fit">카테고리</label>
+              <div className="min-w-[160px]">
+                <SysCodeSelect
+                  sysCodeGubn={VIDEO_CATEGORY_PARENT}
+                  value={category}
+                  onValueChange={setCategory}
+                  placeholder="전체"
+                  showAllOption={true}
+                  allOptionValue="전체"
+                  allOptionLabel="전체"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className=" whitespace-nowrap text-sm font-medium text-gray-700">공개 범위</label>
+              <Select
+                value={visibility || 'all'}
+                onValueChange={(value) => setVisibility(value === 'all' ? '' : value)}
+              >
+                <SelectTrigger className="min-w-[160px]">
+                  <SelectValue placeholder="전체" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체</SelectItem>
+                  {VISIBILITY_OPTIONS.filter((o) => o.value !== 'all').map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+         
+            </div>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* 검색어 */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">검색어</label>
-            <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2">
+              <label className="min-w-fit whitespace-nowrap text-sm font-medium text-gray-700">상태</label>
+              <Select value={status || 'all'} onValueChange={(value) => setStatus(value === 'all' ? '' : value)}>
+                <SelectTrigger  className="min-w-[160px]">
+                  <SelectValue placeholder="전체" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체</SelectItem>
+                  <SelectItem value={VIDEO_STATUS.PUBLIC}>공개</SelectItem>
+                  <SelectItem value={VIDEO_STATUS.PRIVATE}>비공개</SelectItem>
+                  <SelectItem value={VIDEO_STATUS.SCHEDULED}>예약</SelectItem>
+                  <SelectItem value={VIDEO_STATUS.DRAFT}>임시저장</SelectItem>
+                  <SelectItem value={VIDEO_STATUS.DELETED}>삭제대기</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="col-span-1 flex flex-wrap items-center gap-2 md:col-span-2 lg:col-span-2">
+            <div className="flex items-center gap-2">
+              <label className="min-w-fit whitespace-nowrap text-sm font-medium text-gray-700">검색</label>
               <Select value={searchType} onValueChange={setSearchType}>
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-[7.5rem] shrink-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -414,323 +559,338 @@ export default function VideoListPage() {
                   <SelectItem value="keyword">키워드</SelectItem>
                 </SelectContent>
               </Select>
-              <Input
-                placeholder="검색어 입력"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    loadVideos()
-                  }
-                }}
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setFilters((prev) => ({ ...prev, page: 1 }))}
-              >
-                조회
-              </Button>
             </div>
-          </div>
-
-          {/* 카테고리 필터 */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">카테고리</label>
-            <SysCodeSelect
-              sysCodeGubn={VIDEO_CATEGORY_PARENT}
-              value={category}
-              onValueChange={setCategory}
-              placeholder="전체"
-              showAllOption={true}
-              allOptionValue="전체"
-              allOptionLabel="전체"
-            />
-          </div>
-
-          {/* 노출 상태 */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">노출 상태</label>
-            <Select value={status || 'all'} onValueChange={(value) => setStatus(value === 'all' ? '' : value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="전체" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">전체</SelectItem>
-                <SelectItem value={VIDEO_STATUS.PUBLIC}>공개</SelectItem>
-                <SelectItem value={VIDEO_STATUS.PRIVATE}>비공개</SelectItem>
-                <SelectItem value={VIDEO_STATUS.SCHEDULED}>예약</SelectItem>
-                <SelectItem value={VIDEO_STATUS.DELETED}>삭제대기</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* 기간 검색 */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">등록일 (시작일)</label>
             <Input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              placeholder="검색어 입력"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') setFilters((prev) => ({ ...prev, page: 1 }))
+              }}
+              className="min-w-0 flex-1"
             />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">등록일 (종료일)</label>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
+            <Button
+              type="button"
+              size="sm"
+              className="w-32 shrink-0 border-0 bg-[#3c83cf] text-white shadow-sm hover:bg-[#3278b8] hover:text-white"
+              onClick={() => setFilters((prev) => ({ ...prev, page: 1 }))}
+            >
+              <Search className="mr-2 h-4 w-4 shrink-0" aria-hidden />
+              조회
+            </Button>
+            {filterBarActive ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={resetFilters}
+                className="w-32 shrink-0 border-0 bg-[#3c83cf] text-white shadow-sm hover:bg-[#3278b8] hover:text-white"
+              >
+                <X className="mr-1 h-4 w-4" />
+                필터 초기화
+              </Button>
+            ) : null}
           </div>
 
-          {/* 정렬 */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">정렬</label>
-            <Select value={sort} onValueChange={setSort}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={SORT_OPTIONS.CREATED_AT}>최신순</SelectItem>
-                <SelectItem value={SORT_OPTIONS.VIEW_COUNT}>조회수순</SelectItem>
-                <SelectItem value={SORT_OPTIONS.RATING}>인기순(별점)</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex flex-wrap items-center justify-end gap-2 lg:col-span-1">
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
+              <Download className="mr-2 h-4 w-4" />
+              {exporting ? '다운로드 중…' : '엑셀 다운로드'}
+            </Button>
+            <Link href="/admin/video/new">
+              <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800">
+                <Plus className="mr-2 h-4 w-4" />
+                새 콘텐츠
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
 
-      {/* 일괄 관리 액션 바 */}
       {selectedIds.length > 0 && (
-        <div className="bg-gray-100 rounded-lg border border-gray-200 p-4 flex items-center justify-between">
-          <span className="font-medium text-black">
-            {selectedIds.length}개 항목 선택됨
-          </span>
+        <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-100 p-4">
+          <span className="font-medium text-black">{selectedIds.length}개 항목 선택됨</span>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleStatusChange(selectedIds, VIDEO_STATUS.PRIVATE)}
-            >
-              <EyeOff className="h-4 w-4 mr-2" />
-              비공개 전환
+            <Button variant="outline" size="sm" onClick={() => handleStatusChange(selectedIds, VIDEO_STATUS.PUBLIC)}>
+              <Eye className="mr-2 h-4 w-4" />
+              공개로 변경
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              className="bg-red-500 text-white hover:bg-red-600"
-              onClick={handleBatchDelete}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
+            <Button variant="outline" size="sm" onClick={() => handleStatusChange(selectedIds, VIDEO_STATUS.PRIVATE)}>
+              <EyeOff className="mr-2 h-4 w-4" />
+              비공개로 변경
+            </Button>
+            <Button type="button" size="sm" className="bg-red-500 text-white hover:bg-red-600" onClick={handleBatchDelete}>
+              <Trash2 className="mr-2 h-4 w-4" />
               선택 삭제
             </Button>
           </div>
         </div>
       )}
 
-      {/* 비디오 목록 테이블 */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Checkbox
-              checked={selectedIds.length === videos.length && videos.length > 0}
-              onCheckedChange={handleSelectAll}
-            />
-            <span className="text-sm text-gray-600">총 {total.toLocaleString()}건</span>
-          </div>
-          <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
-            <Download className="h-4 w-4 mr-2" />
-            {exporting ? '다운로드 중…' : '엑셀 다운로드'}
-          </Button>
-        </div>
-
+      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
         {loading ? (
           <div className="p-12 text-center text-gray-500">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900" />
             로딩 중...
           </div>
-          ) : videos.length === 0 ? (
+        ) : videos.length === 0 ? (
           <div className="p-12 text-center text-gray-500">
-            {searchTerm || category !== '전체' || visibility || status
-              ? '검색 결과가 없습니다.'
-              : '등록된 비디오가 없습니다.'}
+            {filterBarActive ? '검색 결과가 없습니다.' : '등록된 비디오가 없습니다.'}
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+            <table className="w-full table-fixed border-collapse">
+              <colgroup>
+                <col className="w-10" />
+                <col className="w-[72px]" />
+                <col className="w-[120px]" />
+                <col />
+                <col className="w-[104px]" />
+                <col className="w-[120px]" />
+                <col className="w-[70px]" />
+                <col className="w-[70px]" />
+                <col className="w-[70px]" />
+                <col className="w-[70px]" />
+                <col className="w-[70px]" />
+                <col className="w-[110px]" />
+              </colgroup>
+              <thead className="border-b border-white/15 bg-[#03213b] text-[#fff]">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                    <Checkbox
-                      checked={selectedIds.length === videos.length && videos.length > 0}
-                      onCheckedChange={handleSelectAll}
-                    />
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
-                    썸네일
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    카테고리
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    콘텐츠 제목
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    출연자/강사
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    발행일
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div className="leading-4">
-                      <div>등록일</div>
-                      <div>최종수정일</div>
+                  <th className={cn(TH, VIDEO_LIST_COL_CHK, 'text-center')}>
+                    <div className="flex justify-center">
+                      <Checkbox
+                        checked={selectedIds.length === videos.length && videos.length > 0}
+                        onCheckedChange={handleSelectAll}
+                        className="border-[#fff]/70 ring-offset-[#03213b] data-[state=checked]:border-[#fff] data-[state=checked]:bg-[#fff] data-[state=checked]:text-[#03213b]"
+                      />
                     </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    조회수
+                  <th className={cn(TH, VIDEO_LIST_COL_THUMB, 'text-center')}>썸네일</th>
+                  <th className={cn(TH, VIDEO_LIST_COL_CAT, 'text-center')}>카테고리</th>
+                  <th className={cn(TH, VIDEO_LIST_COL_TITLE, 'text-left normal-case')}>제목</th>
+                  <th className={cn(TH, VIDEO_LIST_COL_SPEAKER, 'text-center')}>
+                    <div className="whitespace-normal text-center text-xs normal-case leading-4">
+                      <div>출연자</div>
+                      <div>강사</div>
+                    </div>
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    별점
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    댓글
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div className="leading-4">
+                  <th className={cn(TH, VIDEO_LIST_COL_VIS, 'text-center')}>
+                    <div className="whitespace-normal text-center text-xs normal-case leading-4">
                       <div>공개범위</div>
                       <div>상태</div>
                     </div>
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    관리
-                  </th>
+                  <VideoSortTh
+                    label="조회수"
+                    sortKey="viewCount"
+                    align="center"
+                    sortBy={filters.sortBy}
+                    sortOrder={filters.sortOrder}
+                    onSort={handleVideoSort}
+                    thClassName={VIDEO_LIST_COL_VIEW}
+                  />
+                  <VideoSortTh
+                    label="별점"
+                    sortKey="rating"
+                    align="center"
+                    sortBy={filters.sortBy}
+                    sortOrder={filters.sortOrder}
+                    onSort={handleVideoSort}
+                    thClassName={cn(VIDEO_LIST_COL_STAR, 'text-center')}
+                  />
+                  <VideoSortTh
+                    label="댓글 수"
+                    sortKey="commentCount"
+                    align="center"
+                    sortBy={filters.sortBy}
+                    sortOrder={filters.sortOrder}
+                    onSort={handleVideoSort}
+                    thClassName={VIDEO_LIST_COL_COMMENT}
+                  />
+                  <VideoSortTh
+                    label="Q&A"
+                    sortKey="answeredQuestionCount"
+                    align="center"
+                    sortBy={filters.sortBy}
+                    sortOrder={filters.sortOrder}
+                    onSort={handleVideoSort}
+                    thClassName={cn(VIDEO_LIST_COL_QA, 'text-center')}
+                  />
+                  <VideoSortTh
+                    label="북마크"
+                    sortKey="bookmarkCount"
+                    align="center"
+                    sortBy={filters.sortBy}
+                    sortOrder={filters.sortOrder}
+                    onSort={handleVideoSort}
+                    thClassName={VIDEO_LIST_COL_BOOKMARK}
+                  />
+                  <VideoSortTh
+                    label="발행일"
+                    sortKey="publishedAt"
+                    align="center"
+                    sortBy={filters.sortBy}
+                    sortOrder={filters.sortOrder}
+                    onSort={handleVideoSort}
+                    thClassName={VIDEO_LIST_COL_PUBL}
+                  />
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {videos.map((video) => (
-                  <tr key={video.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Checkbox
-                        checked={selectedIds.includes(video.id)}
-                        onCheckedChange={(checked) =>
-                          handleSelectItem(video.id, checked as boolean)
-                        }
-                      />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {video.thumbnail ? (
-                        <div className="relative w-16 h-10 rounded overflow-hidden">
-                          <Image
-                            src={video.thumbnail}
-                            alt={video.title}
-                            fill
-                            className="object-cover"
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {videos.map((video) => {
+                  const publishedParts = video.publishedAt ? splitPublishedAtListParts(video.publishedAt) : null
+                  const categoryLabel =
+                    (() => {
+                      const codes = getSysCodeFromCache(VIDEO_CATEGORY_PARENT)
+                      return codes ? getSysCodeName(codes, video.category) : null
+                    })() || video.category
+                  return (
+                    <tr key={video.id} className="hover:bg-gray-50">
+                      <td className={cn(VIDEO_LIST_COL_CHK, 'py-3 align-middle')}>
+                        <div className="flex justify-center">
+                          <Checkbox
+                            checked={selectedIds.includes(video.id)}
+                            onCheckedChange={(checked) => handleSelectItem(video.id, checked as boolean)}
                           />
                         </div>
-                      ) : (
-                        <div className="w-16 h-10 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-400">
-                          없음
+                      </td>
+                      <td className={cn(VIDEO_LIST_COL_THUMB, 'py-3 align-middle whitespace-nowrap')}>
+                        <div className="flex justify-center">
+                          {video.thumbnail ? (
+                            <div className="relative h-10 w-14 overflow-hidden rounded">
+                              <Image src={video.thumbnail} alt={video.title} fill className="object-cover" />
+                            </div>
+                          ) : (
+                            <div className="flex h-10 w-14 items-center justify-center rounded bg-gray-200 text-[10px] text-gray-400">
+                              없음
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        {(() => {
-                          const codes = getSysCodeFromCache(VIDEO_CATEGORY_PARENT)
-                          return codes ? getSysCodeName(codes, video.category) : null
-                        })() || video.category}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        type="button"
-                        className="text-sm font-medium text-gray-900 hover:underline text-left"
-                        onClick={() => handleOpenDetail(video.id)}
-                      >
-                        {video.title}
-                      </button>
-                      {video.subtitle && (
-                        <div className="text-xs text-gray-500 mt-1">{video.subtitle}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <div>{video.speaker || '-'}</div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                      {video.publishedAt ? formatListDateTime(video.publishedAt) : '—'}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      <div className="space-y-2">
-                        <p>{formatListDateTime(video.createdAt)}</p>
-                        <p>{video.updatedAt ? formatListDateTime(video.updatedAt) : '-'}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {video.viewCount.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      <div className="flex justify-center">
-                        {video.rating != null ? (
-                          <span className="inline-flex items-center gap-1" title="평균 별점">
-                            <Star className="h-3 w-3 shrink-0 text-yellow-500" />
-                            {video.rating.toFixed(1)}
+                      </td>
+                      <td className={cn(VIDEO_LIST_COL_CAT, 'py-3 align-middle overflow-hidden text-center')}>
+                        <div className="flex min-w-0 flex-col items-center gap-1">
+                          <span
+                            className="block max-w-full truncate rounded-full bg-gray-100 px-2 py-0.5 text-center text-[11px] font-medium text-gray-800"
+                            title={categoryLabel}
+                          >
+                            {categoryLabel}
                           </span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 text-left underline underline-offset-2 hover:no-underline"
-                        onClick={() => {
-                          setCommentsContentId(video.id)
-                          setCommentsModalOpen(true)
-                        }}
-                      >
-                        <MessageSquare className="h-3 w-3" />
-                        {video.commentCount}
-                      </button>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-2">
-                        <div>{getVisibilityBadge(video.visibility)}</div>
-                        <div>{getStatusBadge(video.status)}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="sm" title="상세" onClick={() => handleOpenDetail(video.id)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Link href={`/admin/video/edit?id=${video.id}`}>
-                          <Button variant="ghost" size="sm" title="수정">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(video.id)}
-                          title="삭제"
-                          className="text-red-600 hover:text-red-700"
+                        </div>
+                      </td>
+                      <td className={cn(VIDEO_LIST_COL_TITLE, 'align-top break-words text-left')}>
+                        <Link
+                          href={`/admin/video/edit?id=${video.id}`}
+                          className="block w-full truncate text-left text-sm font-medium text-[#000] no-underline hover:text-[#000] hover:no-underline"
+                          title={video.title}
                         >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          {video.title}
+                        </Link>
+                        {video.subtitle ? (
+                          <div className="mt-1 text-left text-xs text-gray-500">{video.subtitle}</div>
+                        ) : null}
+                      </td>
+                      <td className={cn(VIDEO_LIST_COL_SPEAKER, 'py-3 align-middle overflow-hidden text-center')}>
+                        <div
+                          className="w-full truncate text-sm text-center"
+                          title={video.speaker || undefined}
+                        >
+                          {video.speaker || '—'}
+                        </div>
+                      </td>
+                      <td className={cn(VIDEO_LIST_COL_VIS, 'py-3 align-middle overflow-hidden text-center')}>
+                        <div className="flex min-w-0 flex-col items-center gap-1">
+                          <div className="flex min-w-0 max-w-full justify-center truncate [&_*]:truncate">
+                            {getVisibilityBadge(video.visibility)}
+                          </div>
+                          <div className="flex min-w-0 max-w-full justify-center truncate">{getStatusBadge(video.status)}</div>
+                        </div>
+                      </td>
+                      <td
+                        className={cn(
+                          VIDEO_LIST_COL_VIEW,
+                          'py-3 align-middle whitespace-nowrap text-center text-sm text-gray-600 tabular-nums'
+                        )}
+                      >
+                        {video.viewCount.toLocaleString()}
+                      </td>
+                      <td
+                        className={cn(
+                          VIDEO_LIST_COL_STAR,
+                          'py-3 align-middle whitespace-nowrap text-center text-sm text-gray-700'
+                        )}
+                      >
+                        <div className="flex justify-center tabular-nums">
+                          {video.rating != null ? (
+                            <span className="inline-flex items-center gap-0.5" title="평균 별점">
+                              <Star className="h-3 w-3 shrink-0 text-yellow-500" />
+                              {video.rating.toFixed(1)}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </div>
+                      </td>
+                      <td
+                        className={cn(
+                          VIDEO_LIST_COL_COMMENT,
+                          'py-3 align-middle whitespace-nowrap text-center text-sm text-gray-600 tabular-nums'
+                        )}
+                      >
+                        <button
+                          type="button"
+                          className="inline-flex max-w-full items-center justify-center gap-0.5 truncate underline underline-offset-2 hover:no-underline"
+                          onClick={() => {
+                            setCommentsContentId(video.id)
+                            setCommentsModalOpen(true)
+                          }}
+                        >
+                          <MessageSquare className="h-3 w-3 shrink-0" />
+                          {video.commentCount}
+                        </button>
+                      </td>
+                      <td
+                        className={cn(
+                          VIDEO_LIST_COL_QA,
+                          'py-3 align-middle whitespace-nowrap text-center text-sm text-gray-600 tabular-nums'
+                        )}
+                        title="답변이 있는 질문 수 / 등록된 적용 질문 수"
+                      >
+                        {video.answeredQuestionCount ?? 0}/{video.questionCount ?? 0}
+                      </td>
+                      <td
+                        className={cn(
+                          VIDEO_LIST_COL_BOOKMARK,
+                          'py-3 align-middle whitespace-nowrap text-center text-sm text-gray-600 tabular-nums'
+                        )}
+                        title="북마크(publicUserActivityLog BOOKMARK)"
+                      >
+                        {(video.bookmarkCount ?? 0).toLocaleString()}
+                      </td>
+                      <td
+                        className={cn(
+                          VIDEO_LIST_COL_PUBL,
+                          'py-3 align-middle overflow-hidden text-center text-sm text-gray-600 tabular-nums'
+                        )}
+                      >
+                        {publishedParts ? (
+                          <div className="flex min-w-0 flex-col items-center gap-0.5 leading-tight">
+                            <span className="w-full truncate whitespace-nowrap text-center">{publishedParts.date}</span>
+                            <span className="w-full truncate whitespace-nowrap text-center text-xs text-gray-500">
+                              {publishedParts.time}
+                            </span>
+                          </div>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         )}
 
-        {total > 0 && (
+        {total > 0 ? (
           <ListPagination
             currentPage={filters.page ?? 1}
             totalPages={Math.ceil(total / (filters.pageSize ?? 10)) || 1}
@@ -738,7 +898,7 @@ export default function VideoListPage() {
             total={total}
             disabled={loading}
           />
-        )}
+        ) : null}
       </div>
 
       {/* 삭제 확인 모달 */}

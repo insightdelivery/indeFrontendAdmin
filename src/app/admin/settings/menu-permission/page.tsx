@@ -302,18 +302,6 @@ export default function MenuPermissionPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="min-w-0 pr-4">
-          <h1 className="text-lg font-semibold text-gray-900">메뉴 권한</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            왼쪽에서 관리자를 선택하면 오른쪽에{' '}
-            <code className="rounded bg-gray-100 px-1 text-xs text-gray-800">sysCodeManager</code> 메뉴 트리와{' '}
-            <code className="rounded bg-gray-100 px-1 text-xs text-gray-800">user_permissions</code>가
-            반영됩니다.
-          </p>
-        </div>
-      </div>
-
       <div className="grid gap-4 lg:grid-cols-[minmax(440px,min(52vw,640px))_minmax(0,1fr)] lg:items-start">
         {/* 좌: 관리자 목록 */}
         <Card className="border-gray-200 bg-white lg:sticky lg:top-0 lg:max-h-[calc(100vh-8rem)] lg:flex lg:flex-col">

@@ -295,8 +295,7 @@ export default function EmailSendPage() {
     <section className="rounded-xl border border-slate-200 bg-white">
       <div className="grid min-h-[860px] grid-cols-1 lg:grid-cols-[52%_48%]">
         <div className="border-r border-slate-200 p-6 pb-24">
-          <div className="mb-6 flex items-center gap-3">
-            <h1 className="text-lg font-semibold text-gray-900">이메일 전송</h1>
+          <div className="mb-6 flex items-center justify-end gap-3">
             <span className="text-sm text-gray-500">남은 이메일 수량 -</span>
             <Info className="h-5 w-5 text-slate-400" />
           </div>

@@ -109,10 +109,6 @@ export default function InquiryDetailClient({ id }: { id: string }) {
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">1:1 문의 상세</h1>
-          <p className="text-gray-600 text-sm">문의 내용을 확인하고 답변을 등록합니다.</p>
-        </div>
       </div>
 
       <Card>

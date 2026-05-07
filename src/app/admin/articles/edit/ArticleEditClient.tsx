@@ -423,12 +423,8 @@ export default function ArticleEditClient() {
               목록으로
             </Button>
           </Link>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-lg font-semibold text-gray-900">아티클 수정</h1>
-              {getStatusBadge(article.status)}
-            </div>
-            <p className="text-sm text-gray-600 mt-1">아티클 정보를 수정하세요.</p>
+          <div className="min-w-0 flex flex-wrap items-center gap-2">
+            {getStatusBadge(article.status)}
           </div>
         </div>
         <div className="flex flex-shrink-0 items-center justify-end gap-2">
@@ -750,7 +746,7 @@ export default function ArticleEditClient() {
               </p>
             </div>
             <div className="space-y-1">
-              <p className="text-sm text-gray-600">하이라이트 수</p>
+              <p className="text-sm text-gray-600">HR 수</p>
               <p className="text-2xl font-bold">{article.highlightCount || 0}</p>
             </div>
           </div>

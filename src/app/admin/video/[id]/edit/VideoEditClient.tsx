@@ -502,16 +502,12 @@ export default function VideoEditClient() {
     <div className="space-y-6 relative">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4 min-w-0">
-          <Link href={`/admin/video/${video.id}`}>
+          <Link href="/admin/video">
             <Button type="button" variant="outline" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
-              상세로
+              목록으로
             </Button>
           </Link>
-          <div className="min-w-0">
-            <h1 className="text-lg font-semibold text-gray-900">비디오 수정</h1>
-            <p className="text-sm text-gray-600 mt-1">비디오 정보를 수정하세요.</p>
-          </div>
         </div>
         <div className="flex flex-shrink-0 items-center justify-end gap-2">
           <Button

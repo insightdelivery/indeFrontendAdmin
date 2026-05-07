@@ -147,7 +147,7 @@ function isPlainTextBodyDocType(dt: HomepageDocType): boolean {
 
 /** adminLayoutPlan.md §17.3 TabsTrigger */
 const tabsTriggerClass =
-  'inline-flex items-center gap-1.5 border-b-2 border-transparent px-4 py-2 text-sm font-medium text-gray-500 transition-colors hover:text-black data-[state=active]:border-black data-[state=active]:font-semibold data-[state=active]:text-black rounded-none bg-transparent shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+  'inline-flex items-center gap-1.5 border-b-2 border-transparent px-4 py-2 text-sm font-medium text-[#fff]/80 transition-colors hover:text-[#fff] hover:bg-white/10 data-[state=active]:border-[#fff] data-[state=active]:font-semibold data-[state=active]:text-[#fff] data-[state=active]:bg-white/15 rounded-t-md rounded-b-none bg-transparent shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#03213b] [&_svg]:text-[#fff]/70 data-[state=active]:[&_svg]:text-[#fff]'
 
 export default function HomepageDocsAdminPage() {
   const { toast } = useToast()
@@ -592,34 +592,28 @@ export default function HomepageDocsAdminPage() {
 
   return (
     <div className="space-y-6">
-      <div className="mb-6">
-        <h1 className="text-lg font-semibold text-gray-900">홈페이지 관리</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          회사소개·약관·개인정보·콘텐츠 저작권·추천검색어·외부링크를 편집합니다. 저작권은 유형별로 각각 저장합니다.
-        </p>
-      </div>
-
       <Tabs value={tab} onValueChange={setTab} className="w-full">
         <TabsList
-          className="mb-4 flex h-auto w-full flex-wrap items-center justify-start gap-0 rounded-none border-0 border-b border-gray-200 bg-transparent p-0"
+          className="mb-2 flex h-12 w-full flex-wrap items-center justify-start gap-0 rounded-lg border-b border-white/15 bg-[#03213b] p-0 text-[#fff]"
           aria-label="문서 종류"
+     
         >
           {TAB_SINGLE.map((t) => (
             <TabsTrigger key={t.tab} value={t.tab} className={tabsTriggerClass}>
-              <t.Icon className="h-4 w-4 text-gray-500" aria-hidden />
+              <t.Icon className="h-4 w-4" aria-hidden />
               {t.label}
             </TabsTrigger>
           ))}
           <TabsTrigger value="copyright" className={tabsTriggerClass}>
-            <Copyright className="h-4 w-4 text-gray-500" aria-hidden />
+            <Copyright className="h-4 w-4" aria-hidden />
             콘텐츠 저작권
           </TabsTrigger>
           <TabsTrigger value="recommended" className={tabsTriggerClass}>
-            <Search className="h-4 w-4 text-gray-500" aria-hidden />
+            <Search className="h-4 w-4" aria-hidden />
             추천검색어
           </TabsTrigger>
           <TabsTrigger value="external" className={tabsTriggerClass}>
-            <ExternalLink className="h-4 w-4 text-gray-500" aria-hidden />
+            <ExternalLink className="h-4 w-4" aria-hidden />
             외부링크
           </TabsTrigger>
         </TabsList>

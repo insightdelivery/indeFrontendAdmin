@@ -1,7 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import {
   type AdminStaffMember,
@@ -115,18 +122,19 @@ export function CommentsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>댓글 관리</DialogTitle>
-          <DialogDescription className="sr-only">
+      <DialogContent className="flex max-h-[90vh] w-full max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:rounded-lg [&>button]:text-white [&>button]:hover:bg-white/10 [&>button]:hover:text-white [&>button]:ring-offset-[#021a2e]">
+        <DialogHeader className="shrink-0 border-b border-white/10 bg-[#021a2e] px-6 py-4 text-left text-white sm:text-left">
+          <DialogTitle className="text-lg font-semibold text-white">댓글 관리</DialogTitle>
+          <DialogDescription className="text-slate-200">
             댓글 목록을 확인하고 관리자 대댓글을 작성, 수정, 삭제할 수 있습니다.
           </DialogDescription>
         </DialogHeader>
 
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
-        {loading ? <p className="text-sm text-gray-500">불러오는 중...</p> : null}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          {loading ? <p className="text-sm text-gray-500">불러오는 중...</p> : null}
 
-        <div className="max-h-[70vh] overflow-auto space-y-6 pr-2">
+          <div className="space-y-6">
           {items.map((c) => (
             <div key={c.id} className="rounded-lg border border-gray-200 p-4">
               <div className="flex items-start justify-between gap-3">
@@ -236,7 +244,14 @@ export function CommentsModal({
             </div>
           ))}
           {!loading && items.length === 0 ? <p className="text-sm text-gray-500">댓글이 없습니다.</p> : null}
+          </div>
         </div>
+
+        <DialogFooter className="flex items-center justify-end gap-2 border-t border-gray-200 bg-slate-100 px-6 py-4 sm:gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+            닫기
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

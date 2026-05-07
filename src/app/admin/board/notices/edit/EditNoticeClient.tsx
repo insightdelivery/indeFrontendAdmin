@@ -87,20 +87,13 @@ export default function EditNoticeClient({ id }: { id: string }) {
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">공지 수정</h1>
-          <p className="text-gray-600 text-sm">공지사항을 수정합니다.</p>
-        </div>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>공지 내용</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 mt-1">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">제목</label>
+            <div className="flex items-center gap-4 mb-2">
+              <label className="text-sm font-medium text-gray-700 min-w-[60px] mb-0">제 목</label>
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -108,13 +101,16 @@ export default function EditNoticeClient({ id }: { id: string }) {
                 className="max-w-xl"
               />
             </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">내용</label>
-              <RichTextEditor
-                value={content}
-                onChange={(value) => setContent(value)}
-                placeholder="내용을 입력하세요"
-              />
+      
+            <div className="flex items-center">
+              <div style={{ height: '600px', width: '100%' }}>
+                <RichTextEditor
+                  value={content}
+                  onChange={(value) => setContent(value)}
+                  placeholder="내용을 입력하세요"
+                />
+              </div>
+        
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
               <div className="flex items-center gap-2">

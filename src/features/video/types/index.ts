@@ -28,6 +28,9 @@ export interface Video {
   viewCount: number
   rating?: number
   commentCount: number
+  bookmarkCount?: number
+  questionCount?: number
+  answeredQuestionCount?: number
   tags?: string[]
   questions?: string[]
   attachments?: Array<{
@@ -55,6 +58,16 @@ export interface Video {
   } | null
 }
 
+/** 관리자 GET /video/list 정렬 필드 (sortBy) — 아티클 목록과 동일 키 */
+export type VideoListSortBy =
+  | 'createdAt'
+  | 'viewCount'
+  | 'rating'
+  | 'commentCount'
+  | 'answeredQuestionCount'
+  | 'bookmarkCount'
+  | 'publishedAt'
+
 export interface VideoListParams {
   page?: number
   pageSize?: number
@@ -66,7 +79,10 @@ export interface VideoListParams {
   status?: string
   search?: string
   searchType?: 'all' | 'title' | 'speaker' | 'keyword'
+  /** @deprecated sortBy 사용 권장 */
   sort?: 'createdAt' | 'viewCount' | 'rating'
+  sortBy?: VideoListSortBy
+  sortOrder?: 'asc' | 'desc'
 }
 
 export interface VideoListResponse {

@@ -373,10 +373,6 @@ export default function SeminarCreatePage() {
               목록으로
             </Button>
           </Link>
-          <div className="min-w-0">
-            <h1 className="text-lg font-semibold text-gray-900">새 세미나 등록</h1>
-            <p className="text-sm text-gray-600 mt-1">세미나 정보를 입력하고 등록하세요.</p>
-          </div>
         </div>
         <div className="flex flex-shrink-0 items-center justify-end gap-2">
           <Button

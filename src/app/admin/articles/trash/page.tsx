@@ -176,8 +176,7 @@ export default function ArticleTrashPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg font-semibold text-gray-900">휴지통</h1>
+      <div className="flex items-center justify-end mb-6">
         <div className="flex items-center justify-end gap-2">
           <Link href="/admin/articles">
             <Button type="button" variant="outline" size="sm">
@@ -187,8 +186,6 @@ export default function ArticleTrashPage() {
           </Link>
         </div>
       </div>
-
-      <p className="text-sm text-gray-600 mb-4">삭제된 아티클을 관리하고 복구할 수 있습니다.</p>
 
       {/* 경고 메시지 */}
       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">

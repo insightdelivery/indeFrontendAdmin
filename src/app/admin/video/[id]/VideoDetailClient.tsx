@@ -75,7 +75,6 @@ export default function VideoDetailClient() {
               목록으로
             </Button>
           </Link>
-          <h1 className="text-lg font-semibold text-gray-900">비디오 상세</h1>
         </div>
         <div className="flex items-center justify-end gap-2">
           <Link href={`/admin/video/${video.id}/edit`}>

@@ -1,17 +1,16 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   getArticleList,
-  getArticle,
   deleteArticle,
   deleteArticles,
   updateArticleStatus,
   exportArticlesToExcel,
   type Article,
   type ArticleListParams,
+  type ArticleListSortBy,
   ARTICLE_CATEGORIES,
   VISIBILITY_OPTIONS,
   PUBLISH_STATUS,
@@ -39,56 +38,156 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ListPagination } from '@/components/admin/ListPagination'
-import { formatDateTime } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 import {
   Plus,
-  Edit,
   Trash2,
   Eye,
   EyeOff,
   Download,
-  Calendar,
-  Filter,
   X,
-  RefreshCw,
-  User,
-  Tag,
   MessageSquare,
   Bookmark,
   Star,
-  HelpCircle,
-  FileText,
-  Image as ImageIcon,
-  BarChart3,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  Search,
 } from 'lucide-react'
 import Image from 'next/image'
 
-/**
- * 본문 HTML을 상세보기에서 에디터처럼 줄바꿈이 보이도록 변환.
- * - \r\n, \r, \n → <br />
- */
-function contentWithLineBreaks(html: string): string {
-  if (!html || typeof html !== 'string') return html
-  return html.replace(/\r\n|\r|\n/g, '<br />')
+/** 목록 발행일: 첫 줄 날짜, 둘째 줄 시각 */
+function splitPublishedAtListParts(iso: string): { date: string; time: string } | null {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  return {
+    date: d.toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }),
+    time: d.toLocaleTimeString('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }),
+  }
 }
 
-function formatListDateTime(value: string): string {
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return '-'
-  return d.toLocaleString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })
+const ARTICLE_TABLE_HEAD_TH =
+  'px-2 py-2.5 text-xs font-medium uppercase tracking-wider text-[#fff] whitespace-nowrap'
+
+/** 제목 열 외 고정 너비·줄바꿈 없음 (table-layout:fixed + colgroup과 함께 사용) */
+const COL_CHK = 'w-10 min-w-10 max-w-10 px-2'
+const COL_THUMB = 'w-[72px] min-w-[72px] max-w-[72px] px-2'
+const COL_TITLE = 'min-w-0 px-3 py-4'
+const COL_CAT = 'w-[132px] min-w-[132px] max-w-[132px] px-2'
+const COL_AUTHOR = 'w-[118px] min-w-[118px] max-w-[118px] px-2'
+const COL_VIEW = 'w-[68px] min-w-[68px] max-w-[68px] px-2'
+const COL_STAR = 'w-[52px] min-w-[52px] max-w-[52px] px-2'
+const COL_COMMENT = 'w-[52px] min-w-[52px] max-w-[52px] px-2'
+const COL_HIGHLIGHT = 'w-[52px] min-w-[52px] max-w-[52px] px-2'
+const COL_QA = 'w-[68px] min-w-[68px] max-w-[68px] px-2'
+const COL_BOOKMARK = 'w-[56px] min-w-[56px] max-w-[56px] px-2'
+const COL_PUBLISHED = 'w-[92px] min-w-[92px] max-w-[92px] px-2'
+
+function ArticleSortTh({
+  label,
+  sortKey,
+  align,
+  sortBy,
+  sortOrder,
+  onSort,
+  variant = 'default',
+  headerSubLines,
+  thClassName,
+}: {
+  label: string
+  sortKey: ArticleListSortBy
+  align: 'left' | 'center' | 'right'
+  sortBy?: ArticleListSortBy
+  sortOrder?: 'asc' | 'desc'
+  onSort: (key: ArticleListSortBy) => void
+  variant?: 'default' | 'dark'
+  /** 헤더 제목 아래 작은 글씨로 추가 줄 (예: 발행일 → 날짜 / 시간) */
+  headerSubLines?: string[]
+  thClassName?: string
+}) {
+  const active = sortBy === sortKey
+  const justify =
+    align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'
+  const textAlign =
+    align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'
+
+  const isDark = variant === 'dark'
+
+  const sortIcons = active ? (
+    sortOrder === 'asc' ? (
+      <ArrowUp
+        className={cn('h-3.5 w-3.5 shrink-0', isDark ? 'text-[#fff]' : 'text-gray-800')}
+        aria-hidden
+      />
+    ) : (
+      <ArrowDown
+        className={cn('h-3.5 w-3.5 shrink-0', isDark ? 'text-[#fff]' : 'text-gray-800')}
+        aria-hidden
+      />
+    )
+  ) : (
+    <ArrowUpDown
+      className={cn('h-3.5 w-3.5 shrink-0', isDark ? 'text-[#fff]/60' : 'text-gray-400')}
+      aria-hidden
+    />
+  )
+
+  return (
+    <th
+      className={cn(
+        `py-2.5 ${textAlign} text-xs font-medium uppercase tracking-wider normal-case`,
+        headerSubLines?.length ? '' : 'whitespace-nowrap',
+        isDark ? 'text-[#fff]' : 'text-gray-500',
+        thClassName
+      )}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className={cn(
+          `w-full rounded focus:outline-none focus-visible:ring-2`,
+          headerSubLines?.length
+            ? cn(`inline-flex flex-col gap-0.5 leading-tight ${justify === 'justify-end' ? 'items-end' : justify === 'justify-center' ? 'items-center' : 'items-start'}`)
+            : cn(`inline-flex items-center gap-1 ${justify}`),
+          isDark
+            ? 'text-[#fff] hover:bg-white/10 hover:text-[#fff] focus-visible:ring-white/40'
+            : 'hover:text-gray-900 focus-visible:ring-gray-400'
+        )}
+        title={
+          active
+            ? sortOrder === 'asc'
+              ? '오름차순 — 클릭 시 내림차순'
+              : '내림차순 — 클릭 시 오름차순'
+            : '클릭하여 정렬'
+        }
+      >
+        <span className={cn('inline-flex items-center gap-1', justify)}>
+          <span className="uppercase tracking-wider">{label}</span>
+          {sortIcons}
+        </span>
+        {headerSubLines?.map((line) => (
+          <span
+            key={line}
+            className="block text-[10px] font-normal normal-case leading-tight opacity-90"
+          >
+            {line}
+          </span>
+        ))}
+      </button>
+    </th>
+  )
 }
 
 export default function ArticleListPage() {
-  const router = useRouter()
   const { toast } = useToast()
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
@@ -98,8 +197,6 @@ export default function ArticleListPage() {
   const [statusChangeModalOpen, setStatusChangeModalOpen] = useState(false)
   const [statusChangeTarget, setStatusChangeTarget] = useState<number[]>([])
   const [newStatus, setNewStatus] = useState<string>('')
-  const [detailModalOpen, setDetailModalOpen] = useState(false)
-  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
   const [commentsModalOpen, setCommentsModalOpen] = useState(false)
   const [commentsContentId, setCommentsContentId] = useState<number | null>(null)
 
@@ -161,11 +258,6 @@ export default function ArticleListPage() {
     } else {
       setSelectedIds(selectedIds.filter((selectedId) => selectedId !== id))
     }
-  }
-
-  const handleDelete = (id: number) => {
-    setDeleteTarget(id)
-    setDeleteModalOpen(true)
   }
 
   const handleBatchDelete = () => {
@@ -249,6 +341,8 @@ export default function ArticleListPage() {
         visibility: visibility || undefined,
         status: status || undefined,
         search: searchTerm || undefined,
+        sortBy: filters.sortBy,
+        sortOrder: filters.sortOrder,
       }
       const blob = await exportArticlesToExcel(params)
       const url = window.URL.createObjectURL(blob)
@@ -345,6 +439,15 @@ export default function ArticleListPage() {
     return categorySid
   }
 
+  const handleArticleSort = useCallback((key: ArticleListSortBy) => {
+    setFilters((prev) => {
+      const same = prev.sortBy === key
+      const nextOrder: 'asc' | 'desc' =
+        same && prev.sortOrder === 'desc' ? 'asc' : 'desc'
+      return { ...prev, page: 1, sortBy: key, sortOrder: nextOrder }
+    })
+  }, [])
+
   const resetFilters = () => {
     setStartDate('')
     setEndDate('')
@@ -352,57 +455,28 @@ export default function ArticleListPage() {
     setVisibility('')
     setStatus('')
     setSearchTerm('')
-    setFilters((prev) => ({ ...prev, page: 1 }))
+    setFilters((prev) => ({
+      ...prev,
+      page: 1,
+      sortBy: undefined,
+      sortOrder: undefined,
+    }))
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">아티클 관리</h1>
-          <p className="text-sm text-gray-600 mt-1">아티클을 검색·필터링하고 관리할 수 있습니다.</p>
-        </div>
-        <div className="flex flex-shrink-0 items-center justify-end gap-2">
-          <Link href="/admin/articles/trash">
-            <Button type="button" variant="outline" size="sm">
-              <Trash2 className="h-4 w-4 mr-2" />
-              휴지통
-            </Button>
-          </Link>
-          <Link href="/admin/articles/new">
-            <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800">
-              <Plus className="h-4 w-4 mr-2" />
-              새 아티클
-            </Button>
-          </Link>
-        </div>
-      </div>
-
+    <div className="space-y-2">
       {/* 검색 및 필터 영역 */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter className="h-5 w-5 text-gray-500" />
-          <h2 className="text-lg font-semibold">검색 및 필터</h2>
-          {(startDate || endDate || category !== '전체' || visibility || status || searchTerm) && (
-            <Button variant="ghost" size="sm" onClick={resetFilters} className="ml-auto">
-              <X className="h-4 w-4 mr-1" />
-              필터 초기화
-            </Button>
-          )}
-        </div>
-
+      <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-2">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* 기간 검색 */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">등록일 (시작일)</label>
+          <div className="flex items-center gap-2">
+            <label className="whitespace-nowrap text-sm font-medium text-gray-700 min-w-fit">시작 등록일</label>
             <Input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
             />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">등록일 (종료일)</label>
+            <label className="whitespace-nowrap text-sm font-medium text-gray-700 min-w-fit">종료 등록</label>
             <Input
               type="date"
               value={endDate}
@@ -411,8 +485,8 @@ export default function ArticleListPage() {
           </div>
 
           {/* 카테고리 */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">카테고리</label>
+          <div className="flex items-center gap-2">
+            <label className="whitespace-nowrap text-sm font-medium text-gray-700 min-w-fit">카테고리</label>
             <SysCodeSelect
               sysCodeGubn="SYS26209B002"
               value={category}
@@ -422,11 +496,7 @@ export default function ArticleListPage() {
               allOptionValue="전체"
               allOptionLabel="전체"
             />
-          </div>
-
-          {/* 공개 범위 */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">공개 범위</label>
+            <label className="whitespace-nowrap text-sm font-medium text-gray-700 min-w-fit">공개 범위</label>
             <Select value={visibility || 'all'} onValueChange={(value) => setVisibility(value === 'all' ? '' : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="전체" />
@@ -443,8 +513,8 @@ export default function ArticleListPage() {
           </div>
 
           {/* 상태 필터 */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">상태</label>
+          <div className="flex items-center gap-2">
+            <label className="whitespace-nowrap text-sm font-medium text-gray-700 min-w-fit">상태</label>
             <Select value={status || 'all'} onValueChange={(value) => setStatus(value === 'all' ? '' : value)}>
               <SelectTrigger>
                 <SelectValue placeholder="전체" />
@@ -460,28 +530,61 @@ export default function ArticleListPage() {
           </div>
 
           {/* 검색어 */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">검색어</label>
-            <div className="flex gap-2">
-              <Input
-                placeholder="제목, 작성자명, 태그 검색"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    loadArticles()
-                  }
-                }}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setFilters((prev) => ({ ...prev, page: 1 }))}
-              >
-                조회
+          <div className="flex items-center col-span-2 gap-2">
+            <label className="whitespace-nowrap text-sm font-medium text-gray-700 min-w-fit">검색어 입력</label>
+            <Input
+              placeholder="제목, 작성자명, 태그 검색"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  loadArticles()
+                }
+              }}
+            />
+            <Button
+              type="button"
+              size="sm"
+              className="w-32 border-0 bg-[#3c83cf] text-white shadow-sm hover:bg-[#3278b8] hover:text-white"
+              onClick={() => setFilters((prev) => ({ ...prev, page: 1 }))}
+            >
+              <Search className="mr-2 h-4 w-4 shrink-0" aria-hidden />
+              조회
+            </Button>
+            <div className="flex items-center gap-2 ">
+            {(startDate ||
+              endDate ||
+              category !== '전체' ||
+              visibility ||
+              status ||
+              searchTerm ||
+              filters.sortBy) && (
+              <Button variant="ghost" size="sm" onClick={resetFilters}  className="w-32 border-0 bg-[#3c83cf] text-white shadow-sm hover:bg-[#3278b8] hover:text-white">
+                <X className="h-4 w-4 mr-1" />
+                필터 초기화
               </Button>
+            )}
             </div>
+
+           </div>
+           <div className="flex items-center justify-end gap-2">
+           <Button variant="outline" size="sm" onClick={handleExport}>
+            <Download className="h-4 w-4 mr-2" />
+            엑셀 다운로드
+          </Button>
+
+            <Link href="/admin/articles/trash">
+              <Button type="button" variant="outline" size="sm">
+                <Trash2 className="h-4 w-4 mr-2" />
+                휴지통
+              </Button>
+            </Link>
+            <Link href="/admin/articles/new">
+              <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800">
+                <Plus className="h-4 w-4 mr-2" />
+                새 아티클
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
@@ -524,20 +627,6 @@ export default function ArticleListPage() {
 
       {/* 아티클 목록 테이블 */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Checkbox
-              checked={selectedIds.length === articles.length && articles.length > 0}
-              onCheckedChange={handleSelectAll}
-            />
-            <span className="text-sm text-gray-600">총 {total.toLocaleString()}건</span>
-          </div>
-          <Button variant="outline" size="sm" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-2" />
-            엑셀 다운로드
-          </Button>
-        </div>
-
         {loading ? (
           <div className="p-12 text-center text-gray-500">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
@@ -551,135 +640,211 @@ export default function ArticleListPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+            <table className="w-full table-fixed border-collapse">
+              <colgroup>
+                <col className="w-10" />
+                <col className="w-[72px]" />
+                <col />
+                <col className="w-[132px]" />
+                <col className="w-[118px]" />
+                <col className="w-[70px]" />
+                <col className="w-[70px]" />
+                <col className="w-[70px]" />
+                <col className="w-[70px]" />
+                <col className="w-[70px]" />
+                <col className="w-[70px]" />
+                <col className="w-[150px]" />
+              </colgroup>
+              <thead className="border-b border-white/15 bg-[#03213b] text-[#fff]">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                    <Checkbox
-                      checked={selectedIds.length === articles.length && articles.length > 0}
-                      onCheckedChange={handleSelectAll}
-                    />
+                  <th className={cn(ARTICLE_TABLE_HEAD_TH, COL_CHK, 'text-center')}>
+                    <div className="flex justify-center">
+                      <Checkbox
+                        checked={selectedIds.length === articles.length && articles.length > 0}
+                        onCheckedChange={handleSelectAll}
+                        className="border-[#fff]/70 ring-offset-[#03213b] data-[state=checked]:border-[#fff] data-[state=checked]:bg-[#fff] data-[state=checked]:text-[#03213b]"
+                      />
+                    </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
-                    썸네일
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={cn(ARTICLE_TABLE_HEAD_TH, COL_THUMB, 'text-center')}>썸네일</th>
+                  <th className={cn(ARTICLE_TABLE_HEAD_TH, COL_TITLE, 'text-left normal-case')}>
                     제목
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    카테고리
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    작성자
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div className="leading-4">
+                  <th className={cn(ARTICLE_TABLE_HEAD_TH, COL_CAT, 'text-center')}>
+                    <div className="leading-4 normal-case whitespace-normal text-center">
+                      <div>카테고리</div>
                       <div>공개범위</div>
+                    </div>
+                  </th>
+                  <th className={cn(ARTICLE_TABLE_HEAD_TH, COL_AUTHOR, 'text-center')}>
+                    <div className="leading-4 normal-case whitespace-normal text-center">
+                      <div>작성자</div>
                       <div>상태</div>
                     </div>
                   </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    별점
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    조회수
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    참여 데이터
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div className="leading-4 normal-case">
-                      <div>질문(답변/전체)</div>
-                      <div>북마크</div>
-                    </div>
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    발행일
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div className="leading-4">
-                      <div>등록일</div>
-                      <div>최종수정일</div>
-                    </div>
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    작업
-                  </th>
+                  <ArticleSortTh
+                    label="조회수"
+                    sortKey="viewCount"
+                    align="center"
+                    sortBy={filters.sortBy}
+                    sortOrder={filters.sortOrder}
+                    onSort={handleArticleSort}
+                    variant="dark"
+                    thClassName={COL_VIEW}
+                  />
+                  <ArticleSortTh
+                    label="별점"
+                    sortKey="rating"
+                    align="center"
+                    sortBy={filters.sortBy}
+                    sortOrder={filters.sortOrder}
+                    onSort={handleArticleSort}
+                    variant="dark"
+                    thClassName={cn(COL_STAR, 'text-center')}
+                  />
+                  <ArticleSortTh
+                    label="댓글 수"
+                    sortKey="commentCount"
+                    align="center"
+                    sortBy={filters.sortBy}
+                    sortOrder={filters.sortOrder}
+                    onSort={handleArticleSort}
+                    variant="dark"
+                    thClassName={COL_COMMENT}
+                  />
+                  <ArticleSortTh
+                    label="HR 수"
+                    sortKey="highlightCount"
+                    align="center"
+                    sortBy={filters.sortBy}
+                    sortOrder={filters.sortOrder}
+                    onSort={handleArticleSort}
+                    variant="dark"
+                    thClassName={COL_HIGHLIGHT}
+                  />
+                  <ArticleSortTh
+                    label="Q&A"
+                    sortKey="answeredQuestionCount"
+                    align="center"
+                    sortBy={filters.sortBy}
+                    sortOrder={filters.sortOrder}
+                    onSort={handleArticleSort}
+                    variant="dark"
+                    thClassName={cn(COL_QA, 'text-center')}
+                  />
+                  <ArticleSortTh
+                    label="북마크"
+                    sortKey="bookmarkCount"
+                    align="center"
+                    sortBy={filters.sortBy}
+                    sortOrder={filters.sortOrder}
+                    onSort={handleArticleSort}
+                    variant="dark"
+                    thClassName={COL_BOOKMARK}
+                  />
+                  <ArticleSortTh
+                    label="발행일"
+                    sortKey="publishedAt"
+                    align="center"
+                    sortBy={filters.sortBy}
+                    sortOrder={filters.sortOrder}
+                    onSort={handleArticleSort}
+                    variant="dark"
+                    thClassName={COL_PUBLISHED}
+                  />
                 </tr>
               </thead>
+ 
               <tbody className="bg-white divide-y divide-gray-200">
-                {articles.map((article) => (
+                {articles.map((article) => {
+                  const publishedParts = article.publishedAt
+                    ? splitPublishedAtListParts(article.publishedAt)
+                    : null
+                  return (
                   <tr key={article.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <Checkbox
-                        checked={selectedIds.includes(article.id)}
-                        onCheckedChange={(checked) =>
-                          handleSelectItem(article.id, checked as boolean)
-                        }
-                      />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {article.thumbnail ? (
-                        <div className="relative w-16 h-10 rounded overflow-hidden">
-                          <Image
-                            src={article.thumbnail}
-                            alt={article.title}
-                            fill
-                            className="object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="w-16 h-10 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-400">
-                          없음
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        type="button"
-                        onClick={async (e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          try {
-                            const articleData = await getArticle(article.id)
-                            setSelectedArticle(articleData)
-                            setDetailModalOpen(true)
-                          } catch (error: any) {
-                            toast({
-                              title: '오류',
-                              description: error.message || '아티클을 불러오는데 실패했습니다.',
-                              variant: 'destructive',
-                              duration: 3000,
-                            })
+                    <td className={cn(COL_CHK, 'py-3 align-middle')}>
+                      <div className="flex justify-center">
+                        <Checkbox
+                          checked={selectedIds.includes(article.id)}
+                          onCheckedChange={(checked) =>
+                            handleSelectItem(article.id, checked as boolean)
                           }
-                        }}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline text-left cursor-pointer"
-                      >
-                        {article.title}
-                      </button>
-                      {article.subtitle && (
-                        <div className="text-xs text-gray-500 mt-1">{article.subtitle}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        {getCategoryName(article.category)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <div>{article.author}</div>
-                      {article.authorAffiliation && (
-                        <div className="text-xs text-gray-500">{article.authorAffiliation}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-2">
-                        <div>{getVisibilityBadge(article.visibility)}</div>
-                        <div>{getStatusBadge(article.status)}</div>
+                        />
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                    <td className={cn(COL_THUMB, 'py-3 align-middle whitespace-nowrap')}>
                       <div className="flex justify-center">
+                        {article.thumbnail ? (
+                          <div className="relative h-10 w-14 rounded overflow-hidden">
+                            <Image
+                              src={article.thumbnail}
+                              alt={article.title}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="h-10 w-14 bg-gray-200 rounded flex items-center justify-center text-[10px] text-gray-400">
+                            없음
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className={cn(COL_TITLE, 'align-top break-words text-left')}>
+                      <Link
+                        href={`/admin/articles/edit?id=${article.id}`}
+                        className="block w-full text-left text-sm font-medium text-[#000] no-underline hover:text-[#000] hover:no-underline"
+                      >
+                        {article.title}
+                      </Link>
+                      {article.subtitle && (
+                        <div className="text-xs text-gray-500 mt-1 text-left">{article.subtitle}</div>
+                      )}
+                    </td>
+                    <td className={cn(COL_CAT, 'py-3 align-middle overflow-hidden text-center')}>
+                      <div className="flex min-w-0 flex-col items-center gap-1">
+                        <span
+                          className="block max-w-full truncate rounded-full bg-gray-100 px-2 py-0.5 text-center text-[11px] font-medium text-gray-800"
+                          title={getCategoryName(article.category)}
+                        >
+                          {getCategoryName(article.category)}
+                        </span>
+                        <div
+                          className="flex min-w-0 max-w-full justify-center truncate [&_*]:truncate"
+                          title={String(article.visibility)}
+                        >
+                          {getVisibilityBadge(article.visibility)}
+                        </div>
+                      </div>
+                    </td>
+                    <td className={cn(COL_AUTHOR, 'py-3 align-middle overflow-hidden text-center')}>
+                      <div className="flex min-w-0 flex-col items-center gap-1">
+                        <div
+                          className="w-full truncate text-[11px] text-center"
+                          title={[article.author, article.authorAffiliation].filter(Boolean).join(' · ')}
+                        >
+                          {article.author}
+                        </div>
+                        <div className="flex min-w-0 max-w-full justify-center truncate">
+                          {getStatusBadge(article.status)}
+                        </div>
+                      </div>
+                    </td>
+                    <td
+                      className={cn(
+                        COL_VIEW,
+                        'py-3 align-middle whitespace-nowrap text-center text-sm text-gray-600 tabular-nums'
+                      )}
+                    >
+                      {article.viewCount.toLocaleString()}
+                    </td>
+                    <td
+                      className={cn(
+                        COL_STAR,
+                        'py-3 align-middle whitespace-nowrap text-center text-sm text-gray-700'
+                      )}
+                    >
+                      <div className="flex justify-center tabular-nums">
                         {article.rating != null ? (
                           <span title="평균 별점">⭐ {article.rating.toFixed(1)}</span>
                         ) : (
@@ -687,85 +852,73 @@ export default function ArticleListPage() {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      {article.viewCount.toLocaleString()}
+                    <td
+                      className={cn(
+                        COL_COMMENT,
+                        'py-3 align-middle whitespace-nowrap text-center text-sm text-gray-600 tabular-nums'
+                      )}
+                    >
+                      <button
+                        type="button"
+                        className="inline-flex max-w-full items-center justify-center gap-0.5 truncate underline underline-offset-2 hover:no-underline"
+                        onClick={() => {
+                          setCommentsContentId(article.id)
+                          setCommentsModalOpen(true)
+                        }}
+                        title="댓글 보기"
+                      >
+                        <MessageSquare className="h-3 w-3 shrink-0" />
+                        {article.commentCount}
+                      </button>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                      <div className="flex flex-col gap-1">
-                        <button
-                          type="button"
-                          className="flex items-center gap-1 text-left underline underline-offset-2 hover:no-underline"
-                          onClick={() => {
-                            setCommentsContentId(article.id)
-                            setCommentsModalOpen(true)
-                          }}
-                        >
-                          <MessageSquare className="h-3 w-3" />
-                          {article.commentCount}
-                        </button>
-                        <span>🔖 {article.highlightCount}</span>
-                      </div>
+                    <td
+                      className={cn(
+                        COL_HIGHLIGHT,
+                        'py-3 align-middle whitespace-nowrap text-center text-sm text-gray-600 tabular-nums'
+                      )}
+                    >
+                      {article.highlightCount ?? 0}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      <div className="space-y-2">
-                        <p title="답변이 있는 질문 수 / 등록된 적용 질문 수">
-                          {article.answeredQuestionCount ?? 0}/{article.questionCount ?? 0}
-                        </p>
-                        <p title="북마크 수(publicUserActivityLog BOOKMARK)">
-                          {(article.bookmarkCount ?? 0).toLocaleString()}
-                        </p>
-                      </div>
+                    <td
+                      className={cn(
+                        COL_QA,
+                        'py-3 align-middle whitespace-nowrap text-center text-sm text-gray-600 tabular-nums'
+                      )}
+                      title="답변이 있는 질문 수 / 등록된 적용 질문 수"
+                    >
+                      {article.answeredQuestionCount ?? 0}/{article.questionCount ?? 0}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
-                      {article.publishedAt ? formatListDateTime(article.publishedAt) : '—'}
+                    <td
+                      className={cn(
+                        COL_BOOKMARK,
+                        'py-3 align-middle whitespace-nowrap text-center text-sm text-gray-600 tabular-nums'
+                      )}
+                      title="북마크(publicUserActivityLog BOOKMARK)"
+                    >
+                      {(article.bookmarkCount ?? 0).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      <div className="space-y-2">
-                        <p>{formatListDateTime(article.createdAt)}</p>
-                        <p>{article.updatedAt ? formatListDateTime(article.updatedAt) : '-'}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={async () => {
-                            try {
-                              const articleData = await getArticle(article.id)
-                              setSelectedArticle(articleData)
-                              setDetailModalOpen(true)
-                            } catch (error: any) {
-                              toast({
-                                title: '오류',
-                                description: error.message || '아티클을 불러오는데 실패했습니다.',
-                                variant: 'destructive',
-                                duration: 3000,
-                              })
-                            }
-                          }}
-                          title="상세보기"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Link href={`/admin/articles/edit?id=${article.id}`}>
-                          <Button variant="ghost" size="sm" title="수정">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(article.id)}
-                          title="삭제"
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                    <td
+                      className={cn(
+                        COL_PUBLISHED,
+                        'py-3 align-middle text-center text-sm text-gray-600 tabular-nums overflow-hidden'
+                      )}
+                    >
+                      {publishedParts ? (
+                        <div className="flex min-w-0 flex-col items-center gap-0.5 leading-tight">
+                          <span className="w-full whitespace-nowrap truncate text-center">
+                            {publishedParts.date}
+                          </span>
+                          <span className="w-full whitespace-nowrap truncate text-center text-xs text-gray-500">
+                            {publishedParts.time}
+                          </span>
+                        </div>
+                      ) : (
+                        '—'
+                      )}
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -830,244 +983,6 @@ export default function ArticleListPage() {
               변경
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* 아티클 상세보기 모달 */}
-      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-        <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col p-0">
-          {/* 헤더 */}
-          <div className="px-6 py-4 border-b bg-gradient-to-r from-gray-50 to-white">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <FileText className="h-5 w-5 text-gray-600" />
-                <div>
-                  <DialogTitle className="text-xl font-bold text-gray-900">
-                    아티클 상세 정보
-                  </DialogTitle>
-                  {selectedArticle && (
-                    <p className="text-sm text-gray-500 mt-1">ID: {selectedArticle.id}</p>
-                  )}
-                </div>
-              </div>
-              {selectedArticle && (
-                <div className="flex items-center gap-2">
-                  {getStatusBadge(selectedArticle.status)}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 스크롤 가능한 본문 */}
-          <div className="flex-1 px-6 py-4 overflow-y-auto">
-            {selectedArticle && (
-              <div className="space-y-6">
-                {/* 제목 및 부제목 */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <FileText className="h-5 w-5" />
-                      제목 정보
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div>
-                      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">제목</label>
-                      <p className="text-lg font-bold text-gray-900 mt-1">{selectedArticle.title}</p>
-                    </div>
-                    {selectedArticle.subtitle && (
-                      <div>
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">부제목</label>
-                        <p className="text-base text-gray-700 mt-1">{selectedArticle.subtitle}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* 기본 정보 */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <User className="h-5 w-5" />
-                      기본 정보
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">카테고리</label>
-                        <div className="mt-1">
-                          <span className="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                            {getCategoryName(selectedArticle.category)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">공개 범위</label>
-                        <div className="mt-1">{getVisibilityBadge(selectedArticle.visibility)}</div>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">작성자</label>
-                        <div className="mt-1">
-                          <p className="text-base font-medium text-gray-900">{selectedArticle.author}</p>
-                          {selectedArticle.authorAffiliation && (
-                            <p className="text-sm text-gray-500 mt-0.5">{selectedArticle.authorAffiliation}</p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">발행일</label>
-                        <div className="mt-1 flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          <p className="text-base text-gray-700">
-                            {selectedArticle.publishedAt
-                              ? formatDateTime(selectedArticle.publishedAt)
-                              : '—'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">등록일</label>
-                        <div className="mt-1 flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          <p className="text-base text-gray-700">{formatDateTime(selectedArticle.createdAt)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* 썸네일 */}
-                {selectedArticle.thumbnail && (
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <ImageIcon className="h-5 w-5" />
-                        썸네일 이미지
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="relative w-full h-64 rounded-lg overflow-hidden border-2 border-gray-200 shadow-sm">
-                        <Image
-                          src={selectedArticle.thumbnail}
-                          alt={selectedArticle.title}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* 본문 내용 (에디터 엔터 → 줄바꿈 표시) */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <FileText className="h-5 w-5" />
-                      본문 내용
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div
-                      className="prose prose-sm max-w-none min-h-[100px] p-4 bg-gray-50 rounded-lg border border-gray-200 [&_p]:block [&_p:empty]:min-h-[1.5em] [&_p]:mb-1 [&_br]:block [&_blockquote]:border-l-[5px] [&_blockquote]:border-l-[#03c75a] [&_blockquote]:py-3 [&_blockquote]:px-4 [&_blockquote]:my-5 [&_blockquote]:bg-[#f6fff8] [&_blockquote]:text-[#222] [&_blockquote]:text-[15px]"
-                      style={{ whiteSpace: 'pre-wrap' } as React.CSSProperties}
-                      dangerouslySetInnerHTML={{
-                        __html: contentWithLineBreaks(selectedArticle.content),
-                      }}
-                    />
-                  </CardContent>
-                </Card>
-
-                {/* 태그 */}
-                {selectedArticle.tags && selectedArticle.tags.length > 0 && (
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Tag className="h-5 w-5" />
-                        태그
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedArticle.tags.map((tag, index) => (
-                          <span
-                            key={index}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-purple-50 to-blue-50 text-purple-700 rounded-full text-sm font-medium border border-purple-200"
-                          >
-                            <Tag className="h-3 w-3" />
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* 적용 질문은 수정 페이지에서 별도 질문 API로 관리됩니다. */}
-
-                {/* 통계 정보 */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <BarChart3 className="h-5 w-5" />
-                      통계 정보
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-4 gap-4">
-                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Eye className="h-4 w-4 text-blue-600" />
-                          <p className="text-xs font-semibold text-blue-600 uppercase">조회수</p>
-                        </div>
-                        <p className="text-2xl font-bold text-blue-900">{selectedArticle.viewCount?.toLocaleString() || 0}</p>
-                      </div>
-                      <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Star className="h-4 w-4 text-yellow-600" />
-                          <p className="text-xs font-semibold text-yellow-600 uppercase">평점</p>
-                        </div>
-                        <p className="text-2xl font-bold text-yellow-900">
-                          {selectedArticle.rating ? selectedArticle.rating.toFixed(1) : '0.0'}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <MessageSquare className="h-4 w-4 text-green-600" />
-                          <p className="text-xs font-semibold text-green-600 uppercase">댓글 수</p>
-                        </div>
-                        <p className="text-2xl font-bold text-green-900">{selectedArticle.commentCount || 0}</p>
-                      </div>
-                      <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Bookmark className="h-4 w-4 text-purple-600" />
-                          <p className="text-xs font-semibold text-purple-600 uppercase">하이라이트</p>
-                        </div>
-                        <p className="text-2xl font-bold text-purple-900">{selectedArticle.highlightCount || 0}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-          </div>
-
-          {/* 푸터 */}
-          <div className="px-6 py-4 border-t bg-gray-50">
-            <div className="flex items-center justify-end gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setDetailModalOpen(false)}>
-                닫기
-              </Button>
-              {selectedArticle && (
-                <Link href={`/admin/articles/edit?id=${selectedArticle.id}`}>
-                  <Button type="button" variant="outline" size="sm">
-                    <Edit className="h-4 w-4 mr-2" />
-                    수정
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </div>
         </DialogContent>
       </Dialog>
 

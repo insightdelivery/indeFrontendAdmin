@@ -4,8 +4,10 @@ import { useEffect, useState, useCallback } from 'react'
 import { getAdminList, registerAdmin, updateAdmin, deleteAdmin, AdminMember } from '@/services/admin'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { AdminFormModal } from '@/components/admin/AdminFormModal'
 import { AdminDeleteConfirmModal } from '@/components/admin/AdminDeleteConfirmModal'
+import { ADMIN_CONTENT_TABLE_HEAD_TH } from '@/lib/adminContentListTable'
 import { 
   Plus, 
   Search, 
@@ -211,13 +213,9 @@ export default function AdminRegisterPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">관리자 등록</h1>
-          <p className="text-sm text-gray-600 mt-1">관리자 목록을 조회하고 관리할 수 있습니다.</p>
-        </div>
+    <div className="relative space-y-2">
+      <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-2">
+        <div className="flex items-center justify-end">
         <Button 
           type="button"
           size="sm"
@@ -227,37 +225,41 @@ export default function AdminRegisterPage() {
           <Plus className="h-4 w-4 mr-2" />
           관리자 등록
         </Button>
+        </div>
       </div>
 
-      {/* 검색 및 필터 */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="space-y-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
+      <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,360px)_auto]">
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap min-w-fit">
+              검색
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
               type="text"
               placeholder="관리자 ID, 이름, 이메일로 검색..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+              className="h-9 pl-10"
             />
+            </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="showInactive"
-              checked={showInactive}
-              onChange={(e) => setShowInactive(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-400"
-            />
-            <label htmlFor="showInactive" className="text-sm text-gray-700 cursor-pointer">
+          <div className="flex items-end">
+            <label htmlFor="showInactive" className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                id="showInactive"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-400"
+              />
               비활성화된 관리자 표시
             </label>
           </div>
         </div>
       </div>
 
-      {/* 관리자 목록 테이블 */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         {loading ? (
           <div className="p-12 text-center text-gray-500">
@@ -270,25 +272,33 @@ export default function AdminRegisterPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+            <table className="w-full min-w-[1180px] table-fixed border-collapse">
+              <colgroup>
+                <col className="w-[240px]" />
+                <col className="w-[240px]" />
+                <col className="w-[180px]" />
+                <col className="w-[180px]" />
+                <col className="w-[160px]" />
+                <col className="w-28" />
+              </colgroup>
+              <thead className="bg-[#03213b] border-b border-white/15">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-left h-12`}>
                     관리자 정보
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-left h-12`}>
                     연락처
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-left h-12`}>
                     권한
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-left h-12`}>
                     로그인 정보
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-left h-12`}>
                     등록일
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-center h-12`}>
                     작업
                   </th>
                 </tr>
@@ -296,7 +306,7 @@ export default function AdminRegisterPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredAdmins.map((admin) => (
                   <tr key={admin.memberShipSid} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 align-middle">
                       <div className="flex items-center">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
@@ -311,7 +321,7 @@ export default function AdminRegisterPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 align-middle">
                       <div className="text-sm text-gray-900 flex items-center gap-2">
                         <Mail className="h-4 w-4 text-gray-400" />
                         {admin.memberShipEmail}
@@ -323,7 +333,7 @@ export default function AdminRegisterPage() {
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 align-middle">
                       <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2">
                           {admin.is_admin ? (
@@ -353,7 +363,7 @@ export default function AdminRegisterPage() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 align-middle">
                       <div className="text-sm text-gray-900">
                         {admin.last_login ? (
                           <div className="flex items-center gap-1">
@@ -368,13 +378,13 @@ export default function AdminRegisterPage() {
                         로그인 {admin.login_count}회
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
+                    <td className="px-4 py-3 align-middle">
+                      <div className="text-sm text-gray-900 tabular-nums">
                         {formatDate(admin.created_at)}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="px-4 py-2 align-middle text-sm font-medium">
+                      <div className="flex items-center justify-center gap-2">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -400,7 +410,6 @@ export default function AdminRegisterPage() {
           </div>
         )}
 
-        {/* 통계 정보 */}
         {!loading && filteredAdmins.length > 0 && (
           <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
             <div className="flex items-center justify-between text-sm text-gray-600">
@@ -417,7 +426,6 @@ export default function AdminRegisterPage() {
         )}
       </div>
 
-      {/* 관리자 등록/수정 모달 */}
       <AdminFormModal
         open={modalOpen}
         onOpenChange={setModalOpen}
@@ -426,7 +434,6 @@ export default function AdminRegisterPage() {
         mode={modalMode}
       />
 
-      {/* 관리자 삭제 확인 모달 */}
       <AdminDeleteConfirmModal
         open={deleteModalOpen}
         onOpenChange={setDeleteModalOpen}
@@ -436,4 +443,3 @@ export default function AdminRegisterPage() {
     </div>
   )
 }
-

@@ -16,6 +16,9 @@ import {
   canShowSettingsNav,
 } from '@/lib/adminMenuCodes'
 import { AdminMenuCatalogProvider } from '@/contexts/AdminMenuCatalogContext'
+import AdminDashboardGnbTitle from '@/app/admin/AdminDashboardGnbTitle'
+import AdminPageGnbHeading from '@/app/admin/AdminPageGnbHeading'
+import { getAdminGnbPageMeta } from '@/lib/adminGnbPageMeta'
 import { 
   LayoutDashboard, 
   Users,
@@ -79,6 +82,30 @@ const SMS_EMAIL_SUB_MENUS = [
   { href: '/admin/messages/email/sender-emails', label: '발신이메일 관리', icon: Mail, section: 'email' },
   { href: '/admin/messages/newsletter', label: '뉴스레터 신청', icon: Newspaper, section: 'email' },
 ] as const
+
+/** 왼쪽 메뉴 배경 #3c83cf 기준 대비용 스타일 */
+const SB = {
+  aside: 'bg-[#3c83cf] border-r border-white/15',
+  header: 'flex h-16 shrink-0 items-center justify-between border-b border-white/15 px-4',
+  brandTitle: 'text-lg font-bold tracking-tight text-white',
+  brandAdmin: 'ml-1 text-xs font-semibold text-[#FFDF38]',
+  closeBtn: 'h-8 w-8 text-white/85 hover:bg-white/10 hover:text-white',
+  navWrap: 'flex-1 overflow-y-auto overflow-x-hidden px-2 py-3',
+  item: 'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
+  itemActive: 'bg-white/20 text-white',
+  itemIdle: 'text-white/90 hover:bg-white/10 hover:text-white',
+  subList: 'ml-2 mt-1 space-y-0.5 border-l border-white/25 pl-3',
+  subSection: 'px-3 pt-2 text-xs font-semibold text-white/55',
+  subSectionGap: 'px-3 pt-3 text-xs font-semibold text-white/55',
+  subItem: 'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
+  subActive: 'bg-white/20 font-medium text-white',
+  subIdle: 'text-white/85 hover:bg-white/10 hover:text-white',
+  footer: 'shrink-0 border-t border-white/15 p-4',
+  avatar: 'flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-xs font-semibold text-white',
+  userName: 'truncate text-sm font-medium text-white',
+  userId: 'truncate text-xs text-white/70',
+  chevron: 'h-4 w-4 shrink-0 text-white/70 transition-transform duration-200',
+} as const
 
 /**
  * 인증이 필요한 관리 화면은 모두 `/admin` 하위에 두는 것을 권장한다.
@@ -214,6 +241,13 @@ export default function AdminLayout({
     userInfo?.memberShipId?.slice(0, 2) ||
     '—'
 
+  const dashboardDisplayName =
+    userInfo?.memberShipName?.trim() || userInfo?.memberShipId || '관리자'
+
+  const isAdminDashboard = pathname === '/admin'
+  const pageGnbMeta = pathname ? getAdminGnbPageMeta(pathname) : null
+  const headerTall = isAdminDashboard || !!pageGnbMeta
+
   if (!mounted || !sessionReady) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-muted/40">
@@ -232,25 +266,26 @@ export default function AdminLayout({
       {/* 사이드바 */}
       <aside
         className={cn(
-          'flex flex-col overflow-hidden border-r border-border bg-background transition-all duration-300 ease-in-out',
+          'flex flex-col overflow-hidden transition-all duration-300 ease-in-out',
+          SB.aside,
           sidebarOpen ? 'w-64' : 'w-0'
         )}
       >
         {/* 사이드바 헤더 */}
-        <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-4">
+        <div className={SB.header}>
           {sidebarOpen && (
             <>
               <Link href="/admin" className="flex flex-col gap-0.5">
-                <span className="text-lg font-bold tracking-tight text-foreground">
+                <span className={SB.brandTitle}>
                   InDe
-                  <span className="ml-1 text-xs font-semibold text-neon-yellow">admin</span>
+                  <span className={SB.brandAdmin}>admin</span>
                 </span>
               </Link>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setSidebarOpen(false)}
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                className={SB.closeBtn}
                 type="button"
                 aria-label="사이드바 닫기"
               >
@@ -262,7 +297,7 @@ export default function AdminLayout({
 
         {/* 사이드바 메뉴 */}
         {sidebarOpen && (
-          <nav className="flex-1 overflow-y-auto overflow-x-hidden px-2 py-3">
+          <nav className={SB.navWrap}>
             <ul className="space-y-1">
               {visibleMainMenuItems.map((item) => {
                 const Icon = item.icon
@@ -274,10 +309,8 @@ export default function AdminLayout({
                     <Link
                       href={item.href}
                       className={cn(
-                        'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
-                        isActive
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        SB.item,
+                        isActive ? SB.itemActive : SB.itemIdle
                       )}
                     >
                       <Icon className="h-4 w-4 shrink-0 opacity-90" />
@@ -295,9 +328,7 @@ export default function AdminLayout({
                   onClick={() => setSmsEmailOpen(!smsEmailOpen)}
                   className={cn(
                     'flex w-full items-center justify-between gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
-                    pathname?.startsWith('/admin/messages')
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    pathname?.startsWith('/admin/messages') ? SB.itemActive : SB.itemIdle
                   )}
                 >
                   <div className="flex items-center gap-3">
@@ -305,15 +336,12 @@ export default function AdminLayout({
                     <span>문자 이메일</span>
                   </div>
                   <ChevronRight
-                    className={cn(
-                      'h-4 w-4 shrink-0 transition-transform duration-200',
-                      smsEmailOpen && 'rotate-90'
-                    )}
+                    className={cn(SB.chevron, smsEmailOpen && 'rotate-90')}
                   />
                 </button>
                 {smsEmailOpen && (
-                  <ul className="ml-2 mt-1 space-y-0.5 border-l border-border pl-3">
-                    <li className="px-3 pt-2 text-xs font-semibold text-muted-foreground">문자</li>
+                  <ul className={SB.subList}>
+                    <li className={SB.subSection}>문자</li>
                     {visibleSmsEmailSubMenus
                       .filter((subItem) => subItem.section === 'sms')
                       .map((subItem) => {
@@ -324,10 +352,8 @@ export default function AdminLayout({
                             <Link
                               href={subItem.href}
                               className={cn(
-                                'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
-                                isSubActive
-                                  ? 'bg-primary/10 font-medium text-primary'
-                                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                SB.subItem,
+                                isSubActive ? SB.subActive : SB.subIdle
                               )}
                             >
                               <SubIcon className="h-3.5 w-3.5 shrink-0 opacity-90" />
@@ -336,7 +362,7 @@ export default function AdminLayout({
                           </li>
                         )
                       })}
-                    <li className="px-3 pt-3 text-xs font-semibold text-muted-foreground">이메일</li>
+                    <li className={SB.subSectionGap}>이메일</li>
                     {visibleSmsEmailSubMenus
                       .filter((subItem) => subItem.section === 'email')
                       .map((subItem) => {
@@ -347,10 +373,8 @@ export default function AdminLayout({
                             <Link
                               href={subItem.href}
                               className={cn(
-                                'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
-                                isSubActive
-                                  ? 'bg-primary/10 font-medium text-primary'
-                                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                SB.subItem,
+                                isSubActive ? SB.subActive : SB.subIdle
                               )}
                             >
                               <SubIcon className="h-3.5 w-3.5 shrink-0 opacity-90" />
@@ -365,22 +389,23 @@ export default function AdminLayout({
               ) : null}
 
               {/* 결제관리 (문자 이메일 아래) */}
-              {paymentMenuItem ? (
-                <li key={paymentMenuItem.href}>
-                  <Link
-                    href={paymentMenuItem.href}
-                    className={cn(
-                      'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
-                      pathname === paymentMenuItem.href || pathname?.startsWith(paymentMenuItem.href)
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    )}
-                  >
-                    <paymentMenuItem.icon className="h-4 w-4 shrink-0 opacity-90" />
-                    <span>{paymentMenuItem.label}</span>
-                  </Link>
-                </li>
-              ) : null}
+              {paymentMenuItem ? (() => {
+                const PayIcon = paymentMenuItem.icon
+                const payActive =
+                  pathname === paymentMenuItem.href ||
+                  pathname?.startsWith(paymentMenuItem.href)
+                return (
+                  <li key={paymentMenuItem.href}>
+                    <Link
+                      href={paymentMenuItem.href}
+                      className={cn(SB.item, payActive ? SB.itemActive : SB.itemIdle)}
+                    >
+                      <PayIcon className="h-4 w-4 shrink-0 opacity-90" />
+                      <span>{paymentMenuItem.label}</span>
+                    </Link>
+                  </li>
+                )
+              })() : null}
 
               {/* 게시판 관리 메뉴 (하위 메뉴 포함) */}
               {showBoardSection ? (
@@ -390,9 +415,7 @@ export default function AdminLayout({
                   onClick={() => setBoardOpen(!boardOpen)}
                   className={cn(
                     'flex w-full items-center justify-between gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
-                    pathname?.startsWith('/admin/board')
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    pathname?.startsWith('/admin/board') ? SB.itemActive : SB.itemIdle
                   )}
                 >
                   <div className="flex items-center gap-3">
@@ -400,14 +423,11 @@ export default function AdminLayout({
                     <span>게시판 관리</span>
                   </div>
                   <ChevronRight
-                    className={cn(
-                      'h-4 w-4 shrink-0 transition-transform duration-200',
-                      boardOpen && 'rotate-90'
-                    )}
+                    className={cn(SB.chevron, boardOpen && 'rotate-90')}
                   />
                 </button>
                 {boardOpen && (
-                  <ul className="ml-2 mt-1 space-y-0.5 border-l border-border pl-3">
+                  <ul className={SB.subList}>
                     {visibleBoardSubMenus.map((subItem) => {
                       const SubIcon = subItem.icon
                       const isSubActive =
@@ -419,10 +439,8 @@ export default function AdminLayout({
                           <Link
                             href={subItem.href}
                             className={cn(
-                              'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
-                              isSubActive
-                                ? 'bg-primary/10 font-medium text-primary'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                              SB.subItem,
+                              isSubActive ? SB.subActive : SB.subIdle
                             )}
                           >
                             <SubIcon className="h-3.5 w-3.5 shrink-0 opacity-90" />
@@ -444,9 +462,7 @@ export default function AdminLayout({
                   onClick={() => setSettingsOpen(!settingsOpen)}
                   className={cn(
                     'flex w-full items-center justify-between gap-2 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
-                    pathname?.startsWith('/admin/settings')
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    pathname?.startsWith('/admin/settings') ? SB.itemActive : SB.itemIdle
                   )}
                 >
                   <div className="flex items-center gap-3">
@@ -454,15 +470,12 @@ export default function AdminLayout({
                     <span>설정</span>
                   </div>
                   <ChevronRight
-                    className={cn(
-                      'h-4 w-4 shrink-0 transition-transform duration-200',
-                      settingsOpen && 'rotate-90'
-                    )}
+                    className={cn(SB.chevron, settingsOpen && 'rotate-90')}
                   />
                 </button>
 
                 {settingsOpen && (
-                  <ul className="ml-2 mt-1 space-y-0.5 border-l border-border pl-3">
+                  <ul className={SB.subList}>
                     {visibleSettingsSubMenus.map((subItem) => {
                       const SubIcon = subItem.icon
                       const isSubActive = pathname === subItem.href
@@ -471,10 +484,8 @@ export default function AdminLayout({
                           <Link
                             href={subItem.href}
                             className={cn(
-                              'flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors',
-                              isSubActive
-                                ? 'bg-primary/10 font-medium text-primary'
-                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                              SB.subItem,
+                              isSubActive ? SB.subActive : SB.subIdle
                             )}
                           >
                             <SubIcon className="h-3.5 w-3.5 shrink-0 opacity-90" />
@@ -493,19 +504,16 @@ export default function AdminLayout({
 
         {/* 사이드바 푸터 */}
         {sidebarOpen && userInfo && (
-          <div className="shrink-0 border-t border-border p-4">
+          <div className={SB.footer}>
             <div className="flex items-center gap-3">
-              <div
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary"
-                aria-hidden
-              >
+              <div className={SB.avatar} aria-hidden>
                 {userInitials}
               </div>
               <div className="min-w-0 flex-1 space-y-0.5">
-                <p className="truncate text-sm font-medium text-foreground">
+                <p className={SB.userName}>
                   {userInfo.memberShipName}
                 </p>
-                <p className="truncate text-xs text-muted-foreground">{userInfo.memberShipId}</p>
+                <p className={SB.userId}>{userInfo.memberShipId}</p>
               </div>
             </div>
           </div>
@@ -515,8 +523,13 @@ export default function AdminLayout({
       {/* 메인 콘텐츠 영역 - min-h-0으로 flex 자식이 뷰포트를 넘지 않게 해 스크롤 1개만 유지 */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* 상단 헤더 */}
-        <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:px-6">
-          <div className="flex min-w-0 items-center gap-3">
+        <header
+          className={cn(
+            'sticky top-0 z-40 flex shrink-0 items-center justify-between gap-4 border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 md:px-6',
+            headerTall ? 'min-h-16 py-2.5' : 'h-16'
+          )}
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             {!sidebarOpen ? (
               <>
                 <Button
@@ -529,13 +542,23 @@ export default function AdminLayout({
                 >
                   <Menu className="h-5 w-5" />
                 </Button>
-                <span className="truncate text-sm font-medium text-foreground">
-                  InDe Administrator
-                </span>
+                {isAdminDashboard ? (
+                  <AdminDashboardGnbTitle displayName={dashboardDisplayName} />
+                ) : pageGnbMeta ? (
+                  <AdminPageGnbHeading title={pageGnbMeta.title} subtitle={pageGnbMeta.subtitle} />
+                ) : (
+                  <span className="truncate text-sm font-medium text-foreground">
+                    InDe Administrator
+                  </span>
+                )}
               </>
+            ) : isAdminDashboard ? (
+              <AdminDashboardGnbTitle displayName={dashboardDisplayName} />
+            ) : pageGnbMeta ? (
+              <AdminPageGnbHeading title={pageGnbMeta.title} subtitle={pageGnbMeta.subtitle} />
             ) : null}
           </div>
-          <div className="flex shrink-0 items-center gap-3 md:gap-4">
+          <div className="flex shrink-0 items-center gap-3 self-center md:gap-4">
             {userInfo && (
               <div className="hidden text-sm text-muted-foreground sm:block">
                 <span className="font-medium text-foreground">{userInfo.memberShipName}</span>
@@ -557,8 +580,8 @@ export default function AdminLayout({
         </header>
 
         {/* 메인 콘텐츠 - 여기만 스크롤 */}
-        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-          <div className="min-h-full p-4 md:p-6">{children}</div>
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#edf6ff]">
+          <div className="min-h-full p-4 md:p-2">{children}</div>
         </main>
       </div>
     </div>

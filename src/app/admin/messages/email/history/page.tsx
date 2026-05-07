@@ -1,6 +1,16 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { ADMIN_CONTENT_TABLE_HEAD_TH } from '@/lib/adminContentListTable'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { cancelMessageBatch, getMessageBatch, getMessageBatches } from '@/services/messages'
 
 type EmailHistoryRow = {
@@ -51,6 +61,8 @@ export default function EmailHistoryPage() {
   const [selectedContent, setSelectedContent] = useState<{ title: string; body: string; batchId: number } | null>(null)
   const [openingContent, setOpeningContent] = useState<number | null>(null)
   const [cancellingId, setCancellingId] = useState<number | null>(null)
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
+  const [cancelConfirmTarget, setCancelConfirmTarget] = useState<EmailHistoryRow | null>(null)
 
   const loadHistory = async () => {
     try {
@@ -119,183 +131,237 @@ export default function EmailHistoryPage() {
   }, [tab, serverRows])
 
   return (
-    <section className="relative space-y-4 rounded-xl border border-slate-200 bg-white p-5">
-      <h1 className="text-lg font-semibold text-gray-900">이메일 전송 내역</h1>
-      <div className="flex justify-end">
-        <button type="button" className="h-9 rounded-lg border border-slate-300 px-4 text-sm" onClick={loadHistory}>
-          {loading ? '불러오는 중...' : '새로고침'}
-        </button>
-      </div>
-      {loadError ? <p className="text-sm text-rose-600">{loadError}</p> : null}
+    <section className="relative space-y-2">
+      <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-2 flex justify-between">
+        <div className="flex gap-6 border-b border-slate-200">
+          <button
+            type="button"
+            onClick={() => setTab('send')}
+            className={`pb-3 text-sm font-medium ${tab === 'send' ? 'border-b-2 border-[#3c83cf] text-[#3c83cf]' : 'text-slate-400'}`}
+          >
+            전송
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('reserve')}
+            className={`pb-3 text-sm font-medium ${tab === 'reserve' ? 'border-b-2 border-[#3c83cf] text-[#3c83cf]' : 'text-slate-400'}`}
+          >
+            예약
+          </button>
+        </div>
+        <div className="flex justify-end">
+          <Button type="button" variant="outline" size="sm" onClick={loadHistory}>
+            {loading ? '불러오는 중...' : '새로고침'}
+          </Button>
+        </div>
+        {loadError ? <p className="text-sm text-rose-600">{loadError}</p> : null}
 
-      <div className="flex gap-6 border-b border-slate-200">
-        <button
-          type="button"
-          onClick={() => setTab('send')}
-          className={`pb-3 text-sm font-medium ${tab === 'send' ? 'border-b-2 border-violet-600 text-violet-700' : 'text-slate-400'}`}
-        >
-          전송
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('reserve')}
-          className={`pb-3 text-sm font-medium ${tab === 'reserve' ? 'border-b-2 border-violet-600 text-violet-700' : 'text-slate-400'}`}
-        >
-          예약
-        </button>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-slate-200">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 text-slate-700">
-            <tr>
-              <th className="px-4 py-3">No</th>
-              <th className="px-4 py-3">발송자(E-MAIL)</th>
-              <th className="px-4 py-3 text-center">상태</th>
-              <th className="px-4 py-3 text-center">수신자수</th>
-              <th className="px-4 py-3 text-center">성공/실패</th>
-              <th className="px-4 py-3">제목</th>
-              <th className="px-4 py-3 text-center">전송 일시</th>
-              <th className="px-4 py-3 text-center">전송 완료 일시</th>
-              <th className="px-4 py-3 text-center">액션</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200 bg-white">
-            {shownRows.map((row) => (
-              <tr key={row.batchId} className="hover:bg-slate-50">
-                <td className="px-4 py-4">{row.no}</td>
-                <td className="px-4 py-4 break-all">{row.sender}</td>
-                <td className="px-4 py-4 text-center">
-                  <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-700">{row.status}</span>
-                </td>
-                <td className="px-4 py-4 text-center">
-                  <button
-                    type="button"
-                    className="text-violet-700 underline underline-offset-2"
-                    onClick={async () => {
-                      try {
-                        const detail = await getMessageBatch(row.batchId)
-                        const emails =
-                          detail.details?.map((d) => d.receiver_email || d.receiver_phone || '-').filter(Boolean) || []
-                        setSelectedRecipients(emails.length ? emails : [`총 ${row.count}건 (상세 없음)`])
-                      } catch {
-                        setSelectedRecipients([`총 ${row.count}건`])
-                      }
-                    }}
-                  >
-                    {row.count}
-                  </button>
-                </td>
-                <td className="px-4 py-4 text-center">
-                  {row.successCount}/{row.failCount}
-                </td>
-                <td className="px-4 py-4 max-w-[min(360px,40vw)]">
-                  <button
-                    type="button"
-                    disabled={openingContent === row.batchId}
-                    className="w-full text-left font-medium text-violet-700 underline decoration-violet-400 underline-offset-2 hover:text-violet-900 disabled:opacity-60"
-                    title="클릭하여 본문 보기"
-                    onClick={() => void openContentByTitle(row)}
-                  >
-                    {openingContent === row.batchId ? '불러오는 중…' : row.title || '—'}
-                  </button>
-                </td>
-                <td className="px-4 py-4 text-center whitespace-nowrap">{formatKstDateTime(row.requestedAt)}</td>
-                <td className="px-4 py-4 text-center whitespace-nowrap">{formatKstDateTime(row.completedAt)}</td>
-                <td className="px-4 py-4 text-center">
-                  {tab === 'reserve' && canCancelScheduledReserve(row) ? (
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1180px] table-fixed border-collapse text-sm">
+            <colgroup>
+              <col className="w-16" />
+              <col className="w-[220px]" />
+              <col className="w-24" />
+              <col className="w-24" />
+              <col className="w-24" />
+              <col />
+              <col className="w-[170px]" />
+              <col className="w-[170px]" />
+              <col className="w-28" />
+            </colgroup>
+            <thead className="bg-[#03213b] border-b border-white/15">
+              <tr>
+                <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-center h-12`}>No</th>
+                <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-left h-12`}>발송자(E-MAIL)</th>
+                <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-center h-12`}>상태</th>
+                <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-center h-12`}>수신자수</th>
+                <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-center h-12`}>성공/실패</th>
+                <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-left h-12`}>제목</th>
+                <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-center h-12`}>전송 일시</th>
+                <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-center h-12`}>전송 완료 일시</th>
+                <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-center h-12`}>액션</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 bg-white">
+              {shownRows.map((row) => (
+                <tr key={row.batchId} className="hover:bg-gray-50">
+                  <td className="px-2 py-3 text-center align-middle tabular-nums text-gray-600">{row.no}</td>
+                  <td className="px-3 py-3 align-middle break-all text-sm text-[#000]">{row.sender}</td>
+                  <td className="px-3 py-3 text-center align-middle">
+                    <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700">{row.status}</span>
+                  </td>
+                  <td className="px-3 py-3 text-center align-middle">
                     <button
                       type="button"
-                      disabled={cancellingId === row.batchId}
-                      className="text-sm font-medium text-rose-600 underline underline-offset-2 hover:text-rose-800 disabled:opacity-50"
+                      className="text-[#3c83cf] underline underline-offset-2"
                       onClick={async () => {
-                        if (!window.confirm('예약 발송을 취소하시겠습니까?')) return
                         try {
-                          setCancellingId(row.batchId)
-                          await cancelMessageBatch(row.batchId)
-                          await loadHistory()
-                        } catch (e) {
-                          window.alert(e instanceof Error ? e.message : '발송 취소에 실패했습니다.')
-                        } finally {
-                          setCancellingId(null)
+                          const detail = await getMessageBatch(row.batchId)
+                          const emails =
+                            detail.details?.map((d) => d.receiver_email || d.receiver_phone || '-').filter(Boolean) || []
+                          setSelectedRecipients(emails.length ? emails : [`총 ${row.count}건 (상세 없음)`])
+                        } catch {
+                          setSelectedRecipients([`총 ${row.count}건`])
                         }
                       }}
                     >
-                      {cancellingId === row.batchId ? '처리 중…' : '발송 취소'}
+                      {row.count}
                     </button>
-                  ) : (
-                    <span className="text-slate-300">—</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {shownRows.length === 0 ? (
-              <tr>
-                <td className="px-4 py-10 text-center text-slate-400" colSpan={9}>
-                  {loading ? '불러오는 중...' : '데이터가 없습니다.'}
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+                  </td>
+                  <td className="px-3 py-3 text-center align-middle tabular-nums">
+                    {row.successCount}/{row.failCount}
+                  </td>
+                  <td className="px-3 py-3 align-middle">
+                    <button
+                      type="button"
+                      disabled={openingContent === row.batchId}
+                      className="w-full truncate text-left text-sm font-medium text-[#000] hover:no-underline disabled:opacity-60"
+                      title="클릭하여 본문 보기"
+                      onClick={() => void openContentByTitle(row)}
+                    >
+                      {openingContent === row.batchId ? '불러오는 중…' : row.title || '—'}
+                    </button>
+                  </td>
+                  <td className="px-3 py-3 text-center align-middle whitespace-nowrap tabular-nums text-gray-600">{formatKstDateTime(row.requestedAt)}</td>
+                  <td className="px-3 py-3 text-center align-middle whitespace-nowrap tabular-nums text-gray-600">{formatKstDateTime(row.completedAt)}</td>
+                  <td className="px-3 py-2 text-center align-middle">
+                    {tab === 'reserve' && canCancelScheduledReserve(row) ? (
+                      <button
+                        type="button"
+                        disabled={cancellingId === row.batchId}
+                        className="text-sm font-medium text-rose-600 underline underline-offset-2 hover:text-rose-800 disabled:opacity-50"
+                        onClick={() => {
+                          setCancelConfirmTarget(row)
+                          setCancelConfirmOpen(true)
+                        }}
+                      >
+                        {cancellingId === row.batchId ? '처리 중…' : '발송 취소'}
+                      </button>
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {shownRows.length === 0 ? (
+                <tr>
+                  <td className="p-12 text-center text-gray-500" colSpan={9}>
+                    {loading ? '불러오는 중...' : '데이터가 없습니다.'}
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {selectedRecipients ? (
-        <div className="fixed inset-0 z-50 bg-black/40 p-6">
-          <div className="mx-auto max-w-2xl rounded-2xl bg-white p-6">
-            <h3 className="text-lg font-semibold">수신 이메일</h3>
-            <p className="mt-1 text-slate-500">총 {selectedRecipients.length}건</p>
-            <div className="mt-4 max-h-80 overflow-auto rounded-lg border border-slate-200">
+      <Dialog open={selectedRecipients != null} onOpenChange={(open) => (!open ? setSelectedRecipients(null) : null)}>
+        <DialogContent className="flex max-h-[90vh] w-full max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:rounded-lg [&>button]:text-white [&>button]:hover:bg-white/10 [&>button]:hover:text-white [&>button]:ring-offset-[#021a2e]">
+          <DialogHeader className="shrink-0 border-b border-white/10 bg-[#021a2e] px-6 py-4 text-left text-white sm:text-left">
+            <DialogTitle className="text-lg font-semibold text-white">수신 이메일</DialogTitle>
+            <DialogDescription className="text-slate-200">
+              총 {selectedRecipients?.length ?? 0}건
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+            <div className="overflow-hidden rounded-lg border border-slate-200">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50">
+                <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
                   <tr>
                     <th className="px-3 py-2 text-left">No</th>
                     <th className="px-3 py-2 text-left">이메일</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {selectedRecipients.map((em, idx) => (
-                    <tr key={`${em}-${idx}`} className="border-t border-slate-100">
-                      <td className="px-3 py-2">{idx + 1}</td>
-                      <td className="px-3 py-2 break-all">{em}</td>
+                <tbody className="divide-y divide-slate-100">
+                  {(selectedRecipients ?? []).map((em, idx) => (
+                    <tr key={`${em}-${idx}`}>
+                      <td className="px-3 py-2 tabular-nums text-slate-700">{idx + 1}</td>
+                      <td className="px-3 py-2 break-all text-slate-800">{em}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <div className="mt-4 flex justify-end">
-              <button
-                type="button"
-                className="h-10 rounded-lg bg-violet-600 px-5 text-white"
-                onClick={() => setSelectedRecipients(null)}
-              >
-                닫기
-              </button>
-            </div>
           </div>
-        </div>
-      ) : null}
+          <DialogFooter className="flex items-center justify-end gap-2 border-t border-gray-200 bg-slate-100 px-6 py-4 sm:gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setSelectedRecipients(null)}>
+              닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {selectedContent ? (
-        <div className="fixed inset-0 z-50 bg-black/40 p-6">
-          <div className="mx-auto max-w-2xl rounded-2xl bg-white p-6">
-            <h3 className="text-lg font-semibold">{selectedContent.title || '(제목 없음)'}</h3>
-            <p className="mt-1 text-slate-500">batch_id: {selectedContent.batchId}</p>
-            <div className="mt-4 whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              {selectedContent.body}
-            </div>
-            <div className="mt-4 flex justify-end">
-              <button
-                type="button"
-                className="h-10 rounded-lg bg-violet-600 px-5 text-white"
-                onClick={() => setSelectedContent(null)}
-              >
-                닫기
-              </button>
+      <Dialog open={selectedContent != null} onOpenChange={(open) => (!open ? setSelectedContent(null) : null)}>
+        <DialogContent className="flex max-h-[90vh] w-full max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:rounded-lg [&>button]:text-white [&>button]:hover:bg-white/10 [&>button]:hover:text-white [&>button]:ring-offset-[#021a2e]">
+          <DialogHeader className="shrink-0 border-b border-white/10 bg-[#021a2e] px-6 py-4 text-left text-white sm:text-left">
+            <DialogTitle className="text-lg font-semibold text-white">
+              {selectedContent?.title || '(제목 없음)'}
+            </DialogTitle>
+            <DialogDescription className="text-slate-200">
+              batch_id: {selectedContent?.batchId ?? '-'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+            <div className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              {selectedContent?.body ?? ''}
             </div>
           </div>
-        </div>
-      ) : null}
+          <DialogFooter className="flex items-center justify-end gap-2 border-t border-gray-200 bg-slate-100 px-6 py-4 sm:gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setSelectedContent(null)}>
+              닫기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={cancelConfirmOpen}
+        onOpenChange={(open) => {
+          setCancelConfirmOpen(open)
+          if (!open) setCancelConfirmTarget(null)
+        }}
+      >
+        <DialogContent className="flex w-full max-w-lg flex-col gap-0 overflow-hidden p-0 sm:rounded-lg [&>button]:text-white [&>button]:hover:bg-white/10 [&>button]:hover:text-white [&>button]:ring-offset-[#021a2e]">
+          <DialogHeader className="shrink-0 border-b border-white/10 bg-[#021a2e] px-6 py-4 text-left text-white sm:text-left">
+            <DialogTitle className="text-lg font-semibold text-white">예약 발송 취소</DialogTitle>
+          </DialogHeader>
+          <div className="px-6 py-4">
+            <DialogDescription className="text-sm text-gray-600">
+              batch_id {cancelConfirmTarget?.batchId ?? '-'} 예약 발송을 취소하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            </DialogDescription>
+          </div>
+          <DialogFooter className="flex items-center justify-end gap-2 border-t border-gray-200 bg-slate-100 px-6 py-4 sm:gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setCancelConfirmOpen(false)} disabled={cancellingId != null}>
+              취소
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="bg-red-500 text-white hover:bg-red-600 disabled:opacity-60"
+              disabled={cancellingId != null || cancelConfirmTarget == null}
+              onClick={async () => {
+                if (!cancelConfirmTarget) return
+                try {
+                  setCancellingId(cancelConfirmTarget.batchId)
+                  await cancelMessageBatch(cancelConfirmTarget.batchId)
+                  setCancelConfirmOpen(false)
+                  setCancelConfirmTarget(null)
+                  await loadHistory()
+                } catch (e) {
+                  window.alert(e instanceof Error ? e.message : '발송 취소에 실패했습니다.')
+                } finally {
+                  setCancellingId(null)
+                }
+              }}
+            >
+              {cancellingId != null ? '처리 중…' : '취소 진행'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   )
 }

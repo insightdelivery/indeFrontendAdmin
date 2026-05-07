@@ -382,8 +382,7 @@ export default function SmsKakaoSendPage() {
     <section className="rounded-xl border border-slate-200 bg-white">
       <div className="grid min-h-[820px] grid-cols-1 lg:grid-cols-[62%_38%]">
         <div className="border-r border-slate-200 p-6 pb-24">
-          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-            <h1 className="text-lg font-semibold text-gray-900">문자 전송</h1>
+          <div className="mb-6 flex flex-wrap items-center justify-end gap-3">
             <div className="flex flex-wrap items-center gap-3 sm:gap-4">
               <div
                 className="rounded-xl border border-violet-200 bg-violet-50/90 px-3 py-1.5 shadow-sm ring-1 ring-violet-100"

@@ -440,10 +440,6 @@ export function UserEditTabsPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">회원 상세 관리</h1>
-          <p className="text-sm text-gray-600">회원정보, 라이브러리, 하이라이트, 적용질문, 북마크, 별점을 관리합니다.</p>
-        </div>
       </div>
 
       {memberStatus === 'WITHDRAWN' && (

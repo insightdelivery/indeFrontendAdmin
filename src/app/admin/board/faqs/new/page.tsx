@@ -49,10 +49,6 @@ export default function NewFAQPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">FAQ 등록</h1>
-          <p className="text-gray-600 text-sm">새 FAQ를 작성합니다.</p>
-        </div>
       </div>
 
       <Card>

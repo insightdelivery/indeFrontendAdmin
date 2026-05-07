@@ -37,10 +37,6 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">결제 관리</h1>
-        <p className="mt-1 text-sm text-muted-foreground">주문·결제 화면은 추후 연동 예정입니다.</p>
-      </div>
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">

@@ -215,12 +215,6 @@ export default function DisplayEventForm({ eventId }: Props) {
             목록
           </Link>
         </Button>
-        <h1 className="text-lg font-semibold text-gray-900">
-          {eventId ? '이벤트 베너 수정' : '이벤트 베너 등록'}
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          contentId가 있으면 링크 URL은 사용할 수 없습니다. (서버 검증)
-        </p>
       </div>
 
       <Card>

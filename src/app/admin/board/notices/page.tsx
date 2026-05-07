@@ -1,12 +1,9 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { getNoticeList, getNotice, deleteNotice } from '@/services/board'
-import type { NoticeListItem, NoticeDetail } from '@/types/board'
-import { useToast } from '@/hooks/use-toast'
+import { ListPagination } from '@/components/admin/ListPagination'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -15,8 +12,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, Search, Edit, Trash2, Pin, PanelTop } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { useToast } from '@/hooks/use-toast'
+import { ADMIN_CONTENT_TABLE_HEAD_TH } from '@/lib/adminContentListTable'
+import { deleteNotice, getNotice, getNoticeList } from '@/services/board'
+import type { NoticeDetail, NoticeListItem } from '@/types/board'
+import { Edit, PanelTop, Pin, Plus, Search, Trash2 } from 'lucide-react'
 
 function formatDate(s: string) {
   return new Date(s).toLocaleString('ko-KR', {
@@ -28,12 +29,15 @@ function formatDate(s: string) {
   })
 }
 
+const PAGE_SIZE = 20
+
 export default function NoticeListPage() {
   const { toast } = useToast()
   const [items, setItems] = useState<NoticeListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
+  const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [deletingId, setDeletingId] = useState<number | null>(null)
@@ -44,7 +48,7 @@ export default function NoticeListPage() {
   const load = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await getNoticeList({ page, page_size: 20, search: search || undefined })
+      const res = await getNoticeList({ page, page_size: PAGE_SIZE, search: search || undefined })
       setItems(Array.isArray(res.results) ? res.results : [])
       setTotalCount(typeof res.count === 'number' ? res.count : 0)
     } catch (e: any) {
@@ -60,7 +64,7 @@ export default function NoticeListPage() {
   }, [page, search, toast])
 
   useEffect(() => {
-    load()
+    void load()
   }, [load])
 
   const handleDeleteClick = (id: number) => {
@@ -75,7 +79,7 @@ export default function NoticeListPage() {
       toast({ title: '삭제 완료', description: '공지가 삭제되었습니다.', duration: 3000 })
       setDeleteModalOpen(false)
       setDeletingId(null)
-      load()
+      void load()
     } catch (e: any) {
       toast({
         title: '오류',
@@ -105,140 +109,174 @@ export default function NoticeListPage() {
     }
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">공지사항 관리</h1>
-          <p className="text-gray-600 text-sm mt-1">공지사항 목록을 조회·수정·삭제할 수 있습니다.</p>
-        </div>
-        <Link href="/admin/board/notices/new">
-          <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800">
-            <Plus className="h-4 w-4 mr-2" />
-            새 공지
-          </Button>
-        </Link>
-      </div>
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center gap-2">
-            <Search className="h-5 w-5 text-gray-500" />
+  return (
+    <div className="relative space-y-2">
+      <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-2 flex justify-between">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,320px)_128px] ">
+          <div className="space-y-1">
             <Input
               placeholder="제목·내용 검색"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && setPage(1) && load()}
-              className="max-w-xs"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setPage(1)
+                  setSearch(searchInput.trim())
+                }
+              }}
+              className="h-9"
             />
-            <Button type="button" variant="outline" size="sm" onClick={() => { setPage(1); load() }}>
+          </div>
+          <div className="flex  mt-0">
+            <Button
+              type="button"
+              size="sm"
+              className="w-32 border-0 bg-[#3c83cf] text-white shadow-sm hover:bg-[#3278b8] hover:text-white"
+              onClick={() => {
+                setPage(1)
+                setSearch(searchInput.trim())
+              }}
+            >
+              <Search className="mr-2 h-4 w-4 shrink-0" />
               조회
             </Button>
           </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-gray-500 py-8 text-center">불러오는 중...</p>
-          ) : (items?.length ?? 0) === 0 ? (
-            <p className="text-gray-500 py-8 text-center">등록된 공지가 없습니다.</p>
-          ) : (
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="text-center p-3 font-medium w-16">번호</th>
-                    <th className="text-left p-3 font-medium">제목</th>
-                    <th className="text-center p-3 font-medium w-20">상단고정</th>
-                    <th className="text-center p-3 font-medium w-20">GNB</th>
-                    <th className="text-center p-3 font-medium w-24">조회수</th>
-                    <th className="text-right p-3 font-medium w-[140px] min-w-[140px] whitespace-nowrap">등록일</th>
-                    <th className="text-right p-3 font-medium w-28">관리</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((row, index) => {
-                    const pageSize = 20
-                    const rowNum = totalCount - (page - 1) * pageSize - index
-                    return (
-                    <tr key={row.id} className="border-b last:border-0 hover:bg-gray-50">
-                      <td className="p-3 text-center text-gray-600">{rowNum}</td>
-                      <td className="p-3">
+        </div>
+        <div className="flex items-center justify-end">
+          <Link href="/admin/board/notices/new">
+            <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800">
+              <Plus className="mr-2 h-4 w-4" />
+              새 공지
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        {loading ? (
+          <div className="p-12 text-center text-gray-500">
+            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900" />
+            로딩 중...
+          </div>
+        ) : items.length === 0 ? (
+          <div className="p-12 text-center text-gray-500">
+            {search ? '검색 결과가 없습니다.' : '등록된 공지가 없습니다.'}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[980px] table-fixed border-collapse text-sm">
+              <colgroup>
+                <col className="w-16" />
+                <col />
+                <col className="w-20" />
+                <col className="w-20" />
+                <col className="w-24" />
+                <col className="w-[160px]" />
+                <col className="w-28" />
+              </colgroup>
+              <thead className="bg-[#03213b] border-b border-white/15">
+                <tr>
+                  <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-center h-12`}>번호</th>
+                  <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-left h-12`}>제목</th>
+                  <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-center h-12`}>상단고정</th>
+                  <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-center h-12`}>GNB</th>
+                  <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-center h-12`}>조회수</th>
+                  <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-center h-12`}>등록일</th>
+                  <th className={`${ADMIN_CONTENT_TABLE_HEAD_TH} text-center h-12`}>관리</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {items.map((row, index) => {
+                  const rowNum = totalCount - (page - 1) * PAGE_SIZE - index
+                  return (
+                    <tr key={row.id} className="hover:bg-gray-50">
+                      <td className="px-2 py-3 text-center align-middle tabular-nums text-gray-600">
+                        {rowNum}
+                      </td>
+                      <td className="px-3 py-3 align-middle">
                         <button
                           type="button"
-                          className="text-left text-black hover:font-bold hover:underline cursor-pointer"
-                          onClick={() => handleTitleClick(row.id)}
+                          className="max-w-full truncate text-left text-sm font-medium text-[#000] hover:no-underline"
+                          onClick={() => void handleTitleClick(row.id)}
+                          title={row.title}
                         >
                           {row.title}
                         </button>
                       </td>
-                      <td className="p-3 text-center">
-                        {row.is_pinned ? <Pin className="h-4 w-4 inline text-amber-500" /> : '-'}
+                      <td className="px-2 py-3 text-center align-middle">
+                        {row.is_pinned ? <Pin className="inline h-4 w-4 text-amber-500" /> : '-'}
                       </td>
-                      <td className="p-3 text-center">
+                      <td className="px-2 py-3 text-center align-middle">
                         {row.show_in_gnb ? (
                           <span title="GNB 상단 표시">
-                            <PanelTop className="h-4 w-4 inline text-sky-600" aria-hidden />
+                            <PanelTop className="inline h-4 w-4 text-sky-600" aria-hidden />
                           </span>
                         ) : (
                           '-'
                         )}
                       </td>
-                      <td className="p-3 text-center">{row.view_count}</td>
-                      <td className="p-3 text-right text-gray-600 whitespace-nowrap w-[140px] min-w-[140px]">{formatDate(row.created_at)}</td>
-                      <td className="p-3 text-right">
-                        <Link href={`/admin/board/notices/edit?id=${row.id}`}>
-                          <Button variant="ghost" size="sm" className="mr-1">
-                            <Edit className="h-4 w-4" />
+                      <td className="px-2 py-3 text-center align-middle tabular-nums text-gray-700">
+                        {row.view_count.toLocaleString()}
+                      </td>
+                      <td className="px-3 py-3 text-center align-middle tabular-nums text-gray-600">
+                        {formatDate(row.created_at)}
+                      </td>
+                      <td className="px-3 py-2 text-center align-middle">
+                        <div className="flex items-center justify-center gap-1">
+                          <Link href={`/admin/board/notices/edit?id=${row.id}`}>
+                            <Button variant="ghost" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                            onClick={() => handleDeleteClick(row.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
-                        </Link>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700"
-                          onClick={() => handleDeleteClick(row.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        </div>
                       </td>
                     </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {totalCount > 20 && (
-            <div className="flex justify-between items-center mt-4">
-              <span className="text-gray-500 text-sm">총 {totalCount}건</span>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-                  이전
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page * 20 >= totalCount}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  다음
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <ListPagination
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          total={totalCount}
+          disabled={loading}
+        />
+      </div>
 
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>공지 삭제</DialogTitle>
-            <DialogDescription>이 공지를 삭제하시겠습니까? 복구할 수 없습니다.</DialogDescription>
+        <DialogContent className="flex w-full max-w-lg flex-col gap-0 overflow-hidden p-0 sm:rounded-lg [&>button]:text-white [&>button]:hover:bg-white/10 [&>button]:hover:text-white [&>button]:ring-offset-[#021a2e]">
+          <DialogHeader className="shrink-0 border-b border-white/10 bg-[#021a2e] px-6 py-4 text-left text-white sm:text-left">
+            <DialogTitle className="text-lg font-semibold text-white">공지 삭제</DialogTitle>
           </DialogHeader>
-          <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+          <div className="px-6 py-4">
+            <DialogDescription className="text-sm text-gray-600">
+              이 공지를 삭제하시겠습니까? 복구할 수 없습니다.
+            </DialogDescription>
+          </div>
+          <DialogFooter className="flex items-center justify-end gap-2 border-t border-gray-200 bg-slate-100 px-6 py-4 sm:gap-2">
             <Button type="button" variant="outline" size="sm" onClick={() => setDeleteModalOpen(false)}>
               취소
             </Button>
-            <Button type="button" size="sm" className="bg-red-500 text-white hover:bg-red-600" onClick={handleDeleteConfirm}>
+            <Button
+              type="button"
+              size="sm"
+              className="bg-red-500 text-white hover:bg-red-600"
+              onClick={handleDeleteConfirm}
+            >
               삭제
             </Button>
           </DialogFooter>
@@ -246,51 +284,58 @@ export default function NoticeListPage() {
       </Dialog>
 
       <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-        <DialogContent className="max-w-[1008px] max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>공지 상세</DialogTitle>
+        <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col gap-0 overflow-hidden p-0 sm:rounded-lg [&>button]:text-white [&>button]:hover:bg-white/10 [&>button]:hover:text-white [&>button]:ring-offset-[#021a2e]">
+          <DialogHeader className="shrink-0 border-b border-white/10 bg-[#308edc] px-6 py-4 text-left text-white sm:text-left">
+            <DialogTitle className="text-lg font-semibold text-white">공지 상세</DialogTitle>
           </DialogHeader>
-          {detailLoading ? (
-            <p className="text-gray-500 py-6">불러오는 중...</p>
-          ) : detail ? (
-            <div className="space-y-4">
-              <div>
-                <span className="text-sm text-gray-500">제목</span>
-                <p className="font-medium">{detail.title}</p>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+            {detailLoading ? (
+              <p className="py-6 text-gray-500">불러오는 중...</p>
+            ) : detail ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <span className="min-w-[100px] text-sm text-gray-500">제목 : </span>
+                  <p className="font-medium text-[#000]">{detail.title}</p>
+                </div>
+                <div className="flex items-center gap-4 justify-between">
+                  <div className="flex items-center gap-4 justify-left">
+                    <span className="min-w-[100px] text-sm text-gray-500">상단고정 : </span>
+                    <p>{detail.is_pinned ? '예' : '아니오'}</p>
+                    <span className="min-w-[100px] text-sm text-gray-500">GNB 상단에 표시 : </span>
+                    <p>{detail.show_in_gnb ? '예' : '아니오'}</p>
+                  </div>
+                  <div className="flex items-center gap-4 justify-end">
+                    <span className="min-w-[100px] text-sm text-gray-500">조회수 · 등록일 : </span>
+                    <p className="text-sm text-gray-600">
+                      {detail.view_count}회 · {formatDate(detail.created_at)}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-4 items-start">
+                  <span className="min-w-[100px] pt-1 text-sm text-gray-500">내용</span>
+                  <div
+                    className="flex-1 mt-0 max-h-60 overflow-y-auto rounded border bg-gray-50 p-4 text-sm prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: detail.content || '' }}
+                  />
+                </div>
               </div>
-              <div>
-                <span className="text-sm text-gray-500">상단고정</span>
-                <p>{detail.is_pinned ? '예' : '아니오'}</p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500">GNB 상단에 표시</span>
-                <p>{detail.show_in_gnb ? '예' : '아니오'}</p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500">조회수 · 등록일</span>
-                <p className="text-sm text-gray-600">{detail.view_count}회 · {formatDate(detail.created_at)}</p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-500">내용</span>
-                <div
-                  className="mt-1 rounded border bg-gray-50 p-4 text-sm max-h-60 overflow-y-auto prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: detail.content || '' }}
-                />
-              </div>
-            </div>
-          ) : (
-            <p className="text-gray-500 py-6">내용을 불러올 수 없습니다.</p>
-          )}
-          <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+        
+            ) : (
+              <p className="py-6 text-gray-500">내용을 불러올 수 없습니다.</p>
+            )}
+          </div>
+          <div className="flex flex-wrap justify-end gap-2 border-t border-gray-200 bg-slate-100 px-6 py-4">
             <Button type="button" variant="outline" size="sm" onClick={() => setDetailModalOpen(false)}>
               닫기
             </Button>
-            {detail && (
+            {detail ? (
               <Link href={`/admin/board/notices/edit?id=${detail.id}`}>
-                <Button type="button" variant="outline" size="sm">수정</Button>
+                <Button type="button" variant="outline" size="sm">
+                  수정
+                </Button>
               </Link>
-            )}
-          </DialogFooter>
+            ) : null}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

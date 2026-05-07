@@ -30,11 +30,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ListPagination } from '@/components/admin/ListPagination'
+import { cn } from '@/lib/utils'
+import { ADMIN_CONTENT_TABLE_HEAD_TH } from '@/lib/adminContentListTable'
 import { Plus, Pencil, Trash2, RefreshCw } from 'lucide-react'
 
 const PAGE_SIZE = 20
 const EVENT_TYPE_FILTER_ALL = '__all__'
+const TH = ADMIN_CONTENT_TABLE_HEAD_TH
+
+const COL_ID = 'w-16 min-w-16 max-w-16 px-2'
+const COL_THUMB = 'w-[88px] min-w-[88px] max-w-[88px] px-2'
+const COL_TITLE = 'min-w-0 px-3'
+const COL_EVENT_TYPE = 'w-[132px] min-w-[132px] max-w-[132px] px-2'
+const COL_CONTENT = 'w-[140px] min-w-[140px] max-w-[140px] px-2'
+const COL_ORDER = 'w-[72px] min-w-[72px] max-w-[72px] px-2'
+const COL_ACTIVE = 'w-[72px] min-w-[72px] max-w-[72px] px-2'
+const COL_ACTIONS = 'w-20 min-w-20 max-w-20 px-0.5'
 
 function bannerPreviewUrl(row: DisplayEventHeroItem): string | null {
   const direct = row.imageUrl?.trim()
@@ -142,33 +154,16 @@ export default function DisplayEventsListPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">이벤트 베너 관리</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Hero 배너 등 노출 행을 관리합니다. (eventBannerPlan)
-          </p>
-        </div>
-        <div className="flex items-center justify-end gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            새로고침
-          </Button>
-          <Button asChild size="sm" className="bg-black text-white hover:bg-gray-800">
-            <Link href="/admin/display-events/new">
-              <Plus className="h-4 w-4 mr-2" />
-              등록
-            </Link>
-          </Button>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between space-y-0">
-          <CardTitle className="text-lg">목록 ({count}건)</CardTitle>
-          <div className="flex flex-col gap-1.5 w-full sm:w-64">
-            <Label htmlFor="display-event-type-filter" className="text-xs text-muted-foreground">
+    <div className="space-y-2 relative">
+      {/* 필터/툴바 — defaultUxUiListPlan.md 규격 */}
+      <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-2 flex justify-between">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="flex items-center gap-4 md:col-span-2 lg:col-span-2">
+            <Label
+              htmlFor="display-event-type-filter"
+              className="whitespace-nowrap text-sm font-medium text-gray-700"
+              style={{ minWidth: 'fit-content' }}
+            >
               이벤트 유형
             </Label>
             <Select
@@ -178,7 +173,7 @@ export default function DisplayEventsListPage() {
                 setPage(1)
               }}
             >
-              <SelectTrigger id="display-event-type-filter" className="h-9">
+              <SelectTrigger id="display-event-type-filter" className="h-9 min-w-[12rem]">
                 <SelectValue placeholder="전체" />
               </SelectTrigger>
               <SelectContent>
@@ -191,118 +186,158 @@ export default function DisplayEventsListPage() {
               </SelectContent>
             </Select>
           </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-sm text-gray-500 py-8 text-center">불러오는 중…</p>
-          ) : rows.length === 0 ? (
-            <p className="text-sm text-gray-500 py-8 text-center">
-              {eventTypeFilter.trim()
-                ? '선택한 이벤트 유형에 해당하는 항목이 없습니다.'
-                : '등록된 항목이 없습니다.'}
-            </p>
-          ) : (
-            <div className="overflow-x-auto border rounded-md">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="text-left p-3 font-medium w-16">ID</th>
-                    <th className="text-left p-3 font-medium w-[6.5rem]">이미지</th>
-                    <th className="text-left p-3 font-medium">제목</th>
-                    <th className="text-left p-3 font-medium min-w-[7rem]">이벤트 유형</th>
-                    <th className="text-left p-3 font-medium min-w-[8rem]">콘텐츠</th>
-                    <th className="text-left p-3 font-medium w-20">순서</th>
-                    <th className="text-left p-3 font-medium w-20">활성</th>
-                    <th className="text-right p-3 font-medium w-32">작업</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.displayEventId} className="border-b last:border-0 hover:bg-gray-50/80">
-                      <td className="p-3 font-mono text-xs">{r.displayEventId}</td>
-                      <td className="p-2 align-middle">
+     
+        </div>
+
+        <div className="flex flex-wrap items-center justify-end gap-2 lg:col-span-1">
+            <Button type="button" variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
+              <RefreshCw className={`mr-2 h-4 w-4 shrink-0 ${loading ? 'animate-spin' : ''}`} aria-hidden />
+              새로고침
+            </Button>
+            <Link href="/admin/display-events/new">
+              <Button type="button" size="sm" className="bg-black text-white hover:bg-gray-800">
+                <Plus className="mr-2 h-4 w-4 shrink-0" aria-hidden />
+                새 이벤트 배너
+              </Button>
+            </Link>
+          </div>
+
+      </div>
+
+      {/* 테이블 — defaultUxUiListPlan.md 규격 */}
+      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+        {loading ? (
+          <div className="p-12 text-center text-gray-500">
+            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-gray-900" />
+            로딩 중...
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="p-12 text-center text-gray-500">
+            {eventTypeFilter.trim() ? '선택한 이벤트 유형에 해당하는 항목이 없습니다.' : '등록된 항목이 없습니다.'}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full table-fixed border-collapse">
+              <colgroup>
+                <col className="w-16" />
+                <col className="w-[88px]" />
+                <col />
+                <col className="w-[132px]" />
+                <col className="w-[140px]" />
+                <col className="w-[72px]" />
+                <col className="w-[72px]" />
+                <col className="w-20" />
+              </colgroup>
+              <thead className="border-b border-white/15 bg-[#03213b] text-[#fff] text-sm shadow-sm bg-muted text-muted-foreground rounded-t-md h-12">
+                <tr>
+                  <th className={cn(TH, COL_ID, 'text-center')}>ID</th>
+                  <th className={cn(TH, COL_THUMB, 'text-center')}>이미지</th>
+                  <th className={cn(TH, COL_TITLE, 'text-left normal-case')}>제목</th>
+                  <th className={cn(TH, COL_EVENT_TYPE, 'text-center normal-case')}>이벤트 유형</th>
+                  <th className={cn(TH, COL_CONTENT, 'text-center normal-case')}>콘텐츠</th>
+                  <th className={cn(TH, COL_ORDER, 'text-center normal-case')}>순서</th>
+                  <th className={cn(TH, COL_ACTIVE, 'text-center')}>활성</th>
+                  <th className={cn(TH, COL_ACTIONS, 'text-center')}>작업</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {rows.map((r) => (
+                  <tr key={r.displayEventId} className="hover:bg-gray-50">
+                    <td className={cn(COL_ID, 'py-3 align-middle text-center text-sm text-gray-600 tabular-nums')}>
+                      {r.displayEventId}
+                    </td>
+                    <td className={cn(COL_THUMB, 'py-3 align-middle')}>
+                      <div className="flex justify-center">
                         <BannerThumbCell url={bannerPreviewUrl(r)} />
-                      </td>
-                      <td className="p-3 max-w-[200px] truncate">
+                      </div>
+                    </td>
+                    <td className={cn(COL_TITLE, 'py-3 align-middle text-left text-sm text-gray-900')}>
+                      <Link
+                        href={`/admin/display-events/edit?id=${r.displayEventId}`}
+                        className="block w-full truncate font-medium text-[#000] no-underline hover:text-[#000] hover:no-underline"
+                        title={(r.title || r.content?.title || '—') + ' — 수정'}
+                      >
                         {r.title || r.content?.title || '—'}
-                      </td>
-                      <td className="p-3 text-sm">
-                        {getSysCodeName(eventTypeCodes, r.eventTypeCode)}
-                      </td>
-                      <td className="p-3 text-sm">
-                        <span className="block">
-                          {getSysCodeName(contentTypeCodes, r.contentTypeCode)}
-                        </span>
-                        {r.contentId != null && (
-                          <span className="text-xs text-gray-500">ID {r.contentId}</span>
-                        )}
-                      </td>
-                      <td className="p-3">{r.displayOrder ?? '—'}</td>
-                      <td className="p-3">{r.isActive === false ? 'N' : 'Y'}</td>
-                      <td className="p-3 text-right space-x-1">
-                        <Button variant="ghost" size="icon" asChild title="수정">
+                      </Link>
+                    </td>
+                    <td className={cn(COL_EVENT_TYPE, 'py-3 align-middle text-center text-sm text-gray-600')}>
+                      {getSysCodeName(eventTypeCodes, r.eventTypeCode)}
+                    </td>
+                    <td className={cn(COL_CONTENT, 'py-3 align-middle text-center text-sm text-gray-600')}>
+                      <span className="block">{getSysCodeName(contentTypeCodes, r.contentTypeCode)}</span>
+                      {r.contentId != null ? (
+                        <span className="block text-xs text-gray-500 tabular-nums">ID {r.contentId}</span>
+                      ) : null}
+                    </td>
+                    <td className={cn(COL_ORDER, 'py-3 align-middle text-center text-sm text-gray-600 tabular-nums')}>
+                      {r.displayOrder ?? '—'}
+                    </td>
+                    <td className={cn(COL_ACTIVE, 'py-3 align-middle text-center')}>
+                      {r.isActive === false ? (
+                        <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">N</span>
+                      ) : (
+                        <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">Y</span>
+                      )}
+                    </td>
+                    <td className={cn(COL_ACTIONS, 'py-2 align-middle text-center')}>
+                      <div className="flex items-center justify-center gap-0">
+                        <Button variant="ghost" size="icon" asChild title="수정" className="h-6 w-6 shrink-0 p-0">
                           <Link href={`/admin/display-events/edit?id=${r.displayEventId}`}>
-                            <Pencil className="h-4 w-4" />
+                            <Pencil className="h-3 w-3" />
                           </Link>
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           title="삭제"
+                          className="h-6 w-6 shrink-0 p-0 text-red-600 hover:text-red-700"
                           onClick={() => {
                             setDeleteTarget(r)
                             setDeleteOpen(true)
                           }}
                         >
-                          <Trash2 className="h-4 w-4 text-red-600" />
+                          <Trash2 className="h-3 w-3" />
                         </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 mt-6">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                이전
-              </Button>
-              <span className="text-sm text-gray-600">
-                {page} / {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              >
-                다음
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        {count > 0 ? (
+          <ListPagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            total={count}
+            disabled={loading}
+          />
+        ) : null}
+      </div>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>삭제 확인</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="flex w-full max-w-lg flex-col gap-0 overflow-hidden p-0 sm:rounded-lg [&>button]:text-white [&>button]:hover:bg-white/10 [&>button]:hover:text-white [&>button]:ring-offset-[#021a2e]">
+          <DialogHeader className="shrink-0 border-b border-white/10 bg-[#021a2e] px-6 py-4 text-left text-white sm:text-left">
+            <DialogTitle className="text-lg font-semibold text-white">삭제 확인</DialogTitle>
+          </DialogHeader>
+          <div className="px-6 py-4">
+            <DialogDescription className="text-sm text-gray-600">
               ID {deleteTarget?.displayEventId} 항목을 삭제할까요? 이 작업은 되돌릴 수 없습니다.
             </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+          </div>
+          <DialogFooter className="flex items-center justify-end gap-2 border-t border-gray-200 bg-slate-100 px-6 py-4 sm:gap-2">
             <Button type="button" variant="outline" size="sm" onClick={() => setDeleteOpen(false)}>
               취소
             </Button>
-            <Button type="button" size="sm" className="bg-red-500 text-white hover:bg-red-600" onClick={() => void confirmDelete()}>
+            <Button
+              type="button"
+              size="sm"
+              className="bg-red-500 text-white hover:bg-red-600"
+              onClick={() => void confirmDelete()}
+            >
               삭제
             </Button>
           </DialogFooter>

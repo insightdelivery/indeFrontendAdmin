@@ -196,12 +196,6 @@ export default function ContentAuthorNewPage() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">작성자 등록</h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              콘텐츠 저자(에디터/디렉터)를 등록합니다. 프로필 이미지와 연결 관리자를 선택할 수 있습니다.
-            </p>
-          </div>
         </div>
       </header>
 

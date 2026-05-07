@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { getUserInfo } from '@/services/auth'
 import type { DashboardVisitorChartRow, MemberChartGranularity } from '@/services/dashboard'
+import { TrendingUp } from 'lucide-react'
 
 const ACCENT_VISITOR = '#EA90FF'
 
@@ -139,7 +140,15 @@ export default function DashboardVisitorTrendCard({
 
   return (
     <section className="space-y-2" aria-label="방문자 추이">
-      <h2 className="text-lg font-semibold tracking-tight text-foreground">방문자 추이</h2>
+      <div>
+        <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground">
+          <span className="inline-flex items-center rounded-full bg-gray-300 px-6 py-1.5 text-gray-900">
+            <TrendingUp className="h-5 w-5 shrink-0 text-gray-700 mr-3" aria-hidden />
+            방문자 추이
+          </span>
+        </h2>
+        <hr className="mt-[-2px] ml-5 h-0.5 border-0 bg-gray-200" />
+      </div>
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="flex min-h-[120px]">
           <div className="w-1.5 shrink-0" style={{ backgroundColor: ACCENT_VISITOR }} aria-hidden />

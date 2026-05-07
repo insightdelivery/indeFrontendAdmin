@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { ExternalLink } from 'lucide-react'
+import { ExternalLink, Eye, MessageSquare, UserCog, Users } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -212,8 +212,8 @@ export default function DashboardOverviewCards({
   }, [showVisitor, showAligo, showMemberMgmt])
 
   const visitorColClass = useMemo(() => {
-    if (showVisitor && showAligo && showMemberMgmt) return 'md:col-span-2'
-    if (showVisitor && showMemberMgmt && !showAligo) return 'md:col-span-2'
+    if (showVisitor && showAligo && showMemberMgmt) return 'md:col-span-3'
+    if (showVisitor && showMemberMgmt && !showAligo) return 'md:col-span-3'
     if (showVisitor && showAligo && !showMemberMgmt) return 'md:col-span-2'
     return ''
   }, [showVisitor, showAligo, showMemberMgmt])
@@ -225,8 +225,8 @@ export default function DashboardOverviewCards({
   }, [showVisitor, showAligo, showMemberMgmt])
 
   const memberColClass = useMemo(() => {
-    if (showVisitor && showAligo && showMemberMgmt) return 'md:col-span-4'
-    if (showVisitor && showMemberMgmt) return 'md:col-span-4'
+    if (showVisitor && showAligo && showMemberMgmt) return 'md:col-span-3'
+    if (showVisitor && showMemberMgmt) return 'md:col-span-3'
     return ''
   }, [showVisitor, showAligo, showMemberMgmt])
 
@@ -236,7 +236,15 @@ export default function DashboardOverviewCards({
     <section className="space-y-8" aria-label="회원·방문·문의 요약">
       {showMember ? (
         <div>
-          <h2 className="mb-2 text-lg font-semibold tracking-tight text-foreground">회원 현황</h2>
+          <div className="mb-2">
+            <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground">
+              <span className="inline-flex items-center rounded-full bg-gray-300 px-6 py-1.5 text-gray-900">
+                <Users className="h-5 w-5 shrink-0 text-gray-700 mr-3" aria-hidden />
+                회원 현황
+              </span>
+            </h2>
+            <hr className="mt-[-2px] ml-5 h-0.5 border-0 bg-gray-200" />
+          </div>
           <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             <div className="flex min-h-[140px]">
               <div className="w-1.5 shrink-0" style={{ backgroundColor: ACCENT_MEMBER }} aria-hidden />
@@ -404,7 +412,15 @@ export default function DashboardOverviewCards({
         <div className={cn('grid items-stretch gap-8', overviewRowGridClass)}>
           {showVisitor ? (
             <div className={cn('flex h-full min-h-0 flex-col', visitorColClass)}>
-              <h2 className="mb-2 text-lg font-semibold tracking-tight text-foreground">방문자 현황</h2>
+              <div className="mb-2">
+                <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground">
+                  <span className="inline-flex items-center rounded-full bg-gray-300 px-6 py-1.5 text-gray-900">
+                    <Eye className="h-5 w-5 shrink-0 text-gray-700 mr-3" aria-hidden />
+                    방문자 현황
+                  </span>
+                </h2>
+                <hr className="mt-[-2px] ml-5 h-0.5 border-0 bg-gray-200" />
+              </div>
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                 <div className="flex min-h-[140px] flex-1">
                   <div className="w-1.5 shrink-0" style={{ backgroundColor: ACCENT_VISITOR }} aria-hidden />
@@ -445,7 +461,15 @@ export default function DashboardOverviewCards({
 
           {showAligo ? (
             <div className={cn('flex h-full min-h-0 flex-col', aligoColClass)}>
-              <h2 className="mb-2 text-lg font-semibold tracking-tight text-foreground">알리고 잔여 문자량</h2>
+              <div className="mb-2">
+                <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground">
+                  <span className="inline-flex items-center rounded-full bg-gray-300 px-6 py-1.5 text-gray-900">
+                    <MessageSquare className="h-5 w-5 shrink-0 text-gray-700 mr-3" aria-hidden />
+                    알리고 잔여 문자량
+                  </span>
+                </h2>
+                <hr className="mt-[-2px] ml-5 h-0.5 border-0 bg-gray-200" />
+              </div>
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                 <div className="flex min-h-[140px] flex-1">
                   <div className="w-1.5 shrink-0" style={{ backgroundColor: ACCENT_ALIGO_BAR }} aria-hidden />
@@ -488,7 +512,15 @@ export default function DashboardOverviewCards({
 
           {showMemberMgmt ? (
             <div className={cn('flex h-full min-h-0 flex-col', memberColClass)}>
-              <h2 className="mb-2 text-lg font-semibold tracking-tight text-foreground">회원 관리</h2>
+              <div className="mb-2">
+                <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-foreground">
+                  <span className="inline-flex items-center rounded-full bg-gray-300 px-6 py-1.5 text-gray-900">
+                    <UserCog className="h-5 w-5 shrink-0 text-gray-700 mr-3" aria-hidden />
+                    회원 관리
+                  </span>
+                </h2>
+                <hr className="mt-[-2px] ml-5 h-0.5 border-0 bg-gray-200" />
+              </div>
               {canLinkInquiries ? (
                 <Link
                   href="/admin/board/inquiries"

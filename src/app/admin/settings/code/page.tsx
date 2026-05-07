@@ -684,13 +684,6 @@ export default function SystemCodePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="min-w-0 pr-4">
-          <h1 className="text-lg font-semibold text-gray-900">시스템 코드 관리</h1>
-          <p className="text-sm text-gray-600 mt-1">시스템 코드를 조회하고 관리할 수 있습니다.</p>
-        </div>
-      </div>
-
       <div className="flex flex-col lg:flex-row gap-4 lg:space-x-0">
         {/* 왼쪽: 코드 목록 */}
         <div className="w-full lg:w-1/3 flex flex-col min-h-0 bg-white rounded-lg shadow-sm border border-gray-200">

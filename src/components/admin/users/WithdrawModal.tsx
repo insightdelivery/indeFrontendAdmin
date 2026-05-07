@@ -48,19 +48,19 @@ export function WithdrawModal({ open, onOpenChange, member, onConfirm }: Withdra
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>회원 탈퇴 처리</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="flex w-full max-w-lg flex-col gap-0 overflow-hidden p-0 sm:rounded-lg [&>button]:text-white [&>button]:hover:bg-white/10 [&>button]:hover:text-white [&>button]:ring-offset-[#021a2e]">
+        <DialogHeader className="shrink-0 border-b border-white/10 bg-[#021a2e] px-6 py-4 text-left text-white sm:text-left">
+          <DialogTitle className="text-lg font-semibold text-white">회원 탈퇴 처리</DialogTitle>
+          <DialogDescription className="text-slate-200">
             이 회원을 탈퇴 처리하시겠습니까? 탈퇴 시 로그인이 불가하며, 복구는 수정 페이지에서 할 수 있습니다.
-            {member && (
-              <span className="mt-2 block font-medium text-gray-700">
-                대상: {member.name} ({member.email})
-              </span>
-            )}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div className="grid gap-4 px-6 py-4">
+          {member ? (
+            <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+              <span className="font-medium">대상</span>: {member.name} ({member.email})
+            </div>
+          ) : null}
           <div className="grid gap-2">
             <Label htmlFor="withdraw-reason">탈퇴 사유 (선택)</Label>
             <Input
@@ -80,7 +80,7 @@ export function WithdrawModal({ open, onOpenChange, member, onConfirm }: Withdra
             />
           </div>
         </div>
-        <DialogFooter className="flex items-center justify-end gap-2 sm:gap-2">
+        <DialogFooter className="flex items-center justify-end gap-2 border-t border-gray-200 bg-slate-100 px-6 py-4 sm:gap-2">
           <Button type="button" variant="outline" size="sm" onClick={handleClose} disabled={submitting}>
             취소
           </Button>

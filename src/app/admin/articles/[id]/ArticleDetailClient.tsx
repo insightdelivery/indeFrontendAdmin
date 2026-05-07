@@ -193,12 +193,8 @@ export default function ArticleDetailClient() {
               목록으로
             </Button>
           </Link>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-lg font-semibold text-gray-900">아티클 상세</h1>
-              {getStatusBadge(article.status)}
-            </div>
-            <p className="text-sm text-gray-600 mt-1">아티클 정보를 확인하세요.</p>
+          <div className="min-w-0 flex flex-wrap items-center gap-2">
+            {getStatusBadge(article.status)}
           </div>
         </div>
         <div className="flex flex-shrink-0 items-center justify-end gap-2">
