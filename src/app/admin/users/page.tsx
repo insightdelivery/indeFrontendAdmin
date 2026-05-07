@@ -250,8 +250,8 @@ export default function UsersPage() {
                 <col className="w-[132px]" />
                 <col className="w-24" />
               </colgroup>
-              <thead className="border-b border-white/15 bg-[#03213b] text-[#fff] text-sm shadow-sm bg-muted text-muted-foreground rounded-t-md h-12">
-                <tr>
+              <thead className="border-b h-12 border-white/15 text-[#fff] text-sm shadow-sm rounded-t-md">
+                <tr style={{ backgroundColor: '#03213b' }}>
                   <th className={cn(TH, COL_SID, 'text-center')}>SID</th>
                   <th className={cn(TH, COL_EMAIL, 'text-left normal-case')}>이메일</th>
                   <th className={cn(TH, COL_NAME, 'text-center')}>이름</th>

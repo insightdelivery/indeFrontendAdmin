@@ -263,8 +263,8 @@ export default function ContentAuthorListPage() {
                 <col className="w-[104px]" />
                 <col className="w-24" />
               </colgroup>
-              <thead className="border-b h-12 border-white/15 bg-[#03213b] text-[#fff] text-sm shadow-sm bg-muted text-muted-foreground rounded-t-md">
-                <tr>
+              <thead className="border-b h-12 border-white/15 text-[#fff] text-sm shadow-sm rounded-t-md">
+                <tr style={{ backgroundColor: '#03213b' }}>
                   <th className={cn(TH, COL_ID, 'text-center')}>ID</th>
                   <th className={cn(TH, COL_AVATAR, 'text-center')}>프로필</th>
                   <th className={cn(TH, COL_NAME, 'text-left normal-case')}>이름</th>
@@ -276,6 +276,7 @@ export default function ContentAuthorListPage() {
                   <th className={cn(TH, COL_ACTIONS, 'text-center')}>작업</th>
                 </tr>
               </thead>
+         
               <tbody className="divide-y divide-gray-200 bg-white">
                 {authors.map((author) => (
                   <tr key={author.author_id} className="hover:bg-gray-50">

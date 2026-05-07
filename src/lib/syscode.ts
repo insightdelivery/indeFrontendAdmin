@@ -14,6 +14,9 @@ export interface SysCodeItem {
 const CACHE_DURATION = 24 * 60 * 60 * 1000 // 24시간 (밀리초)
 const CACHE_KEY = 'sysCodeData' // 단일 캐시 키 사용
 
+/** sysCodeManager(관리자 메뉴) 루트 — sysCodeData 캐시에서 제외(하위 포함) */
+const SYSCODE_EXCLUDE_ROOT = 'SYS26330B006'
+
 /** Display Event — eventTypeCode (eventBannerPlan) */
 export const DISPLAY_EVENT_TYPE_PARENT = 'SYS26320B003'
 /** Display Event — contentTypeCode */
@@ -36,6 +39,18 @@ export const SYSCODE_LOGIN_PARENT_IDS = [
   DISPLAY_CONTENT_TYPE_PARENT, // 전시 콘텐츠 타입
   INQUIRY_TYPE_PARENT, // 1:1 문의 유형
 ] as const
+
+type SysCodeTreeNode = {
+  sysCodeSid: string
+  sysCodeParentsSid?: string
+  sysCodeName: string
+  sysCodeVal?: string | null
+  sysCodeValue?: string | null
+  sysCodeSort?: number | null
+  sysCodeUse?: string | null
+  sysCodeUseFlag?: string | null
+  children?: SysCodeTreeNode[]
+}
 
 // syscode 데이터를 localStorage에서 가져오기
 export const getSysCodeFromCache = (sysCodeGubn: string): SysCodeItem[] | null => {
@@ -127,6 +142,61 @@ const setSysCodeBulkToCache = (payload: Record<string, SysCodeItem[]>): void => 
   }
 }
 
+function unwrapApiArray<T>(data: any): T[] {
+  if (Array.isArray(data)) return data as T[]
+  if (data?.IndeAPIResponse?.ErrorCode === '00') return (data.IndeAPIResponse.Result ?? []) as T[]
+  if (Array.isArray(data?.results)) return data.results as T[]
+  if (Array.isArray(data?.Result)) return data.Result as T[]
+  return []
+}
+
+async function fetchSysCodeManageTree(): Promise<SysCodeTreeNode[]> {
+  try {
+    const response = await apiClient.get('/systemmanage/syscode/code_tree')
+    return unwrapApiArray<SysCodeTreeNode>(response.data)
+  } catch (error) {
+    console.error('❌ 시스템 코드 code_tree 조회 실패:', error)
+    return []
+  }
+}
+
+function buildCachePayloadFromTree(roots: SysCodeTreeNode[]): Record<string, SysCodeItem[]> {
+  const payload: Record<string, SysCodeItem[]> = {}
+
+  const visit = (node: SysCodeTreeNode, excluded: boolean) => {
+    const isExcludedNode = excluded || node.sysCodeSid === SYSCODE_EXCLUDE_ROOT
+    if (isExcludedNode) return
+
+    const children = Array.isArray(node.children) ? node.children : []
+    // 규칙:
+    // - "하위(children)가 있는 노드"만 key로 저장한다.
+    // - 하위에 포함된 leaf(자식 없는) 노드는 key로 따로 만들지 않는다. (빈 배열 key 방지)
+    if (children.length > 0) {
+      payload[node.sysCodeSid] = toSysCodeItems(children as any[])
+      for (const ch of children) visit(ch, false)
+    }
+  }
+
+  for (const root of roots) visit(root, false)
+  return payload
+}
+
+/**
+ * sysCodeManage(code_tree) 전체 데이터를 계층 기준으로 캐시에 채운다.
+ * - localStorage 키는 단일 `sysCodeData`
+ * - `SYS26330B006` 노드 및 하위(자식) 트리는 저장하지 않는다.
+ */
+export const hydrateSysCodeCacheFromManage = async (): Promise<void> => {
+  try {
+    const roots = await fetchSysCodeManageTree()
+    const payload = buildCachePayloadFromTree(roots)
+    setSysCodeBulkToCache(payload)
+    console.log(`✅ sysCodeManage(code_tree) 캐시 저장 완료: ${Object.keys(payload).length}개 parent`)
+  } catch (error) {
+    console.error('❌ sysCodeManage(code_tree) 캐시 저장 실패:', error)
+  }
+}
+
 // syscode 데이터를 API에서 가져오기
 export const fetchSysCodeFromAPI = async (sysCodeGubn: string): Promise<SysCodeItem[]> => {
   try {
@@ -169,15 +239,16 @@ export const fetchSysCodeFromAPI = async (sysCodeGubn: string): Promise<SysCodeI
   }
 }
 
-// syscode 데이터 가져오기 (캐시 우선, 없으면 API 호출). 빈 배열도 캐시 히트로 본다.
+// syscode 데이터 가져오기 (캐시 우선). 캐시가 없으면 sysCodeManage(code_tree)로 전체를 채운 뒤 반환한다.
 export const getSysCode = async (sysCodeGubn: string): Promise<SysCodeItem[]> => {
   const cachedData = getSysCodeFromCache(sysCodeGubn)
   if (cachedData !== null) {
     return cachedData
   }
-  const apiData = await fetchSysCodeFromAPI(sysCodeGubn)
-  setSysCodeToCache(sysCodeGubn, apiData)
-  return apiData
+  // 규칙: sysCodeManage 전체(하이락) 구조로 받아 캐시에 넣는다.
+  clearSysCodeCache()
+  await hydrateSysCodeCacheFromManage()
+  return getSysCodeFromCache(sysCodeGubn) ?? []
 }
 
 // 특정 syscode의 이름 가져오기
@@ -294,21 +365,16 @@ export const clearSysCodeCache = (): void => {
 }
 
 /**
- * 로그인 시 기존 sysCodeData를 비운 뒤, bulk API로 받은 값만 localStorage에 다시 저장한다.
+ * 로그인 시 기존 sysCodeData를 비운 뒤, sysCodeManage(code_tree)의 전체 데이터를
+ * 하이락(계층) 구조로 받아 localStorage에 저장한다.
+ * (단, SYS26330B006 및 하위 트리는 저장하지 않음)
  */
 export const loadSysCodeOnLogin = async (
   parentIds: readonly string[] = SYSCODE_LOGIN_PARENT_IDS
 ): Promise<void> => {
   clearSysCodeCache()
   try {
-    const bulkData = await fetchSysCodeBulkByParents(parentIds)
-    const hasData = Object.keys(bulkData).length > 0
-    if (hasData) {
-      setSysCodeBulkToCache(bulkData)
-      console.log(`✅ 로그인 시 시스템 코드 bulk 저장 완료: ${Object.keys(bulkData).length}개 parent`)
-    } else {
-      console.warn('⚠️ 로그인 시 시스템 코드 bulk 데이터가 비어있음')
-    }
+    await hydrateSysCodeCacheFromManage()
   } catch (error) {
     console.error('❌ 로그인 시 시스템 코드 로드 실패:', error)
   }

@@ -228,8 +228,8 @@ export default function DisplayEventsListPage() {
                 <col className="w-[72px]" />
                 <col className="w-20" />
               </colgroup>
-              <thead className="border-b border-white/15 bg-[#03213b] text-[#fff] text-sm shadow-sm bg-muted text-muted-foreground rounded-t-md h-12">
-                <tr>
+              <thead className="border-b h-12 border-white/15 text-[#fff] text-sm shadow-sm rounded-t-md">
+                <tr style={{ backgroundColor: '#03213b' }}>
                   <th className={cn(TH, COL_ID, 'text-center')}>ID</th>
                   <th className={cn(TH, COL_THUMB, 'text-center')}>이미지</th>
                   <th className={cn(TH, COL_TITLE, 'text-left normal-case')}>제목</th>
