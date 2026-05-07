@@ -29,6 +29,31 @@ function formatDate(s: string) {
   })
 }
 
+function escapeHtml(s: string) {
+  return s
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function toNoticeDisplayHtml(content: string | null | undefined) {
+  const raw = (content ?? '').trim()
+  if (!raw) return ''
+
+  // 에디터가 만든 HTML이면 그대로 렌더링
+  if (/<[a-z][\s\S]*>/i.test(raw)) {
+    // 빈 문단(<p></p>, <p>&nbsp;</p> 등)은 줄바꿈으로 보이도록 <br/>을 보강한다.
+    return raw
+      .replaceAll(/<p>\s*<\/p>/gi, '<p><br/></p>')
+      .replaceAll(/<p>\s*&nbsp;\s*<\/p>/gi, '<p><br/></p>')
+  }
+
+  // 일반 텍스트면 줄바꿈을 <br/>로 변환 (XSS 방지를 위해 escape)
+  return escapeHtml(raw).replace(/\r?\n/g, '<br/>')
+}
+
 const PAGE_SIZE = 20
 
 export default function NoticeListPage() {
@@ -288,7 +313,7 @@ export default function NoticeListPage() {
           <DialogHeader className="shrink-0 border-b border-white/10 bg-[#308edc] px-6 py-4 text-left text-white sm:text-left">
             <DialogTitle className="text-lg font-semibold text-white">공지 상세</DialogTitle>
           </DialogHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          <div className="min-h-[500px] flex-1 overflow-y-auto px-6 py-4">
             {detailLoading ? (
               <p className="py-6 text-gray-500">불러오는 중...</p>
             ) : detail ? (
@@ -314,8 +339,8 @@ export default function NoticeListPage() {
                 <div className="flex gap-4 items-start">
                   <span className="min-w-[100px] pt-1 text-sm text-gray-500">내용</span>
                   <div
-                    className="flex-1 mt-0 max-h-60 overflow-y-auto rounded border bg-gray-50 p-4 text-sm prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: detail.content || '' }}
+                    className="flex-1 mt-0 max-h-100 overflow-y-auto whitespace-pre-wrap rounded border bg-gray-50 p-4 text-sm prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: toNoticeDisplayHtml(detail.content) }}
                   />
                 </div>
               </div>

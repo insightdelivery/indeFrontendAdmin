@@ -103,7 +103,7 @@ export default function EditNoticeClient({ id }: { id: string }) {
             </div>
       
             <div className="flex items-center">
-              <div style={{ height: '600px', width: '100%' }}>
+              <div>
                 <RichTextEditor
                   value={content}
                   onChange={(value) => setContent(value)}

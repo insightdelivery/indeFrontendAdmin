@@ -71,7 +71,7 @@ export default function NewNoticePage() {
                 className="max-w-xl"
               />
             </div>
-            <div style={{ height: '600px', width: '100%' }}>
+            <div>
               <RichTextEditor
                 value={content}
                 onChange={(value) => setContent(value)}
