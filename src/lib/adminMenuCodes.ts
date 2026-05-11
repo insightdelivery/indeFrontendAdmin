@@ -8,6 +8,8 @@ export const MenuCodes = {
   ARTICLE: 'SYS26330B008',
   VIDEO: 'SYS26330B009',
   SEMINAR: 'SYS26330B010',
+  /** 특집(큐레이션) 관리 — sysCodeManager에 SYS26511B001 행 필요 */
+  CURATION: 'SYS26511B001',
   NOTICE: 'SYS26330B018',
   FAQ: 'SYS26330B019',
   INQUIRY: 'SYS26330B020',
@@ -38,8 +40,7 @@ export const MENU_CODE_BY_ADMIN_PATH: Record<string, string> = {
   '/admin/articles': MenuCodes.ARTICLE,
   '/admin/video': MenuCodes.VIDEO,
   '/admin/seminar': MenuCodes.SEMINAR,
-  /** 세미나 관리와 동일 권한 — 특집(큐레이션) */
-  '/admin/curation': MenuCodes.SEMINAR,
+  '/admin/curation': MenuCodes.CURATION,
   '/admin/contentAuthor': MenuCodes.CONTENT_AUTHOR,
   '/admin/display-events': MenuCodes.DISPLAY_EVENTS,
   '/admin/homepage-docs': MenuCodes.HOMEPAGE_DOC,
